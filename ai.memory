@@ -40,9 +40,9 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 | Lot | Statut | Date |
 |---|---|---|
 | Lot 0 — Bootstrap & outillage | ✅ Terminé (commit `37b87ac`, `dc2e51d`) | 2026-09-08 |
-| Lot 1 — Documentation & mémoire | 🔄 En cours | 2026-09-08 |
-| Lot 2 — Domaine & persistance | 🔄 En cours (agent parallèle) | 2026-09-08 |
-| Lot 3 — Moteur de calcul | ⏳ En attente (dépend de Lot 2) | — |
+| Lot 1 — Documentation & mémoire | ✅ Terminé (commit `bca0545`) | 2026-09-08 |
+| Lot 2 — Domaine & persistance | ✅ Terminé (commit `6adf432`, agent parallèle) | 2026-09-08 |
+| Lot 3 — Moteur de calcul | 🔄 En cours | 2026-09-08 |
 | Lots 4-14 | ⏳ En attente | — |
 
 ## Dette technique
@@ -60,6 +60,7 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 ## Résultats de tests
 
 - 2026-09-08 — Lot 0 : `typecheck` ✅, `lint` ✅, `format:check` ✅, `test` (vitest) ✅ 3/3, `build` ✅ (PWA générée, precache 6 entrées), `test:e2e` (Playwright, Chromium) ✅ 1/1.
+- 2026-09-08 — Lot 2 : `typecheck` ✅, `lint` ✅, `format:check` ✅, `test` ✅ 10/10 (4 fichiers), `build` ✅. Entités zod (`base, appSettings, masterData, imports, planning, audit`), repository IndexedDB générique validé, service de backup export/import (transaction unique, atomique), erreurs de persistance typées. Écart documenté : `DemandSnapshot.importBatchId` utilise le littéral `'manual'` (au lieu de `null`) pour rester compatible avec les clés composées/index IndexedDB.
 
 ## Prochaines actions
 
