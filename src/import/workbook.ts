@@ -1,4 +1,4 @@
-import XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 
 import {
   IMPORT_MONTH_COLUMN_COUNT,
