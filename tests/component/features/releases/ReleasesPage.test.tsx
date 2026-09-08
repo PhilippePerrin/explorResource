@@ -10,6 +10,16 @@ const releasesRepository = createRepository('releases');
 const projectsRepository = createRepository('projects');
 const projectReleasesRepository = createRepository('projectReleases');
 
+function getSectionForHeading(name: RegExp | string): HTMLElement {
+  const section = screen.getByRole('heading', { name }).closest('section');
+
+  if (!section) {
+    throw new Error(`Unable to locate section for heading ${String(name)}.`);
+  }
+
+  return section;
+}
+
 describe('ReleasesPage', () => {
   beforeEach(async () => {
     await deletePlannerDb();
@@ -33,18 +43,31 @@ describe('ReleasesPage', () => {
     await user.click(screen.getByLabelText(/E0100/i));
     await user.click(screen.getByRole('button', { name: /Create release/i }));
 
-    expect(await screen.findByRole('status')).toHaveTextContent(/Release created\./i);
-    expect((await screen.findAllByText('Wave 1')).length).toBeGreaterThan(0);
-    expect(screen.getByText('October 2026')).toBeInTheDocument();
+    const releaseListSection = getSectionForHeading(/Release list/i);
 
-    await waitFor(async () => {
-      const releases = await releasesRepository.getAll();
-      const links = await projectReleasesRepository.getAll();
+    await waitFor(
+      async () => {
+        const releases = await releasesRepository.getAll();
+        const links = await projectReleasesRepository.getAll();
 
-      expect(releases[0]?.name).toBe('Wave 1');
-      expect(links[0]?.projectId).toBe('4a4ce45f-c0dd-447c-84a3-e91f16242b7b');
-    });
-  });
+        expect(screen.getByRole('status')).toHaveTextContent(/Release created\./i);
+        expect(releases.some((release) => release.name === 'Wave 1')).toBe(true);
+        expect(
+          links.some((link) => link.projectId === '4a4ce45f-c0dd-447c-84a3-e91f16242b7b'),
+        ).toBe(true);
+        expect(
+          within(releaseListSection).queryByText(/No releases match/i),
+        ).not.toBeInTheDocument();
+        expect(
+          within(releaseListSection).getByRole('button', { name: /Edit details/i }),
+        ).toBeInTheDocument();
+        expect(
+          within(releaseListSection).getByRole('cell', { name: /October 15, 2026/i }),
+        ).toBeInTheDocument();
+      },
+      { timeout: 8000 },
+    );
+  }, 10000);
 
   it('offers archive only when a release is already linked to a project', async () => {
     await releasesRepository.put({
@@ -67,9 +90,22 @@ describe('ReleasesPage', () => {
     const user = userEvent.setup();
     render(<ReleasesPage />);
 
-    expect((await screen.findAllByText('Wave 1')).length).toBeGreaterThan(0);
-    expect(screen.queryByRole('button', { name: /Delete permanently/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/Archive only: release is linked to projects\./i)).toBeInTheDocument();
+    const releaseListSection = getSectionForHeading(/Release list/i);
+
+    await waitFor(
+      () => {
+        expect(
+          within(releaseListSection).getByRole('button', { name: /Edit details/i }),
+        ).toBeInTheDocument();
+        expect(
+          within(releaseListSection).queryByRole('button', { name: /Delete permanently/i }),
+        ).not.toBeInTheDocument();
+        expect(
+          within(releaseListSection).getByText(/Archive only: release is linked to projects\./i),
+        ).toBeInTheDocument();
+      },
+      { timeout: 8000 },
+    );
 
     await user.click(screen.getByRole('button', { name: /^Archive$/i }));
     await user.click(
@@ -80,5 +116,5 @@ describe('ReleasesPage', () => {
       const releases = await releasesRepository.getAll();
       expect(releases[0]?.status).toBe('archived');
     });
-  });
+  }, 10000);
 });

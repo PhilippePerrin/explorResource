@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import type {
@@ -152,6 +152,7 @@ export function ProjectsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState('');
+  const loadRequestIdRef = useRef(0);
 
   const editingProject = useMemo(
     () => data.projects.find((project) => project.id === editingProjectId),
@@ -190,12 +191,9 @@ export function ProjectsPage() {
     void loadData();
   }, []);
 
-  useEffect(() => {
-    form.reset(createProjectDefaultValues(editingProject, data.projectReleases));
-  }, [data.projectReleases, editingProject, form]);
-
   async function loadData() {
     setLoading(true);
+    const requestId = ++loadRequestIdRef.current;
 
     try {
       const [projects, releases, projectReleases, groups, demandSnapshots, allocations] =
@@ -208,6 +206,10 @@ export function ProjectsPage() {
           allocationsRepository.getAll(),
         ]);
 
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setData({
         projects,
         releases,
@@ -217,7 +219,9 @@ export function ProjectsPage() {
         allocations,
       });
     } finally {
-      setLoading(false);
+      if (loadRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -269,7 +273,12 @@ export function ProjectsPage() {
 
       await loadData();
       setEditingProjectId(projectId);
-      form.reset(createProjectDefaultValues(nextProject));
+      form.reset({
+        code: nextProject.code,
+        name: nextProject.name,
+        status: nextProject.status,
+        releaseIds: [...values.releaseIds],
+      });
       setFeedback(editingProject ? 'Project updated.' : 'Project created.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save project.');
@@ -488,7 +497,12 @@ export function ProjectsPage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() => setEditingProjectId(project.id)}
+                              onClick={() => {
+                                setEditingProjectId(project.id);
+                                form.reset(
+                                  createProjectDefaultValues(project, data.projectReleases),
+                                );
+                              }}
                               type="button"
                             >
                               Edit details

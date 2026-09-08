@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import type { Project, ProjectRelease, Release } from '@/domain/entities';
@@ -127,6 +127,7 @@ export function ReleasesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState('');
+  const loadRequestIdRef = useRef(0);
 
   const editingRelease = useMemo(
     () => data.releases.find((release) => release.id === editingReleaseId),
@@ -169,12 +170,9 @@ export function ReleasesPage() {
     void loadData();
   }, []);
 
-  useEffect(() => {
-    form.reset(createReleaseDefaultValues(editingRelease, data.projectReleases));
-  }, [data.projectReleases, editingRelease, form]);
-
   async function loadData() {
     setLoading(true);
+    const requestId = ++loadRequestIdRef.current;
 
     try {
       const [releases, projects, projectReleases] = await Promise.all([
@@ -183,9 +181,15 @@ export function ReleasesPage() {
         projectReleasesRepository.getAll(),
       ]);
 
+      if (loadRequestIdRef.current !== requestId) {
+        return;
+      }
+
       setData({ releases, projects, projectReleases });
     } finally {
-      setLoading(false);
+      if (loadRequestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -219,7 +223,13 @@ export function ReleasesPage() {
       await syncReleaseProjectLinks(releaseId, values.projectIds, data.projectReleases, timestamp);
       await loadData();
       setEditingReleaseId(releaseId);
-      form.reset(createReleaseDefaultValues(payload));
+      form.reset({
+        name: payload.name,
+        goLiveDate: payload.goLiveDate,
+        color: payload.color ?? '#00427f',
+        status: payload.status,
+        projectIds: [...values.projectIds],
+      });
       setFeedback(editingRelease ? 'Release updated.' : 'Release created.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save release.');
@@ -413,7 +423,12 @@ export function ReleasesPage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() => setEditingReleaseId(release.id)}
+                              onClick={() => {
+                                setEditingReleaseId(release.id);
+                                form.reset(
+                                  createReleaseDefaultValues(release, data.projectReleases),
+                                );
+                              }}
                               type="button"
                             >
                               Edit details
