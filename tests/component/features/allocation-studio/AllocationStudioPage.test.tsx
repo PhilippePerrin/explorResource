@@ -106,6 +106,8 @@ describe('AllocationStudioPage', () => {
     );
     expect(await screen.findByText(/Demand coverage after change/i)).toBeInTheDocument();
     expect(await screen.findByText(/Over-service after: 1 d/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Over-served/i)).toBeInTheDocument();
+    expect(screen.getAllByText('↗').length).toBeGreaterThan(0);
     expect(await allocationsRepository.getAll()).toHaveLength(0);
 
     await user.click(

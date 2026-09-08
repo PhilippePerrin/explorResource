@@ -50,6 +50,7 @@ export function buildCapacityRows(options: {
   year: number;
   searchTerm: string;
   resourceTypeFilter: string;
+  companyFilter: string;
   statusFilter: 'all' | Resource['status'];
 }): CapacityRow[] {
   const resourceTypeLookup = new Map(
@@ -66,13 +67,15 @@ export function buildCapacityRows(options: {
       const matchesType =
         options.resourceTypeFilter === 'all' ||
         resource.resourceTypeId === options.resourceTypeFilter;
+      const matchesCompany =
+        options.companyFilter === 'all' || (resource.companyId ?? '') === options.companyFilter;
       const resourceName = getResourceFullName(resource);
       const matchesSearch =
         normalizedSearch.length === 0 ||
         resourceName.toUpperCase().includes(normalizedSearch) ||
         resourceTypeLabel.toUpperCase().includes(normalizedSearch);
 
-      return matchesStatus && matchesType && matchesSearch;
+      return matchesStatus && matchesType && matchesCompany && matchesSearch;
     })
     .sort((left, right) => {
       const leftType = resourceTypeLookup.get(left.resourceTypeId) ?? left.resourceTypeId;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
+import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import type {
   Allocation,
   DemandSnapshot,
@@ -9,6 +10,7 @@ import type {
   ProjectRelease,
   Release,
 } from '@/domain/entities';
+import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 
@@ -31,6 +33,12 @@ const demandSnapshotsRepository = createRepository('demandSnapshots');
 const allocationsRepository = createRepository('allocations');
 
 type StatusFilter = 'all' | Project['status'];
+
+interface ProjectFilters {
+  searchTerm: string;
+  statusFilter: StatusFilter;
+  releaseIdsFilter: readonly string[];
+}
 
 interface ProjectsPageData {
   projects: Project[];
@@ -148,11 +156,26 @@ export function ProjectsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | undefined>();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState('');
   const loadRequestIdRef = useRef(0);
+  const filterDefinitions = useMemo<FilterDefinitions<ProjectFilters>>(
+    () => ({
+      searchTerm: { defaultValue: '', param: 'q' },
+      statusFilter: { defaultValue: 'all', param: 'status' },
+      releaseIdsFilter: { defaultValue: [], param: 'release' },
+    }),
+    [],
+  );
+  const {
+    filters,
+    favorites,
+    updateFilter,
+    resetFilters,
+    saveFavorite,
+    applyFavorite,
+    removeFavorite,
+  } = usePersistentPageFilters('projects', filterDefinitions);
 
   const editingProject = useMemo(
     () => data.projects.find((project) => project.id === editingProjectId),
@@ -168,19 +191,83 @@ export function ProjectsPage() {
     () => new Map(data.releases.map((release) => [release.id, release])),
     [data.releases],
   );
+  const projectReleaseIdsByProjectId = useMemo(() => {
+    const lookup = new Map<string, string[]>();
+
+    for (const link of data.projectReleases) {
+      const current = lookup.get(link.projectId) ?? [];
+      current.push(link.releaseId);
+      lookup.set(link.projectId, current);
+    }
+
+    return lookup;
+  }, [data.projectReleases]);
   const projectRows = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toUpperCase();
+    const normalizedSearch = filters.searchTerm.trim().toUpperCase();
 
     return sortedProjects.filter((project) => {
-      const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+      const matchesStatus =
+        filters.statusFilter === 'all' || project.status === filters.statusFilter;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         project.code.includes(normalizedSearch) ||
         project.name.toUpperCase().includes(normalizedSearch);
+      const projectReleaseIds = projectReleaseIdsByProjectId.get(project.id) ?? [];
+      const matchesReleaseFilter =
+        filters.releaseIdsFilter.length === 0 ||
+        projectReleaseIds.some((releaseId) => filters.releaseIdsFilter.includes(releaseId));
 
-      return matchesStatus && matchesSearch;
+      return matchesStatus && matchesSearch && matchesReleaseFilter;
     });
-  }, [searchTerm, sortedProjects, statusFilter]);
+  }, [
+    filters.releaseIdsFilter,
+    filters.searchTerm,
+    filters.statusFilter,
+    projectReleaseIdsByProjectId,
+    sortedProjects,
+  ]);
+  const filterFields = useMemo<FilterBarField[]>(
+    () => [
+      {
+        type: 'search',
+        key: 'searchTerm',
+        label: 'Search projects',
+        value: filters.searchTerm,
+        placeholder: 'Search by code or name',
+        onChange: (value) => updateFilter('searchTerm', value),
+      },
+      {
+        type: 'single-select',
+        key: 'statusFilter',
+        label: 'Status filter',
+        value: filters.statusFilter,
+        options: [
+          { value: 'all', label: 'All statuses' },
+          { value: 'active', label: 'Active' },
+          { value: 'archived', label: 'Archived' },
+        ],
+        onChange: (value) => updateFilter('statusFilter', value as StatusFilter),
+      },
+      {
+        type: 'multi-select',
+        key: 'releaseIdsFilter',
+        label: 'Linked releases',
+        values: filters.releaseIdsFilter,
+        options: releaseOptions.map((release) => ({
+          value: release.id,
+          label: release.name,
+        })),
+        onChange: (value) => updateFilter('releaseIdsFilter', value),
+      },
+    ],
+    [
+      filters.releaseIdsFilter,
+      filters.searchTerm,
+      filters.statusFilter,
+      releaseOptions,
+      updateFilter,
+    ],
+  );
 
   const form = useForm<ProjectFormValues>({
     defaultValues: createProjectDefaultValues(),
@@ -389,35 +476,16 @@ export function ProjectsPage() {
             </button>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_12rem]">
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="project-search">
-                Search projects
-              </label>
-              <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="project-search"
-                placeholder="Search by code or name"
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="project-status-filter">
-                Status filter
-              </label>
-              <select
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="project-status-filter"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
+          <div className="mb-4">
+            <FilterBar
+              favorites={favorites}
+              fields={filterFields}
+              onApplyFavorite={applyFavorite}
+              onDeleteFavorite={removeFavorite}
+              onReset={resetFilters}
+              onSaveFavorite={saveFavorite}
+              resultsSummary={`${projectRows.length} project(s)`}
+            />
           </div>
 
           {loading ? (

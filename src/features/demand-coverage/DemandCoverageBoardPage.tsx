@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
+import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import type { DemandCoverageState } from '@/domain/calculations';
 import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
+import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 
-import { buildDemandCoverageRows } from './demandCoverageModel';
+import { buildDemandCoverageRows, type DemandCoverageRow } from './demandCoverageModel';
 
 const projectsRepository = createRepository('projects');
 const resourceTypesRepository = createRepository('resourceTypes');
@@ -17,6 +21,14 @@ interface DemandCoverageData {
   demandSnapshots: DemandSnapshot[];
 }
 
+interface DemandCoverageFilters {
+  year: number;
+  projectSearch: string;
+  resourceTypeFilter: string;
+  projectCodesFilter: readonly string[];
+  coverageStateFilter: 'all' | DemandCoverageState;
+}
+
 function formatDayAmount(value: number): string {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 1,
@@ -24,8 +36,25 @@ function formatDayAmount(value: number): string {
   }).format(value);
 }
 
+function buildCoverageTooltip(
+  summary: Pick<
+    DemandCoverageRow['months'][number],
+    'demandDays' | 'allocatedDays' | 'remainingDemandDays' | 'overServiceDays'
+  >,
+): string {
+  return `Demand ${formatDayAmount(summary.demandDays)} d, covered ${formatDayAmount(summary.allocatedDays)} d, gap ${formatDayAmount(summary.remainingDemandDays)} d, over-service ${formatDayAmount(summary.overServiceDays)} d.`;
+}
+
+function buildCoverageRatePercent(demandDays: number, allocatedDays: number) {
+  if (demandDays === 0) {
+    return 100;
+  }
+
+  return Math.min(100, (allocatedDays / demandDays) * 100);
+}
+
 export function DemandCoverageBoardPage() {
-  const now = new Date();
+  const initialYear = useRef(new Date().getFullYear()).current;
   const [data, setData] = useState<DemandCoverageData>({
     projects: [],
     resourceTypes: [],
@@ -34,11 +63,26 @@ export function DemandCoverageBoardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
-  const [year, setYear] = useState(now.getFullYear());
-  const [projectSearch, setProjectSearch] = useState('');
-  const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
-  const [showOnlyGaps, setShowOnlyGaps] = useState(false);
   const loadRequestIdRef = useRef(0);
+  const filterDefinitions = useMemo<FilterDefinitions<DemandCoverageFilters>>(
+    () => ({
+      year: { defaultValue: initialYear, param: 'year' },
+      projectSearch: { defaultValue: '', param: 'q' },
+      resourceTypeFilter: { defaultValue: 'all', param: 'type' },
+      projectCodesFilter: { defaultValue: [], param: 'project' },
+      coverageStateFilter: { defaultValue: 'all', param: 'coverage' },
+    }),
+    [initialYear],
+  );
+  const {
+    filters,
+    favorites,
+    updateFilter,
+    resetFilters,
+    saveFavorite,
+    applyFavorite,
+    removeFavorite,
+  } = usePersistentPageFilters('demand-coverage-board', filterDefinitions);
 
   useEffect(() => {
     void loadData();
@@ -71,10 +115,22 @@ export function DemandCoverageBoardPage() {
   }
 
   const yearOptions = useMemo(() => {
-    const years = new Set<number>([year]);
+    const years = new Set<number>([filters.year]);
     for (const snapshot of data.demandSnapshots) years.add(snapshot.year);
     return [...years].sort((left, right) => left - right);
-  }, [data.demandSnapshots, year]);
+  }, [data.demandSnapshots, filters.year]);
+  const projectFilterOptions = useMemo(
+    () =>
+      [...data.projects]
+        .sort((left, right) =>
+          left.code.localeCompare(right.code, undefined, { sensitivity: 'base' }),
+        )
+        .map((project) => ({
+          value: project.code,
+          label: `${project.code} — ${project.name}`,
+        })),
+    [data.projects],
+  );
   const rows = useMemo(
     () =>
       buildDemandCoverageRows({
@@ -82,20 +138,96 @@ export function DemandCoverageBoardPage() {
         resourceTypes: data.resourceTypes,
         demandSnapshots: data.demandSnapshots,
         allocations: data.allocations,
-        year,
-        projectSearch,
-        resourceTypeFilter,
-        showOnlyGaps,
+        year: filters.year,
+        projectSearch: filters.projectSearch,
+        projectCodesFilter: filters.projectCodesFilter,
+        resourceTypeFilter: filters.resourceTypeFilter,
+        coverageStateFilter: filters.coverageStateFilter,
       }),
     [
       data.allocations,
       data.demandSnapshots,
       data.projects,
       data.resourceTypes,
-      projectSearch,
-      resourceTypeFilter,
-      showOnlyGaps,
-      year,
+      filters.coverageStateFilter,
+      filters.projectCodesFilter,
+      filters.projectSearch,
+      filters.resourceTypeFilter,
+      filters.year,
+    ],
+  );
+  const filterFields = useMemo<FilterBarField[]>(
+    () => [
+      {
+        type: 'single-select',
+        key: 'year',
+        label: 'Year',
+        value: String(filters.year),
+        options: yearOptions.map((optionYear) => ({
+          value: String(optionYear),
+          label: String(optionYear),
+        })),
+        onChange: (value) => updateFilter('year', Number(value)),
+      },
+      {
+        type: 'search',
+        key: 'projectSearch',
+        label: 'Project search',
+        value: filters.projectSearch,
+        placeholder: 'Code or name',
+        onChange: (value) => updateFilter('projectSearch', value),
+      },
+      {
+        type: 'single-select',
+        key: 'resourceTypeFilter',
+        label: 'Resource type',
+        value: filters.resourceTypeFilter,
+        options: [
+          { value: 'all', label: 'All resource types' },
+          ...data.resourceTypes.map((resourceType) => ({
+            value: resourceType.id,
+            label: resourceType.label,
+          })),
+        ],
+        onChange: (value) => updateFilter('resourceTypeFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'coverageStateFilter',
+        label: 'Coverage state',
+        value: filters.coverageStateFilter,
+        options: [
+          { value: 'all', label: 'All states' },
+          { value: 'covered', label: 'Covered' },
+          { value: 'uncovered', label: 'Uncovered' },
+          { value: 'over-served', label: 'Over-served' },
+          { value: 'mixed', label: 'Mixed' },
+        ],
+        onChange: (value) =>
+          updateFilter(
+            'coverageStateFilter',
+            value as DemandCoverageFilters['coverageStateFilter'],
+          ),
+      },
+      {
+        type: 'multi-select',
+        key: 'projectCodesFilter',
+        label: 'Projects',
+        values: filters.projectCodesFilter,
+        options: projectFilterOptions,
+        onChange: (value) => updateFilter('projectCodesFilter', value),
+      },
+    ],
+    [
+      data.resourceTypes,
+      filters.coverageStateFilter,
+      filters.projectCodesFilter,
+      filters.projectSearch,
+      filters.resourceTypeFilter,
+      filters.year,
+      projectFilterOptions,
+      updateFilter,
+      yearOptions,
     ],
   );
 
@@ -124,60 +256,15 @@ export function DemandCoverageBoardPage() {
         </p>
       ) : null}
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-        <div className="grid gap-3 lg:grid-cols-4">
-          <label className="text-sm font-medium" htmlFor="coverage-year">
-            Year
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="coverage-year"
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-            >
-              {yearOptions.map((optionYear) => (
-                <option key={optionYear} value={optionYear}>
-                  {optionYear}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium" htmlFor="coverage-project-search">
-            Project search
-            <input
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="coverage-project-search"
-              placeholder="Code or name"
-              type="search"
-              value={projectSearch}
-              onChange={(event) => setProjectSearch(event.target.value)}
-            />
-          </label>
-          <label className="text-sm font-medium" htmlFor="coverage-resource-type">
-            Resource type
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="coverage-resource-type"
-              value={resourceTypeFilter}
-              onChange={(event) => setResourceTypeFilter(event.target.value)}
-            >
-              <option value="all">All</option>
-              {data.resourceTypes.map((resourceType) => (
-                <option key={resourceType.id} value={resourceType.id}>
-                  {resourceType.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 rounded-lg border border-[var(--surf-divider)] px-3 py-2 text-sm font-medium">
-            <input
-              checked={showOnlyGaps}
-              onChange={(event) => setShowOnlyGaps(event.target.checked)}
-              type="checkbox"
-            />
-            Show only rows with uncovered demand
-          </label>
-        </div>
-      </section>
+      <FilterBar
+        favorites={favorites}
+        fields={filterFields}
+        onApplyFavorite={applyFavorite}
+        onDeleteFavorite={removeFavorite}
+        onReset={resetFilters}
+        onSaveFavorite={saveFavorite}
+        resultsSummary={`${rows.length} board row(s)`}
+      />
 
       <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -213,7 +300,7 @@ export function DemandCoverageBoardPage() {
                   {Array.from({ length: 12 }, (_, index) => (
                     <th className="px-3 py-2 font-semibold" key={index + 1} scope="col">
                       {new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
-                        new Date(year, index, 1),
+                        new Date(filters.year, index, 1),
                       )}
                     </th>
                   ))}
@@ -231,6 +318,25 @@ export function DemandCoverageBoardPage() {
                     </td>
                     <td className="px-3 py-2">{row.resourceTypeLabel}</td>
                     <td className="px-3 py-2">
+                      <div className="mb-2">
+                        <DemandCoverageBadge
+                          compact
+                          summary={{
+                            coverageRatePercent: buildCoverageRatePercent(
+                              row.totalDemandDays,
+                              row.totalAllocatedDays,
+                            ),
+                            remainingDemandDays: row.totalRemainingDemandDays,
+                            overServiceDays: row.totalOverServiceDays,
+                          }}
+                          tooltip={buildCoverageTooltip({
+                            demandDays: row.totalDemandDays,
+                            allocatedDays: row.totalAllocatedDays,
+                            remainingDemandDays: row.totalRemainingDemandDays,
+                            overServiceDays: row.totalOverServiceDays,
+                          })}
+                        />
+                      </div>
                       <ul className="space-y-1 text-xs">
                         <li>Demand {formatDayAmount(row.totalDemandDays)} d</li>
                         <li>Covered {formatDayAmount(row.totalAllocatedDays)} d</li>
@@ -241,9 +347,13 @@ export function DemandCoverageBoardPage() {
                     {row.months.map((cell) => (
                       <td className="px-3 py-2" key={cell.month}>
                         <div className="min-w-[11rem] rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-2 text-xs">
-                          <p className="font-medium">
-                            Coverage {formatDayAmount(cell.coverageRatePercent)}%
-                          </p>
+                          <div className="mb-2">
+                            <DemandCoverageBadge
+                              compact
+                              summary={cell}
+                              tooltip={buildCoverageTooltip(cell)}
+                            />
+                          </div>
                           <p>Demand {formatDayAmount(cell.demandDays)} d</p>
                           <p>Covered {formatDayAmount(cell.allocatedDays)} d</p>
                           <p>Gap {formatDayAmount(cell.remainingDemandDays)} d</p>

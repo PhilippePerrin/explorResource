@@ -83,8 +83,9 @@ describe('demandCoverageModel', () => {
       ],
       year: 2026,
       projectSearch: '',
+      projectCodesFilter: [],
       resourceTypeFilter: 'all',
-      showOnlyGaps: false,
+      coverageStateFilter: 'all',
     });
 
     expect(rows).toHaveLength(1);
@@ -92,17 +93,20 @@ describe('demandCoverageModel', () => {
     expect(rows[0]?.totalAllocatedDays).toBe(7);
     expect(rows[0]?.totalRemainingDemandDays).toBe(2);
     expect(rows[0]?.totalOverServiceDays).toBe(2);
+    expect(rows[0]?.coverageState).toBe('mixed');
     expect(rows[0]?.months[2]).toMatchObject({
       demandDays: 5,
       allocatedDays: 3,
       remainingDemandDays: 2,
       overServiceDays: 0,
+      coverageState: 'uncovered',
     });
     expect(rows[0]?.months[3]).toMatchObject({
       demandDays: 2,
       allocatedDays: 4,
       remainingDemandDays: 0,
       overServiceDays: 2,
+      coverageState: 'over-served',
     });
   });
 });

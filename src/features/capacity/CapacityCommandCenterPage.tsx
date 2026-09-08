@@ -7,15 +7,18 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
+import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import type {
   Allocation,
   AppSettings,
+  Company,
   Resource,
   ResourceNonWorkingDays,
   ResourceType,
   WorkingDaysCalendar,
 } from '@/domain/entities';
+import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { createRepository } from '@/persistence/repository';
 
 import {
@@ -28,6 +31,7 @@ import {
 
 const resourcesRepository = createRepository('resources');
 const resourceTypesRepository = createRepository('resourceTypes');
+const companiesRepository = createRepository('companies');
 const allocationsRepository = createRepository('allocations');
 const workingDaysRepository = createRepository('workingDaysCalendars');
 const resourceNonWorkingDaysRepository = createRepository('resourceNonWorkingDays');
@@ -36,10 +40,20 @@ const appSettingsRepository = createRepository('appSettings');
 interface CapacityData {
   resources: Resource[];
   resourceTypes: ResourceType[];
+  companies: Company[];
   allocations: Allocation[];
   workingDaysCalendars: WorkingDaysCalendar[];
   resourceNonWorkingDays: ResourceNonWorkingDays[];
   appSettings: AppSettings | null;
+}
+
+interface CapacityFilters {
+  year: number;
+  focus: CapacityFocus;
+  searchTerm: string;
+  resourceTypeFilter: string;
+  companyFilter: string;
+  statusFilter: 'all' | Resource['status'];
 }
 
 function formatDayAmount(value: number, displayPrecision = 1): string {
@@ -50,10 +64,11 @@ function formatDayAmount(value: number, displayPrecision = 1): string {
 }
 
 export function CapacityCommandCenterPage() {
-  const now = new Date();
+  const initialDate = useRef(new Date()).current;
   const [data, setData] = useState<CapacityData>({
     resources: [],
     resourceTypes: [],
+    companies: [],
     allocations: [],
     workingDaysCalendars: [],
     resourceNonWorkingDays: [],
@@ -61,17 +76,32 @@ export function CapacityCommandCenterPage() {
   });
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
-  const [year, setYear] = useState(now.getFullYear());
-  const [focus, setFocus] = useState<CapacityFocus>('year');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | Resource['status']>('all');
   const [selectedDrilldown, setSelectedDrilldown] = useState<{
     row: CapacityRow;
     month: number;
   } | null>(null);
   const loadRequestIdRef = useRef(0);
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const filterDefinitions = useMemo<FilterDefinitions<CapacityFilters>>(
+    () => ({
+      year: { defaultValue: initialDate.getFullYear(), param: 'year' },
+      focus: { defaultValue: 'year', param: 'focus' },
+      searchTerm: { defaultValue: '', param: 'q', storage: 'local' },
+      resourceTypeFilter: { defaultValue: 'all', param: 'type' },
+      companyFilter: { defaultValue: 'all', param: 'company' },
+      statusFilter: { defaultValue: 'all', param: 'status' },
+    }),
+    [initialDate],
+  );
+  const {
+    filters,
+    favorites,
+    updateFilter,
+    resetFilters,
+    saveFavorite,
+    applyFavorite,
+    removeFavorite,
+  } = usePersistentPageFilters('capacity-command-center', filterDefinitions);
 
   useEffect(() => {
     void loadData();
@@ -85,6 +115,7 @@ export function CapacityCommandCenterPage() {
       const [
         resources,
         resourceTypes,
+        companies,
         allocations,
         workingDaysCalendars,
         resourceNonWorkingDays,
@@ -92,6 +123,7 @@ export function CapacityCommandCenterPage() {
       ] = await Promise.all([
         resourcesRepository.getAll(),
         resourceTypesRepository.getAll(),
+        companiesRepository.getAll(),
         allocationsRepository.getAll(),
         workingDaysRepository.getAll(),
         resourceNonWorkingDaysRepository.getAll(),
@@ -105,6 +137,7 @@ export function CapacityCommandCenterPage() {
       setData({
         resources,
         resourceTypes,
+        companies,
         allocations,
         workingDaysCalendars,
         resourceNonWorkingDays,
@@ -120,11 +153,11 @@ export function CapacityCommandCenterPage() {
   }
 
   const yearOptions = useMemo(() => {
-    const years = new Set<number>([year]);
+    const years = new Set<number>([filters.year]);
     for (const entry of data.allocations) years.add(entry.year);
     for (const entry of data.workingDaysCalendars) years.add(entry.year);
     return [...years].sort((left, right) => left - right);
-  }, [data.allocations, data.workingDaysCalendars, year]);
+  }, [data.allocations, data.workingDaysCalendars, filters.year]);
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
   const rows = useMemo(
     () =>
@@ -135,10 +168,11 @@ export function CapacityCommandCenterPage() {
         workingDaysCalendars: data.workingDaysCalendars,
         resourceNonWorkingDays: data.resourceNonWorkingDays,
         appSettings: data.appSettings,
-        year,
-        searchTerm,
-        resourceTypeFilter,
-        statusFilter,
+        year: filters.year,
+        searchTerm: filters.searchTerm,
+        resourceTypeFilter: filters.resourceTypeFilter,
+        companyFilter: filters.companyFilter,
+        statusFilter: filters.statusFilter,
       }),
     [
       data.allocations,
@@ -147,13 +181,110 @@ export function CapacityCommandCenterPage() {
       data.resourceTypes,
       data.resources,
       data.workingDaysCalendars,
-      resourceTypeFilter,
-      searchTerm,
-      statusFilter,
-      year,
+      filters.companyFilter,
+      filters.resourceTypeFilter,
+      filters.searchTerm,
+      filters.statusFilter,
+      filters.year,
     ],
   );
-  const visibleMonths = useMemo(() => getFocusMonths(focus), [focus]);
+  const visibleMonths = useMemo(() => getFocusMonths(filters.focus), [filters.focus]);
+  const filterFields = useMemo<FilterBarField[]>(
+    () => [
+      {
+        type: 'search',
+        key: 'searchTerm',
+        label: 'Search',
+        value: filters.searchTerm,
+        placeholder: 'Search by resource or type',
+        onChange: (value) => updateFilter('searchTerm', value),
+      },
+      {
+        type: 'single-select',
+        key: 'resourceTypeFilter',
+        label: 'Resource type',
+        value: filters.resourceTypeFilter,
+        options: [
+          { value: 'all', label: 'All resource types' },
+          ...data.resourceTypes.map((resourceType) => ({
+            value: resourceType.id,
+            label: resourceType.label,
+          })),
+        ],
+        onChange: (value) => updateFilter('resourceTypeFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'companyFilter',
+        label: 'Company',
+        value: filters.companyFilter,
+        options: [
+          { value: 'all', label: 'All companies' },
+          ...data.companies
+            .slice()
+            .sort((left, right) =>
+              left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }),
+            )
+            .map((company) => ({
+              value: company.id,
+              label: company.name,
+            })),
+        ],
+        onChange: (value) => updateFilter('companyFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'statusFilter',
+        label: 'Status',
+        value: filters.statusFilter,
+        options: [
+          { value: 'all', label: 'All statuses' },
+          { value: 'active', label: 'Active' },
+          { value: 'archived', label: 'Archived' },
+        ],
+        onChange: (value) => updateFilter('statusFilter', value as CapacityFilters['statusFilter']),
+      },
+      {
+        type: 'single-select',
+        key: 'focus',
+        label: 'Focus',
+        value: filters.focus,
+        options: [
+          { value: 'year', label: 'Year' },
+          { value: 's1', label: 'S1' },
+          { value: 's2', label: 'S2' },
+          { value: 'q1', label: 'Q1' },
+          { value: 'q2', label: 'Q2' },
+          { value: 'q3', label: 'Q3' },
+          { value: 'q4', label: 'Q4' },
+        ],
+        onChange: (value) => updateFilter('focus', value as CapacityFocus),
+      },
+      {
+        type: 'single-select',
+        key: 'year',
+        label: 'Year',
+        value: String(filters.year),
+        options: yearOptions.map((optionYear) => ({
+          value: String(optionYear),
+          label: String(optionYear),
+        })),
+        onChange: (value) => updateFilter('year', Number(value)),
+      },
+    ],
+    [
+      data.companies,
+      data.resourceTypes,
+      filters.companyFilter,
+      filters.focus,
+      filters.resourceTypeFilter,
+      filters.searchTerm,
+      filters.statusFilter,
+      filters.year,
+      updateFilter,
+      yearOptions,
+    ],
+  );
   const columnHelper = createColumnHelper<CapacityRow>();
   const columns = useMemo(
     () => [
@@ -169,7 +300,7 @@ export function CapacityCommandCenterPage() {
         columnHelper.display({
           id: `month-${month}`,
           header: new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
-            new Date(year, month - 1, 1),
+            new Date(filters.year, month - 1, 1),
           ),
           cell: ({ row }) => {
             const summary = row.original.summaries[month - 1];
@@ -196,7 +327,7 @@ export function CapacityCommandCenterPage() {
         }),
       ),
     ],
-    [columnHelper, displayPrecision, visibleMonths, year],
+    [columnHelper, displayPrecision, filters.year, visibleMonths],
   );
   const table = useReactTable({
     data: rows,
@@ -227,7 +358,7 @@ export function CapacityCommandCenterPage() {
     ? data.allocations.filter(
         (allocation) =>
           allocation.resourceId === selectedDrilldown.row.resource.id &&
-          allocation.year === year &&
+          allocation.year === filters.year &&
           allocation.month === selectedDrilldown.month,
       )
     : [];
@@ -257,84 +388,15 @@ export function CapacityCommandCenterPage() {
         </p>
       ) : null}
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-        <div className="grid gap-3 lg:grid-cols-5">
-          <label className="text-sm font-medium" htmlFor="capacity-search">
-            Search
-            <input
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="capacity-search"
-              placeholder="Search by resource or type"
-              type="search"
-              value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
-            />
-          </label>
-          <label className="text-sm font-medium" htmlFor="capacity-resource-type">
-            Resource type
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="capacity-resource-type"
-              value={resourceTypeFilter}
-              onChange={(event) => setResourceTypeFilter(event.target.value)}
-            >
-              <option value="all">All</option>
-              {data.resourceTypes.map((resourceType) => (
-                <option key={resourceType.id} value={resourceType.id}>
-                  {resourceType.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium" htmlFor="capacity-status">
-            Status
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="capacity-status"
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(event.target.value as 'all' | Resource['status'])
-              }
-            >
-              <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium" htmlFor="capacity-focus">
-            Focus
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="capacity-focus"
-              value={focus}
-              onChange={(event) => setFocus(event.target.value as CapacityFocus)}
-            >
-              <option value="year">Year</option>
-              <option value="s1">S1</option>
-              <option value="s2">S2</option>
-              <option value="q1">Q1</option>
-              <option value="q2">Q2</option>
-              <option value="q3">Q3</option>
-              <option value="q4">Q4</option>
-            </select>
-          </label>
-          <label className="text-sm font-medium" htmlFor="capacity-year">
-            Year
-            <select
-              className="mt-1 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
-              id="capacity-year"
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-            >
-              {yearOptions.map((optionYear) => (
-                <option key={optionYear} value={optionYear}>
-                  {optionYear}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
+      <FilterBar
+        favorites={favorites}
+        fields={filterFields}
+        onApplyFavorite={applyFavorite}
+        onDeleteFavorite={removeFavorite}
+        onReset={resetFilters}
+        onSaveFavorite={saveFavorite}
+        resultsSummary={`${rows.length} resource row(s)`}
+      />
 
       <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -417,9 +479,9 @@ export function CapacityCommandCenterPage() {
             <p className="font-medium">
               {selectedDrilldown.row.resourceName} �{' '}
               {new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-                new Date(year, selectedDrilldown.month - 1, 1),
+                new Date(filters.year, selectedDrilldown.month - 1, 1),
               )}{' '}
-              {year}
+              {filters.year}
             </p>
             <UtilizationBadge
               displayPrecision={displayPrecision}

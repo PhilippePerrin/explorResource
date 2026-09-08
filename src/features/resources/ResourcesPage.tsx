@@ -3,6 +3,9 @@ import { useForm, type FieldErrors, type FieldValues, type Resolver } from 'reac
 import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
+import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { UtilizationBadge } from '@/components/UtilizationBadge';
 import {
   getResourceFullName,
   type Allocation,
@@ -15,6 +18,7 @@ import {
   type ResourceType,
   type WorkingDaysCalendar,
 } from '@/domain/entities';
+import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { createRepository } from '@/persistence/repository';
 
 import {
@@ -63,6 +67,14 @@ const MONTH_LABELS = [
 ] as const;
 
 type StatusFilter = 'all' | Resource['status'];
+
+interface ResourceFilters {
+  searchTerm: string;
+  statusFilter: StatusFilter;
+  resourceTypeFilter: string;
+  companyFilter: string;
+  collaborationTypeFilter: 'all' | Resource['collaborationType'];
+}
 
 interface ResourcesPageData {
   resources: Resource[];
@@ -153,37 +165,6 @@ function parseLocaleInput(value: unknown): number {
   return Number(trimmed.replace(',', '.'));
 }
 
-function getUtilizationPresentation(
-  status: ReturnType<typeof buildResourceMonthlySummary>['utilization']['status'],
-) {
-  switch (status) {
-    case 'available':
-      return {
-        icon: '○',
-        label: 'Available',
-        classes: 'border-emerald-500/40 bg-emerald-950/20 text-emerald-200',
-      };
-    case 'used':
-      return {
-        icon: '◔',
-        label: 'Used',
-        classes: 'border-amber-500/40 bg-amber-950/20 text-amber-200',
-      };
-    case 'overload':
-      return {
-        icon: '⚠',
-        label: 'Overload',
-        classes: 'border-orange-500/40 bg-orange-950/20 text-orange-200',
-      };
-    case 'critical-overload':
-      return {
-        icon: '⛔',
-        label: 'Critical overload',
-        classes: 'border-red-500/40 bg-red-950/20 text-red-200',
-      };
-  }
-}
-
 function createAllocationPreview(
   values: AllocationFormValues,
   resourceId: string,
@@ -216,7 +197,7 @@ function createAllocationPreview(
 }
 
 export function ResourcesPage() {
-  const today = new Date();
+  const initialDate = useRef(new Date()).current;
   const [data, setData] = useState<ResourcesPageData>({
     resources: [],
     resourceTypes: [],
@@ -235,10 +216,8 @@ export function ResourcesPage() {
   const [busyAllocationAction, setBusyAllocationAction] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState<string | undefined>();
   const [editingAllocationId, setEditingAllocationId] = useState<string | undefined>();
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [summaryYear, setSummaryYear] = useState(today.getFullYear());
-  const [summaryMonth, setSummaryMonth] = useState(today.getMonth() + 1);
+  const [summaryYear, setSummaryYear] = useState(initialDate.getFullYear());
+  const [summaryMonth, setSummaryMonth] = useState(initialDate.getMonth() + 1);
   const [pendingResourceAction, setPendingResourceAction] = useState<PendingResourceAction | null>(
     null,
   );
@@ -246,6 +225,25 @@ export function ResourcesPage() {
     useState<PendingAllocationAction | null>(null);
   const [feedback, setFeedback] = useState('');
   const loadRequestIdRef = useRef(0);
+  const filterDefinitions = useMemo<FilterDefinitions<ResourceFilters>>(
+    () => ({
+      searchTerm: { defaultValue: '', param: 'q', storage: 'local' },
+      statusFilter: { defaultValue: 'all', param: 'status' },
+      resourceTypeFilter: { defaultValue: 'all', param: 'type' },
+      companyFilter: { defaultValue: 'all', param: 'company' },
+      collaborationTypeFilter: { defaultValue: 'all', param: 'collab' },
+    }),
+    [],
+  );
+  const {
+    filters,
+    favorites,
+    updateFilter,
+    resetFilters,
+    saveFavorite,
+    applyFavorite,
+    removeFavorite,
+  } = usePersistentPageFilters('resources', filterDefinitions);
 
   const editingResource = useMemo(
     () => data.resources.find((resource) => resource.id === editingResourceId),
@@ -271,22 +269,120 @@ export function ResourcesPage() {
     [data.companies],
   );
   const resourceRows = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toUpperCase();
+    const normalizedSearch = filters.searchTerm.trim().toUpperCase();
 
     return sortedResources.filter((resource) => {
       const resourceTypeLabel =
         resourceTypeLookup.get(resource.resourceTypeId)?.label.toUpperCase() ?? '';
       const companyName = companyLookup.get(resource.companyId ?? '')?.name.toUpperCase() ?? '';
-      const matchesStatus = statusFilter === 'all' || resource.status === statusFilter;
+      const matchesStatus =
+        filters.statusFilter === 'all' || resource.status === filters.statusFilter;
+      const matchesType =
+        filters.resourceTypeFilter === 'all' ||
+        resource.resourceTypeId === filters.resourceTypeFilter;
+      const matchesCompany =
+        filters.companyFilter === 'all' || (resource.companyId ?? '') === filters.companyFilter;
+      const matchesCollaboration =
+        filters.collaborationTypeFilter === 'all' ||
+        resource.collaborationType === filters.collaborationTypeFilter;
       const matchesSearch =
         normalizedSearch.length === 0 ||
         getResourceFullName(resource).toUpperCase().includes(normalizedSearch) ||
         resourceTypeLabel.includes(normalizedSearch) ||
         companyName.includes(normalizedSearch);
 
-      return matchesStatus && matchesSearch;
+      return (
+        matchesStatus && matchesType && matchesCompany && matchesCollaboration && matchesSearch
+      );
     });
-  }, [companyLookup, resourceTypeLookup, searchTerm, sortedResources, statusFilter]);
+  }, [
+    companyLookup,
+    filters.collaborationTypeFilter,
+    filters.companyFilter,
+    filters.resourceTypeFilter,
+    filters.searchTerm,
+    filters.statusFilter,
+    resourceTypeLookup,
+    sortedResources,
+  ]);
+  const filterFields = useMemo<FilterBarField[]>(
+    () => [
+      {
+        type: 'search',
+        key: 'searchTerm',
+        label: 'Search resources',
+        value: filters.searchTerm,
+        placeholder: 'Search by name, company, or resource type',
+        onChange: (value) => updateFilter('searchTerm', value),
+      },
+      {
+        type: 'single-select',
+        key: 'statusFilter',
+        label: 'Status filter',
+        value: filters.statusFilter,
+        options: [
+          { value: 'all', label: 'All statuses' },
+          { value: 'active', label: 'Active' },
+          { value: 'archived', label: 'Archived' },
+        ],
+        onChange: (value) => updateFilter('statusFilter', value as StatusFilter),
+      },
+      {
+        type: 'single-select',
+        key: 'resourceTypeFilter',
+        label: 'Resource type',
+        value: filters.resourceTypeFilter,
+        options: [
+          { value: 'all', label: 'All resource types' },
+          ...resourceTypeOptions.map((resourceType) => ({
+            value: resourceType.id,
+            label: resourceType.label,
+          })),
+        ],
+        onChange: (value) => updateFilter('resourceTypeFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'companyFilter',
+        label: 'Company',
+        value: filters.companyFilter,
+        options: [
+          { value: 'all', label: 'All companies' },
+          ...companyOptions.map((company) => ({
+            value: company.id,
+            label: company.name,
+          })),
+        ],
+        onChange: (value) => updateFilter('companyFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'collaborationTypeFilter',
+        label: 'Collaboration type',
+        value: filters.collaborationTypeFilter,
+        options: [
+          { value: 'all', label: 'All collaboration types' },
+          { value: 'internal', label: 'Internal' },
+          { value: 'external', label: 'External' },
+        ],
+        onChange: (value) =>
+          updateFilter(
+            'collaborationTypeFilter',
+            value as ResourceFilters['collaborationTypeFilter'],
+          ),
+      },
+    ],
+    [
+      companyOptions,
+      filters.collaborationTypeFilter,
+      filters.companyFilter,
+      filters.resourceTypeFilter,
+      filters.searchTerm,
+      filters.statusFilter,
+      resourceTypeOptions,
+      updateFilter,
+    ],
+  );
   const resourceAllocations = useMemo(
     () =>
       sortAllocations(
@@ -694,35 +790,16 @@ export function ResourcesPage() {
             </button>
           </div>
 
-          <div className="mb-4 grid gap-3 sm:grid-cols-[1fr_12rem]">
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="resource-search">
-                Search resources
-              </label>
-              <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="resource-search"
-                placeholder="Search by name, company, or resource type"
-                type="search"
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="resource-status-filter">
-                Status filter
-              </label>
-              <select
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="resource-status-filter"
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
-              >
-                <option value="all">All</option>
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
-              </select>
-            </div>
+          <div className="mb-4">
+            <FilterBar
+              favorites={favorites}
+              fields={filterFields}
+              onApplyFavorite={applyFavorite}
+              onDeleteFavorite={removeFavorite}
+              onReset={resetFilters}
+              onSaveFavorite={saveFavorite}
+              resultsSummary={`${resourceRows.length} resource(s)`}
+            />
           </div>
 
           {loading ? (
@@ -813,8 +890,8 @@ export function ResourcesPage() {
                             <button
                               className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
                               onClick={() => {
-                                setSummaryYear(today.getFullYear());
-                                setSummaryMonth(today.getMonth() + 1);
+                                setSummaryYear(initialDate.getFullYear());
+                                setSummaryMonth(initialDate.getMonth() + 1);
                                 openResourceEditor(resource);
                               }}
                               type="button"
@@ -1111,7 +1188,7 @@ export function ResourcesPage() {
                       type="number"
                       value={summaryYear}
                       onChange={(event) =>
-                        setSummaryYear(Number(event.target.value) || today.getFullYear())
+                        setSummaryYear(Number(event.target.value) || initialDate.getFullYear())
                       }
                     />
                   </div>
@@ -1179,26 +1256,11 @@ export function ResourcesPage() {
                 <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
                   <dt className="text-sm text-[var(--text-secondary)]">Utilization</dt>
                   <dd className="mt-2 flex items-center gap-3">
-                    <span
-                      className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm font-medium ${getUtilizationPresentation(resourceSummary.utilization.status).classes}`}
-                      title={
-                        resourceSummary.utilization.ratePercent === null
-                          ? 'Critical overload because assigned load exists while net capacity is zero.'
-                          : `${getUtilizationPresentation(resourceSummary.utilization.status).label} at ${formatDayAmount(resourceSummary.utilization.ratePercent, displayPrecision)}%.`
-                      }
-                    >
-                      <span aria-hidden="true">
-                        {getUtilizationPresentation(resourceSummary.utilization.status).icon}
-                      </span>
-                      <span>
-                        {getUtilizationPresentation(resourceSummary.utilization.status).label}
-                      </span>
-                    </span>
-                    <span className="text-lg font-semibold">
-                      {resourceSummary.utilization.ratePercent === null
-                        ? 'N/A'
-                        : `${formatDayAmount(resourceSummary.utilization.ratePercent, displayPrecision)}%`}
-                    </span>
+                    <UtilizationBadge
+                      displayPrecision={displayPrecision}
+                      tooltip={`${getMonthLabel(summaryMonth)} ${summaryYear}: ${formatDayAmount(resourceSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(resourceSummary.netCapacityDays, displayPrecision)} net capacity days.`}
+                      utilization={resourceSummary.utilization}
+                    />
                   </dd>
                 </div>
               </dl>
@@ -1428,13 +1490,13 @@ export function ResourcesPage() {
                           </li>
                           <li>
                             Utilization after save:{' '}
-                            <span className="text-white">
-                              {allocationPreviewSummary.utilization.ratePercent === null
-                                ? 'N/A'
-                                : `${formatDayAmount(
-                                    allocationPreviewSummary.utilization.ratePercent,
-                                    displayPrecision,
-                                  )}%`}
+                            <span className="inline-flex">
+                              <UtilizationBadge
+                                compact
+                                displayPrecision={displayPrecision}
+                                tooltip={`${getMonthLabel(allocationPreview.month)} ${allocationPreview.year}: ${formatDayAmount(allocationPreviewSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationPreviewSummary.netCapacityDays, displayPrecision)} net capacity days after save.`}
+                                utilization={allocationPreviewSummary.utilization}
+                              />
                             </span>
                           </li>
                         </ul>
@@ -1539,10 +1601,6 @@ export function ResourcesPage() {
                           allocations: data.allocations,
                           appSettings: data.appSettings,
                         });
-                        const utilizationPresentation = getUtilizationPresentation(
-                          allocationSummary.utilization.status,
-                        );
-
                         return (
                           <tr
                             className="border-b border-[var(--surf-divider)] align-top"
@@ -1564,30 +1622,12 @@ export function ResourcesPage() {
                               {renderDemandStatus(demandStatus, displayPrecision)}
                             </td>
                             <td className="px-3 py-3">
-                              <div className="flex flex-col gap-1">
-                                <span
-                                  className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium ${utilizationPresentation.classes}`}
-                                  title={
-                                    allocationSummary.utilization.ratePercent === null
-                                      ? 'Critical overload because assigned load exists while net capacity is zero.'
-                                      : `${utilizationPresentation.label} at ${formatDayAmount(
-                                          allocationSummary.utilization.ratePercent,
-                                          displayPrecision,
-                                        )}%`
-                                  }
-                                >
-                                  <span aria-hidden="true">{utilizationPresentation.icon}</span>
-                                  <span>{utilizationPresentation.label}</span>
-                                </span>
-                                <span className="text-xs text-[var(--text-secondary)]">
-                                  {allocationSummary.utilization.ratePercent === null
-                                    ? 'N/A'
-                                    : `${formatDayAmount(
-                                        allocationSummary.utilization.ratePercent,
-                                        displayPrecision,
-                                      )}%`}
-                                </span>
-                              </div>
+                              <UtilizationBadge
+                                compact
+                                displayPrecision={displayPrecision}
+                                tooltip={`${getMonthLabel(allocation.month)} ${allocation.year}: ${formatDayAmount(allocationSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationSummary.netCapacityDays, displayPrecision)} net capacity days.`}
+                                utilization={allocationSummary.utilization}
+                              />
                             </td>
                             <td className="px-3 py-3">
                               <div className="flex flex-wrap gap-2">
@@ -1698,9 +1738,16 @@ function renderDemandStatus(demandStatus: AllocationDemandStatus, displayPrecisi
   if (demandStatus.isOverService) {
     return (
       <div className="space-y-1">
-        <div className="font-medium text-amber-200">
-          ⚠ Over-service by {formatDayAmount(demandStatus.overServiceDays, displayPrecision)} d
-        </div>
+        <DemandCoverageBadge
+          compact
+          displayPrecision={displayPrecision}
+          summary={{
+            coverageRatePercent: 100,
+            remainingDemandDays: 0,
+            overServiceDays: demandStatus.overServiceDays,
+          }}
+          tooltip={`Demand ${formatDayAmount(demandStatus.demandDays, displayPrecision)} d, total allocated ${formatDayAmount(demandStatus.totalAllocatedAfterSaveDays, displayPrecision)} d, over-service ${formatDayAmount(demandStatus.overServiceDays, displayPrecision)} d.`}
+        />
         <div className="text-xs text-[var(--text-secondary)]">
           Demand {formatDayAmount(demandStatus.demandDays, displayPrecision)} d · total allocated{' '}
           {formatDayAmount(demandStatus.totalAllocatedAfterSaveDays, displayPrecision)} d
@@ -1711,7 +1758,16 @@ function renderDemandStatus(demandStatus: AllocationDemandStatus, displayPrecisi
 
   return (
     <div className="space-y-1">
-      <div className="font-medium text-emerald-200">Demand covered within limit</div>
+      <DemandCoverageBadge
+        compact
+        displayPrecision={displayPrecision}
+        summary={{
+          coverageRatePercent: 100,
+          remainingDemandDays: 0,
+          overServiceDays: 0,
+        }}
+        tooltip={`Demand covered within limit. Remaining before this allocation ${formatDayAmount(demandStatus.remainingDemandBeforeAllocationDays ?? 0, displayPrecision)} d.`}
+      />
       <div className="text-xs text-[var(--text-secondary)]">
         Remaining before this allocation{' '}
         {formatDayAmount(demandStatus.remainingDemandBeforeAllocationDays ?? 0, displayPrecision)} d

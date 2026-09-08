@@ -65,6 +65,7 @@ describe('capacityModel', () => {
       year: 2026,
       searchTerm: 'alice',
       resourceTypeFilter: 'all',
+      companyFilter: 'all',
       statusFilter: 'active',
     });
 

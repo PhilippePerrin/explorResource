@@ -77,6 +77,8 @@ describe('DashboardPage', () => {
     expect(await screen.findByRole('heading', { name: /^Dashboard$/i })).toBeInTheDocument();
     expect(await screen.findByText(/Overloaded resources need review/i)).toBeInTheDocument();
     expect(await screen.findByText(/Demand remains uncovered/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/^Critical overload$/i)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('⛔').length).toBeGreaterThan(0);
     expect(screen.getByTestId('dashboard-utilization-chart')).toBeInTheDocument();
   });
 });

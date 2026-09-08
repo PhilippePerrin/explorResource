@@ -39,6 +39,8 @@ export interface DemandAllocationSummary {
   allocatedResourceCount: number;
 }
 
+export type DemandCoverageState = 'covered' | 'uncovered' | 'over-served' | 'mixed';
+
 export function buildDemandSnapshotKey(
   snapshot: Pick<DemandSnapshot, 'projectCode' | 'resourceTypeId' | 'year' | 'month'>,
 ): string {
@@ -201,4 +203,22 @@ export function buildDemandAllocationSummary(options: {
         : normalizeAmount(Math.min(100, (allocatedDays / demandSnapshot.demandDays) * 100)),
     allocatedResourceCount,
   };
+}
+
+export function classifyDemandCoverageState(
+  summary: Pick<DemandAllocationSummary, 'remainingDemandDays' | 'overServiceDays'>,
+): DemandCoverageState {
+  if (summary.remainingDemandDays > 0 && summary.overServiceDays > 0) {
+    return 'mixed';
+  }
+
+  if (summary.remainingDemandDays > 0) {
+    return 'uncovered';
+  }
+
+  if (summary.overServiceDays > 0) {
+    return 'over-served';
+  }
+
+  return 'covered';
 }

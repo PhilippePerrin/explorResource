@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
+import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { buildResourceMonthSummary } from '@/domain/calculations';
@@ -58,6 +59,16 @@ function formatDayAmount(value: number, displayPrecision = 1): string {
     maximumFractionDigits: displayPrecision,
     minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, displayPrecision),
   }).format(value);
+}
+
+function buildDemandCoverageTooltip(
+  demandDays: number,
+  allocatedDays: number,
+  remainingDemandDays: number,
+  overServiceDays: number,
+  displayPrecision: number,
+) {
+  return `Demand ${formatDayAmount(demandDays, displayPrecision)} d, covered ${formatDayAmount(allocatedDays, displayPrecision)} d, gap ${formatDayAmount(remainingDemandDays, displayPrecision)} d, over-service ${formatDayAmount(overServiceDays, displayPrecision)} d.`;
 }
 
 function createResolver(
@@ -921,6 +932,20 @@ export function AllocationStudioPage() {
                     simulation.afterDemandSummary.overServiceDays,
                     displayPrecision,
                   )} d.`}
+                  accent={
+                    <DemandCoverageBadge
+                      compact
+                      displayPrecision={displayPrecision}
+                      summary={simulation.afterDemandSummary}
+                      tooltip={buildDemandCoverageTooltip(
+                        simulation.afterDemandSummary.demandDays,
+                        simulation.afterDemandSummary.allocatedDays,
+                        simulation.afterDemandSummary.remainingDemandDays,
+                        simulation.afterDemandSummary.overServiceDays,
+                        displayPrecision,
+                      )}
+                    />
+                  }
                 />
               </div>
             ) : (
@@ -984,6 +1009,20 @@ export function AllocationStudioPage() {
                               <DroppableProjectCell
                                 id={`drop::${row.projectCode}::${row.resourceTypeId}::${year}::${cell.month}`}
                               >
+                                <div className="mb-2">
+                                  <DemandCoverageBadge
+                                    compact
+                                    displayPrecision={displayPrecision}
+                                    summary={cell}
+                                    tooltip={buildDemandCoverageTooltip(
+                                      cell.demandDays,
+                                      cell.allocatedDays,
+                                      cell.remainingDemandDays,
+                                      cell.overServiceDays,
+                                      displayPrecision,
+                                    )}
+                                  />
+                                </div>
                                 <p className="font-medium">
                                   Demand {formatDayAmount(cell.demandDays, displayPrecision)} d
                                 </p>
