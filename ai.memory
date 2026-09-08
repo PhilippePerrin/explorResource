@@ -43,7 +43,9 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 | Lot 1 — Documentation & mémoire | ✅ Terminé (commit `bca0545`) | 2026-09-08 |
 | Lot 2 — Domaine & persistance | ✅ Terminé (commit `6adf432`, agent parallèle) | 2026-09-08 |
 | Lot 3 — Moteur de calcul | ✅ Terminé | 2026-09-08 |
-| Lots 4-14 | ⏳ En attente | — |
+| Lot 4 — Référentiels & calendriers | ✅ Terminé | 2026-09-08 |
+| Lot 5 — Projects & Releases | ✅ Terminé | 2026-09-08 |
+| Lots 6-14 | ⏳ En attente | — |
 
 ## Dette technique
 
@@ -63,9 +65,8 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 - 2026-09-08 — Lot 2 : `typecheck` ✅, `lint` ✅, `format:check` ✅, `test` ✅ 10/10 (4 fichiers), `build` ✅. Entités zod (`base, appSettings, masterData, imports, planning, audit`), repository IndexedDB générique validé, service de backup export/import (transaction unique, atomique), erreurs de persistance typées. Écart documenté : `DemandSnapshot.importBatchId` utilise le littéral `'manual'` (au lieu de `null`) pour rester compatible avec les clés composées/index IndexedDB.
 - 2026-09-08 — Lot 3 : `typecheck` ✅, `lint` ✅, `format` ✅, `format:check` ✅, `test` ✅ 22/22, `build` ✅. Nouveau module pur `src/domain/calculations/` : capacités brute/nette/disponible, charge affectée, charge non affectée, classification d'utilisation configurable via `AppSettings.visualThresholds`, et `tauxUtilisation` avec cas limite `capacity = 0` géré via `ratePercent: null` + drapeau `isCriticalOverload`. Aucun changement du schéma `AppSettings` nécessaire.
 - 2026-09-08 — Lot 4 : `typecheck` ✅, `lint` ✅, `format` ✅, `format:check` ✅, `test` ✅ 41/41, `build` ✅. Nouvelles pages exportées : `CompaniesPage`, `ResourceTypesPage`, `WorkingDaysPage`, `NonWorkingDaysPage`. Décisions clés : archivage logique avec suppression définitive conditionnée aux références (Companies via `Resource.companyId`; ResourceTypes via `Resource`, `DemandSnapshot`, `Allocation`), duplication d'année pour calendriers, grille annuelle d'absences avec collage TSV/Excel et totaux ligne/colonne. Écart minimal : le package `@hookform/resolvers` étant absent, les formulaires `react-hook-form` utilisent des resolvers Zod inline équivalents sans ajout de dépendance.
+- 2026-09-08 — Lot 5 : nouvelles pages `ProjectsPage`, `GroupsPage`, `ReleasesPage` avec CRUD réutilisant `createRepository`, formulaires `react-hook-form` + Zod inline, liens N-N via `ProjectRelease`, archivage conditionné aux références (`DemandSnapshot`/`Allocation` pour Projects, `ProjectRelease` pour Releases) et timeline simple des go-live dates. Décision UI : `Group` reste dans `src/features/projects` via une page dédiée en lecture seule car l'entité est adjacente au domaine projet sans justifier une navigation propre. Aucun changement d'entité ou de schéma : `Group` existait déjà et a été réutilisé tel quel.
 
 ## Prochaines actions
 
-- Terminer Lot 1 (ce fichier + `docs/*` + `README.md` + `CHANGELOG.md`).
-- Terminer Lot 2 (entités zod, repository IndexedDB, migrations, backup) — en cours via agent parallèle.
-- Préparer le Lot 4 (agrégations et sélecteurs de vue) en réutilisant `src/domain/calculations/`.
+- Préparer le Lot 6 (Resources & Allocation rules) en réutilisant les référentiels, `src/domain/calculations/` et les conventions CRUD établies aux lots 4 et 5.
