@@ -7,6 +7,7 @@ import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
+import { Button, Card, TableShell } from '@/components/ui';
 import { buildResourceMonthSummary } from '@/domain/calculations';
 import type {
   Allocation,
@@ -614,37 +615,33 @@ export function AllocationStudioPage() {
           />
         </label>
         <div className="flex items-end gap-2">
-          <button
-            className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm"
+          <Button
             disabled={history.past.length === 0}
+            variant="secondary"
             onClick={() => setHistory((current) => undoAllocationStudioHistory(current))}
-            type="button"
           >
             Undo
-          </button>
-          <button
-            className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm"
+          </Button>
+          <Button
             disabled={history.future.length === 0}
+            variant="secondary"
             onClick={() => setHistory((current) => redoAllocationStudioHistory(current))}
-            type="button"
           >
             Redo
-          </button>
-          <button
-            className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm text-white"
+          </Button>
+          <Button
             onClick={() => {
               void handleSaveDraft();
             }}
-            type="button"
           >
             Save draft
-          </button>
+          </Button>
         </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[22rem_1fr]">
         <section className="space-y-6">
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Resources panel</h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Available capacity for month {dragDraft.month}. Use it to prepare drag allocations.
@@ -680,9 +677,9 @@ export function AllocationStudioPage() {
                 ))
               )}
             </ul>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Keyboard allocation form</h2>
             <p className="mt-1 text-sm text-[var(--text-secondary)]">
               Fully keyboard-operable alternative to drag-and-drop.
@@ -803,24 +800,15 @@ export function AllocationStudioPage() {
                 </label>
               </div>
               <div className="flex flex-wrap gap-2">
-                <button
-                  className="rounded-md border border-[var(--color-bmx-blue)] px-4 py-2 text-sm"
-                  onClick={form.handleSubmit(handleSimulate)}
-                  type="button"
-                >
+                <Button variant="secondary" onClick={form.handleSubmit(handleSimulate)}>
                   Simulate change
-                </button>
-                <button
-                  className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm text-white"
-                  type="submit"
-                >
-                  Queue change
-                </button>
+                </Button>
+                <Button type="submit">Queue change</Button>
               </div>
             </form>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Drag token</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <label className="text-sm font-medium" htmlFor="drag-resource">
@@ -896,9 +884,9 @@ export function AllocationStudioPage() {
                 </p>
               )}
             </div>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Copy month → month</h2>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium" htmlFor="copy-source-month">
@@ -932,18 +920,14 @@ export function AllocationStudioPage() {
                 </select>
               </label>
             </div>
-            <button
-              className="mt-4 rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm"
-              onClick={handleCopyMonth}
-              type="button"
-            >
+            <Button className="mt-4" variant="secondary" onClick={handleCopyMonth}>
               Copy month into draft
-            </button>
-          </section>
+            </Button>
+          </Card>
         </section>
 
         <section className="space-y-6">
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Simulation preview</h2>
             {simulation ? (
               <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -1013,10 +997,10 @@ export function AllocationStudioPage() {
                 stay in draft until you save.
               </p>
             )}
-          </section>
+          </Card>
 
           <DndContext onDragEnd={handleDragEnd}>
-            <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <Card>
               <div className="mb-4 flex items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Allocation board</h2>
@@ -1041,105 +1025,99 @@ export function AllocationStudioPage() {
                   No board row matches the selected filters.
                 </p>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse text-left text-sm">
-                    <caption className="sr-only">
-                      Allocation board by project and month, with keyboard-operable drop targets.
-                    </caption>
-                    <thead>
-                      <tr className="border-b border-[var(--surf-divider)]">
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Project
+                <TableShell caption="Allocation board by project and month, with keyboard-operable drop targets.">
+                  <thead>
+                    <tr className="border-b border-[var(--surf-divider)]">
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Project
+                      </th>
+                      {Array.from({ length: 12 }, (_, index) => (
+                        <th className="px-3 py-2 font-semibold" key={index + 1} scope="col">
+                          {index + 1}
                         </th>
-                        {Array.from({ length: 12 }, (_, index) => (
-                          <th className="px-3 py-2 font-semibold" key={index + 1} scope="col">
-                            {index + 1}
-                          </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {boardRows.map((row) => (
+                      <tr
+                        className="border-b border-[var(--surf-divider)] align-top"
+                        key={`${row.projectCode}-${row.resourceTypeId}`}
+                      >
+                        <td className="px-3 py-2">
+                          <div className="font-medium">{row.projectCode}</div>
+                          <div className="text-[var(--text-secondary)]">{row.projectName}</div>
+                          <div className="text-xs text-[var(--text-secondary)]">
+                            {row.resourceTypeLabel}
+                          </div>
+                        </td>
+                        {row.months.map((cell) => (
+                          <td className="px-3 py-2" key={cell.month}>
+                            <DroppableProjectCell
+                              activationLabel={`${row.projectCode} ${row.projectName}, month ${cell.month}. Focus and press Enter or Space to apply the prepared drag token.`}
+                              id={`drop::${row.projectCode}::${row.resourceTypeId}::${year}::${cell.month}`}
+                              onActivate={() =>
+                                applyPreparedTokenToCell(
+                                  row.projectCode,
+                                  row.resourceTypeId,
+                                  cell.month,
+                                )
+                              }
+                            >
+                              <div className="mb-2">
+                                <DemandCoverageBadge
+                                  compact
+                                  displayPrecision={displayPrecision}
+                                  summary={cell}
+                                  tooltip={buildDemandCoverageTooltip(
+                                    cell.demandDays,
+                                    cell.allocatedDays,
+                                    cell.remainingDemandDays,
+                                    cell.overServiceDays,
+                                    displayPrecision,
+                                  )}
+                                />
+                              </div>
+                              <p className="font-medium">
+                                Demand {formatDayAmount(cell.demandDays, displayPrecision)} d
+                              </p>
+                              <p>
+                                Covered {formatDayAmount(cell.allocatedDays, displayPrecision)} d
+                              </p>
+                              <p>
+                                Gap {formatDayAmount(cell.remainingDemandDays, displayPrecision)} d
+                              </p>
+                              <p>
+                                Over-service{' '}
+                                {formatDayAmount(cell.overServiceDays, displayPrecision)} d
+                              </p>
+                              <div className="mt-2 space-y-1">
+                                {cell.allocations.map((allocation) => (
+                                  <DraggableToken
+                                    data={{
+                                      kind: 'existing-allocation',
+                                      resourceId: allocation.resourceId,
+                                      projectCode: row.projectCode,
+                                      allocatedDays: allocation.allocatedDays,
+                                    }}
+                                    id={`allocation-${allocation.id}`}
+                                    key={allocation.id}
+                                    label={`${allocation.resourceName}: ${formatDayAmount(
+                                      allocation.allocatedDays,
+                                      displayPrecision,
+                                    )} d`}
+                                  />
+                                ))}
+                              </div>
+                            </DroppableProjectCell>
+                          </td>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {boardRows.map((row) => (
-                        <tr
-                          className="border-b border-[var(--surf-divider)] align-top"
-                          key={`${row.projectCode}-${row.resourceTypeId}`}
-                        >
-                          <td className="px-3 py-2">
-                            <div className="font-medium">{row.projectCode}</div>
-                            <div className="text-[var(--text-secondary)]">{row.projectName}</div>
-                            <div className="text-xs text-[var(--text-secondary)]">
-                              {row.resourceTypeLabel}
-                            </div>
-                          </td>
-                          {row.months.map((cell) => (
-                            <td className="px-3 py-2" key={cell.month}>
-                              <DroppableProjectCell
-                                activationLabel={`${row.projectCode} ${row.projectName}, month ${cell.month}. Focus and press Enter or Space to apply the prepared drag token.`}
-                                id={`drop::${row.projectCode}::${row.resourceTypeId}::${year}::${cell.month}`}
-                                onActivate={() =>
-                                  applyPreparedTokenToCell(
-                                    row.projectCode,
-                                    row.resourceTypeId,
-                                    cell.month,
-                                  )
-                                }
-                              >
-                                <div className="mb-2">
-                                  <DemandCoverageBadge
-                                    compact
-                                    displayPrecision={displayPrecision}
-                                    summary={cell}
-                                    tooltip={buildDemandCoverageTooltip(
-                                      cell.demandDays,
-                                      cell.allocatedDays,
-                                      cell.remainingDemandDays,
-                                      cell.overServiceDays,
-                                      displayPrecision,
-                                    )}
-                                  />
-                                </div>
-                                <p className="font-medium">
-                                  Demand {formatDayAmount(cell.demandDays, displayPrecision)} d
-                                </p>
-                                <p>
-                                  Covered {formatDayAmount(cell.allocatedDays, displayPrecision)} d
-                                </p>
-                                <p>
-                                  Gap {formatDayAmount(cell.remainingDemandDays, displayPrecision)}{' '}
-                                  d
-                                </p>
-                                <p>
-                                  Over-service{' '}
-                                  {formatDayAmount(cell.overServiceDays, displayPrecision)} d
-                                </p>
-                                <div className="mt-2 space-y-1">
-                                  {cell.allocations.map((allocation) => (
-                                    <DraggableToken
-                                      data={{
-                                        kind: 'existing-allocation',
-                                        resourceId: allocation.resourceId,
-                                        projectCode: row.projectCode,
-                                        allocatedDays: allocation.allocatedDays,
-                                      }}
-                                      id={`allocation-${allocation.id}`}
-                                      key={allocation.id}
-                                      label={`${allocation.resourceName}: ${formatDayAmount(
-                                        allocation.allocatedDays,
-                                        displayPrecision,
-                                      )} d`}
-                                    />
-                                  ))}
-                                </div>
-                              </DroppableProjectCell>
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </TableShell>
               )}
-            </section>
+            </Card>
           </DndContext>
         </section>
       </section>

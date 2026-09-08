@@ -1,0 +1,53 @@
+/*
+ * Companion token layer to src/index.css (which is a verbatim, protected copy
+ * of bioMérieux brand tokens and must never be edited — see AGENTS.md).
+ * This file only ADDS tokens that brand guidelines don't define: elevation
+ * shadows. Tailwind v4's default radius/spacing scale already covers the
+ * rest, so it is intentionally not duplicated here.
+ */
+
+:root {
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+[data-theme='light'] {
+  --shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.14), 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+
+.ui-shadow-xs {
+  box-shadow: var(--shadow-xs);
+}
+.ui-shadow-sm {
+  box-shadow: var(--shadow-sm);
+}
+.ui-shadow-md {
+  box-shadow: var(--shadow-md);
+}
+.ui-shadow-lg {
+  box-shadow: var(--shadow-lg);
+}
+
+.ui-table-zebra tbody tr:nth-child(even) {
+  background-color: var(--surf-700);
+}
+
+.ui-table-sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background-color: var(--surf-800);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-collapse-transition {
+    transition:
+      width 0.2s ease-out,
+      padding 0.2s ease-out;
+  }
+}

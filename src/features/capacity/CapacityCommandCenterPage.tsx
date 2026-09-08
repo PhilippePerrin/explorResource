@@ -11,6 +11,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
+import { Card, TableShell } from '@/components/ui';
 import type {
   Allocation,
   AppSettings,
@@ -442,7 +443,7 @@ export function CapacityCommandCenterPage() {
         resultsSummary={`${rows.length} resource row(s)`}
       />
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+      <Card>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold" id="capacity-heatmap-heading">
@@ -498,6 +499,18 @@ export function CapacityCommandCenterPage() {
               data-testid="capacity-virtualized-body"
             >
               <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                {/*
+                  Not wrapped in TableShell: the header/body split into two
+                  separate <table> elements is what lets the body scroll
+                  independently while the header stays fixed, and the
+                  virtualizer measures this exact scrolling container
+                  (tableContainerRef) — TableShell's single table/caption
+                  wrapper doesn't fit that shape without risking the
+                  measurement. Zebra striping is applied per-row below,
+                  keyed off the absolute row index rather than DOM position
+                  (nth-child), since virtualization only renders a sliding
+                  window of rows and nth-child would shift during scroll.
+                */}
                 <table className="min-w-full border-collapse text-left text-sm">
                   <tbody>
                     {renderedRowIndexes.map((virtualRow) => {
@@ -510,7 +523,7 @@ export function CapacityCommandCenterPage() {
                       return (
                         <tr
                           key={row.id}
-                          className="border-b border-[var(--surf-divider)]"
+                          className={`border-b border-[var(--surf-divider)] ${virtualRow.index % 2 === 1 ? 'bg-[var(--surf-700)]' : ''}`}
                           data-index={virtualRow.index}
                           style={{
                             position: 'absolute',
@@ -532,14 +545,14 @@ export function CapacityCommandCenterPage() {
             </div>
           </div>
         )}
-      </section>
+      </Card>
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+      <Card>
         <h2 className="text-xl font-semibold">Drill-down</h2>
         {selectedDrilldown && selectedSummary ? (
           <div className="mt-4 space-y-3 text-sm">
             <p className="font-medium">
-              {selectedDrilldown.row.resourceName} �{' '}
+              {selectedDrilldown.row.resourceName} —{' '}
               {new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
                 new Date(filters.year, selectedDrilldown.month - 1, 1),
               )}{' '}
@@ -564,43 +577,47 @@ export function CapacityCommandCenterPage() {
               </li>
               <li>Allocations: {selectedAllocations.length}</li>
             </ul>
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold">Project</th>
-                    <th className="px-3 py-2 font-semibold">Days</th>
-                    <th className="px-3 py-2 font-semibold">Origin</th>
+            <TableShell caption="Allocations for the selected resource and month" zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Project
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Days
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Origin
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedAllocations.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-3 text-[var(--text-secondary)]" colSpan={3}>
+                      No allocation on this month.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {selectedAllocations.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-3 text-[var(--text-secondary)]" colSpan={3}>
-                        No allocation on this month.
+                ) : (
+                  selectedAllocations.map((allocation) => (
+                    <tr key={allocation.id} className="border-b border-[var(--surf-divider)]">
+                      <td className="px-3 py-2">{allocation.projectCode}</td>
+                      <td className="px-3 py-2">
+                        {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
                       </td>
+                      <td className="px-3 py-2">{allocation.origin}</td>
                     </tr>
-                  ) : (
-                    selectedAllocations.map((allocation) => (
-                      <tr key={allocation.id} className="border-b border-[var(--surf-divider)]">
-                        <td className="px-3 py-2">{allocation.projectCode}</td>
-                        <td className="px-3 py-2">
-                          {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
-                        </td>
-                        <td className="px-3 py-2">{allocation.origin}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                  ))
+                )}
+              </tbody>
+            </TableShell>
           </div>
         ) : (
           <p className="mt-4 text-sm text-[var(--text-secondary)]">
             Select a utilization cell to inspect the month details and underlying allocations.
           </p>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

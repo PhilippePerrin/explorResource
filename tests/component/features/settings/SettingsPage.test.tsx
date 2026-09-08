@@ -160,6 +160,20 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('persists the selected theme preference and updates the document theme attribute', async () => {
+    const user = userEvent.setup();
+    render(<SettingsPage />);
+
+    await screen.findByRole('heading', { name: /^Settings$/i });
+    await user.click(screen.getByRole('tab', { name: 'Dark' }));
+
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    await waitFor(async () => {
+      const settings = await appSettingsRepository.getById('app-settings');
+      expect(settings?.themePreference).toBe('dark');
+    });
+  });
+
   it('requires two confirmations before resetting app data', async () => {
     await companiesRepository.put({
       id: '4cd740d1-0ac8-4f75-b11f-8744843ed6b0',

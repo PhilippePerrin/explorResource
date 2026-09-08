@@ -47,7 +47,6 @@ export interface DashboardMonthMetrics {
 export interface DashboardAlert {
   id: string;
   tone: 'warning' | 'danger' | 'info';
-  icon: string;
   title: string;
   description: string;
 }
@@ -276,7 +275,6 @@ export function buildDashboardViewModel(options: {
     alerts.push({
       id: 'critical-overload',
       tone: 'danger',
-      icon: '\u26D4',
       title: 'Critical overload detected',
       description: `${selectedMonthMetrics.criticalResourcesCount} resource(s) exceed the critical threshold in ${selectedMonthMetrics.label}.`,
     });
@@ -286,7 +284,6 @@ export function buildDashboardViewModel(options: {
     alerts.push({
       id: 'overload',
       tone: 'warning',
-      icon: '\u26A0',
       title: 'Overloaded resources need review',
       description: `${selectedMonthMetrics.overloadedResourcesCount} resource(s) are overloaded in ${selectedMonthMetrics.label}.`,
     });
@@ -296,7 +293,6 @@ export function buildDashboardViewModel(options: {
     alerts.push({
       id: 'coverage-gap',
       tone: 'info',
-      icon: '\u2139',
       title: 'Demand remains uncovered',
       description: `${selectedMonthMetrics.remainingDemandDays} d remain uncovered in ${selectedMonthMetrics.label}.`,
     });

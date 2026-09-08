@@ -2,6 +2,10 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/App';
 import './index.css';
+import './design-tokens.css';
+import { bootstrapTheme } from './theme/applyTheme';
+
+bootstrapTheme();
 
 const container = document.getElementById('root');
 if (!container) {

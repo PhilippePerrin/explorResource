@@ -78,7 +78,8 @@ describe('DashboardPage', () => {
     expect(await screen.findByText(/Overloaded resources need review/i)).toBeInTheDocument();
     expect(await screen.findByText(/Demand remains uncovered/i)).toBeInTheDocument();
     expect((await screen.findAllByText(/^Critical overload$/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('⛔').length).toBeGreaterThan(0);
+    const criticalAlert = (await screen.findByText(/Critical overload detected/i)).closest('li');
+    expect(criticalAlert?.querySelector('svg')).not.toBeNull();
     expect(screen.getByTestId('dashboard-utilization-chart')).toBeInTheDocument();
   });
 });

@@ -34,14 +34,14 @@ graph LR
 
 ## Stack
 
-React 18 · TypeScript strict · Vite · Tailwind CSS v4 (`@tailwindcss/vite`) · React Router (`HashRouter`) · `idb` · `zod` · `react-hook-form` · `@tanstack/react-table` + `@tanstack/react-virtual` · `recharts` · `@dnd-kit` · `xlsx` · Vitest + React Testing Library · Playwright · ESLint + Prettier · GitHub Actions.
+React 18 · TypeScript strict · Vite · Tailwind CSS v4 (`@tailwindcss/vite`) · React Router (`HashRouter`) · `idb` · `zod` · `react-hook-form` · `@tanstack/react-table` + `@tanstack/react-virtual` · `recharts` · `@dnd-kit` · `xlsx` · `lucide-react` · Vitest + React Testing Library · Playwright · ESLint + Prettier · GitHub Actions.
 
 ## Repository layout
 
 ```
 public/assets/biomerieux-logo.jpeg
 src/
-  app/               # routing, layout shell
+  app/               # routing, app shell (AppShell, Sidebar, nav config)
   domain/
     entities/        # zod schemas + types
     calculations/     # capacity/workload/comparison formulas (framework-free)
@@ -49,9 +49,12 @@ src/
   persistence/        # IndexedDB repository, migrations, backup
   import/             # Excel parsing, classification, worker
   features/            # one folder per page (dashboard, capacity, demand-coverage, ...)
-  components/          # shared UI (KPI cards, heatmap cells, status badges, filter bar)
+  components/          # shared UI (KPI cards, status badges, filter bar, icons barrel)
+    ui/                # base UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell)
+  theme/               # theme resolution + persistence (applyTheme, useThemePreference)
   workers/
-  index.css            # branding, verbatim copy of data/index.css
+  index.css            # branding, verbatim copy of data/index.css — never rewritten
+  design-tokens.css    # companion token layer (elevation/shadow) — see docs/adr/0002
 docs/
 tests/{unit,component,e2e}/
 AGENTS.md

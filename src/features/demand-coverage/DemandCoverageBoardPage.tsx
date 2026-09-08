@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { Card, TableShell } from '@/components/ui';
 import type { DemandCoverageState } from '@/domain/calculations';
 import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
@@ -240,7 +241,7 @@ export function DemandCoverageBoardPage() {
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Demand Coverage Board</h1>
         <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Project � resource-type coverage, with demand, covered load, remaining demand, and
+          Project × resource-type coverage, with demand, covered load, remaining demand, and
           over-service shown side-by-side so nothing is silently netted out.
         </p>
       </header>
@@ -257,7 +258,7 @@ export function DemandCoverageBoardPage() {
         resultsSummary={`${rows.length} board row(s)`}
       />
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+      <Card>
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Coverage matrix</h2>
@@ -269,97 +270,95 @@ export function DemandCoverageBoardPage() {
         </div>
 
         {loading ? (
-          <p>Loading demand coverage�</p>
+          <p>Loading demand coverage…</p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
             No demand row matches the current filters.
           </p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-[var(--surf-divider)]">
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Project
+          <TableShell caption="Demand coverage by project and resource type" zebra>
+            <thead>
+              <tr className="border-b border-[var(--surf-divider)]">
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Project
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Resource type
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Totals
+                </th>
+                {Array.from({ length: 12 }, (_, index) => (
+                  <th className="px-3 py-2 font-semibold" key={index + 1} scope="col">
+                    {new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
+                      new Date(filters.year, index, 1),
+                    )}
                   </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Resource type
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Totals
-                  </th>
-                  {Array.from({ length: 12 }, (_, index) => (
-                    <th className="px-3 py-2 font-semibold" key={index + 1} scope="col">
-                      {new Intl.DateTimeFormat('en-US', { month: 'short' }).format(
-                        new Date(filters.year, index, 1),
-                      )}
-                    </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr
+                  className="border-b border-[var(--surf-divider)] align-top"
+                  key={`${row.projectCode}-${row.resourceTypeId}`}
+                >
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{row.projectCode}</div>
+                    <div className="text-[var(--text-secondary)]">{row.projectName}</div>
+                  </td>
+                  <td className="px-3 py-2">{row.resourceTypeLabel}</td>
+                  <td className="px-3 py-2">
+                    <div className="mb-2">
+                      <DemandCoverageBadge
+                        compact
+                        summary={{
+                          coverageRatePercent: buildCoverageRatePercent(
+                            row.totalDemandDays,
+                            row.totalAllocatedDays,
+                          ),
+                          remainingDemandDays: row.totalRemainingDemandDays,
+                          overServiceDays: row.totalOverServiceDays,
+                        }}
+                        tooltip={buildCoverageTooltip({
+                          demandDays: row.totalDemandDays,
+                          allocatedDays: row.totalAllocatedDays,
+                          remainingDemandDays: row.totalRemainingDemandDays,
+                          overServiceDays: row.totalOverServiceDays,
+                        })}
+                      />
+                    </div>
+                    <ul className="space-y-1 text-xs">
+                      <li>Demand {formatDayAmount(row.totalDemandDays)} d</li>
+                      <li>Covered {formatDayAmount(row.totalAllocatedDays)} d</li>
+                      <li>Gap {formatDayAmount(row.totalRemainingDemandDays)} d</li>
+                      <li>Over-service {formatDayAmount(row.totalOverServiceDays)} d</li>
+                    </ul>
+                  </td>
+                  {row.months.map((cell) => (
+                    <td className="px-3 py-2" key={cell.month}>
+                      <div className="min-w-[11rem] rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-2 text-xs">
+                        <div className="mb-2">
+                          <DemandCoverageBadge
+                            compact
+                            summary={cell}
+                            tooltip={buildCoverageTooltip(cell)}
+                          />
+                        </div>
+                        <p>Demand {formatDayAmount(cell.demandDays)} d</p>
+                        <p>Covered {formatDayAmount(cell.allocatedDays)} d</p>
+                        <p>Gap {formatDayAmount(cell.remainingDemandDays)} d</p>
+                        <p>Over-service {formatDayAmount(cell.overServiceDays)} d</p>
+                        <p>Resources {cell.allocatedResourceCount}</p>
+                      </div>
+                    </td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    className="border-b border-[var(--surf-divider)] align-top"
-                    key={`${row.projectCode}-${row.resourceTypeId}`}
-                  >
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{row.projectCode}</div>
-                      <div className="text-[var(--text-secondary)]">{row.projectName}</div>
-                    </td>
-                    <td className="px-3 py-2">{row.resourceTypeLabel}</td>
-                    <td className="px-3 py-2">
-                      <div className="mb-2">
-                        <DemandCoverageBadge
-                          compact
-                          summary={{
-                            coverageRatePercent: buildCoverageRatePercent(
-                              row.totalDemandDays,
-                              row.totalAllocatedDays,
-                            ),
-                            remainingDemandDays: row.totalRemainingDemandDays,
-                            overServiceDays: row.totalOverServiceDays,
-                          }}
-                          tooltip={buildCoverageTooltip({
-                            demandDays: row.totalDemandDays,
-                            allocatedDays: row.totalAllocatedDays,
-                            remainingDemandDays: row.totalRemainingDemandDays,
-                            overServiceDays: row.totalOverServiceDays,
-                          })}
-                        />
-                      </div>
-                      <ul className="space-y-1 text-xs">
-                        <li>Demand {formatDayAmount(row.totalDemandDays)} d</li>
-                        <li>Covered {formatDayAmount(row.totalAllocatedDays)} d</li>
-                        <li>Gap {formatDayAmount(row.totalRemainingDemandDays)} d</li>
-                        <li>Over-service {formatDayAmount(row.totalOverServiceDays)} d</li>
-                      </ul>
-                    </td>
-                    {row.months.map((cell) => (
-                      <td className="px-3 py-2" key={cell.month}>
-                        <div className="min-w-[11rem] rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-2 text-xs">
-                          <div className="mb-2">
-                            <DemandCoverageBadge
-                              compact
-                              summary={cell}
-                              tooltip={buildCoverageTooltip(cell)}
-                            />
-                          </div>
-                          <p>Demand {formatDayAmount(cell.demandDays)} d</p>
-                          <p>Covered {formatDayAmount(cell.allocatedDays)} d</p>
-                          <p>Gap {formatDayAmount(cell.remainingDemandDays)} d</p>
-                          <p>Over-service {formatDayAmount(cell.overServiceDays)} d</p>
-                          <p>Resources {cell.allocatedResourceCount}</p>
-                        </div>
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </TableShell>
         )}
-      </section>
+      </Card>
     </div>
   );
 }

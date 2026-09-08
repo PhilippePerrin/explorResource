@@ -114,9 +114,9 @@ describe('DemandCoverageBoardPage', () => {
     expect((await screen.findAllByText(/Covered 6 d/i)).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/Gap 0 d/i)).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/Over-service 1 d/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('↗').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/^Over-served\./i).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/^Uncovered$/i)).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('⚠').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/^Uncovered\./i).length).toBeGreaterThan(0);
 
     await user.type(screen.getByLabelText(/Project search/i), 'E0200');
     await waitFor(() => {

@@ -10,6 +10,26 @@ vi.mock('virtual:pwa-register/react', () => ({
   }),
 }));
 
+// jsdom does not implement matchMedia. Components that resolve the 'system'
+// theme preference (src/theme/applyTheme.ts) call it unconditionally, so every
+// test render needs a stand-in, not just theme-specific tests. This is a plain
+// function (not vi.fn()) so `vi.restoreAllMocks()` in individual test files
+// can't wipe it back to returning undefined.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => undefined,
+    removeListener: () => undefined,
+    addEventListener: () => undefined,
+    removeEventListener: () => undefined,
+    dispatchEvent: () => false,
+  }),
+});
+
 // jsdom always reports 0 for offsetHeight/offsetWidth (no real layout engine), which makes
 // @tanstack/react-virtual measure a zero-height viewport. It then renders zero virtual items and
 // falls back to rendering every row unvirtualized - correct for tiny lists, but for large synthetic

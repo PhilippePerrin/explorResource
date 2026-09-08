@@ -1,5 +1,6 @@
 import { memo } from 'react';
 
+import { AlertTriangle, ArrowUpRight, Check, Shuffle } from '@/components/icons';
 import {
   classifyDemandCoverageState,
   type DemandAllocationSummary,
@@ -17,25 +18,25 @@ function getDescriptor(state: DemandCoverageState) {
   switch (state) {
     case 'covered':
       return {
-        icon: '✓',
+        Icon: Check,
         label: 'Covered',
         classes: 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100',
       };
     case 'uncovered':
       return {
-        icon: '⚠',
+        Icon: AlertTriangle,
         label: 'Uncovered',
         classes: 'border-amber-500/40 bg-amber-950/30 text-amber-100',
       };
     case 'over-served':
       return {
-        icon: '↗',
+        Icon: ArrowUpRight,
         label: 'Over-served',
         classes: 'border-orange-500/40 bg-orange-950/30 text-orange-100',
       };
     case 'mixed':
       return {
-        icon: '◩',
+        Icon: Shuffle,
         label: 'Mixed',
         classes: 'border-red-500/40 bg-red-950/30 text-red-100',
       };
@@ -92,7 +93,7 @@ function DemandCoverageBadgeComponent({
       className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium ${descriptor.classes} ${compact ? 'whitespace-nowrap' : ''}`}
       title={tooltip}
     >
-      <span aria-hidden="true">{descriptor.icon}</span>
+      <descriptor.Icon aria-hidden="true" size={14} strokeWidth={2.25} />
       <span>{descriptor.label}</span>
       <span>{valueText}</span>
     </span>

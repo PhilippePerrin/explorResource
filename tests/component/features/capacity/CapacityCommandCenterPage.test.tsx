@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -106,7 +106,7 @@ describe('CapacityCommandCenterPage', () => {
     expect(await screen.findByText('Bob Durand')).toBeInTheDocument();
     expect(await screen.findByText(/Critical overload/i)).toBeInTheDocument();
     expect(await screen.findByText(/125%/i)).toBeInTheDocument();
-    expect(screen.getAllByText('⛔').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/^Critical overload\./i).length).toBeGreaterThan(0);
 
     const januaryCell = screen.getByRole('button', { name: /Alice Martin, January 2026\./i });
     januaryCell.focus();
@@ -141,11 +141,8 @@ describe('CapacityCommandCenterPage', () => {
     await user.click(screen.getByRole('button', { name: /Alice Martin, January 2026\./i }));
 
     await waitFor(() => {
-      const drilldown = screen.getByRole('heading', { name: /Drill-down/i }).closest('section');
-      expect(drilldown).not.toBeNull();
-      expect(
-        within(drilldown as HTMLElement).getByText(/Assigned load: 25 d/i),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Drill-down/i })).toBeInTheDocument();
+      expect(screen.getByText(/Assigned load: 25 d/i)).toBeInTheDocument();
     });
   });
 

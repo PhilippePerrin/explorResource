@@ -75,7 +75,7 @@ describe('AllocationStudioPage', () => {
     await screen.findByRole('heading', { name: /^Allocation Studio$/i });
     const keyboardSection = screen
       .getByRole('heading', { name: /Keyboard allocation form/i })
-      .closest('section');
+      .closest('div');
 
     expect(keyboardSection).not.toBeNull();
     expect(
@@ -107,7 +107,7 @@ describe('AllocationStudioPage', () => {
     expect(await screen.findByText(/Demand coverage after change/i)).toBeInTheDocument();
     expect(await screen.findByText(/Over-service after: 1 d/i)).toBeInTheDocument();
     expect(await screen.findByText(/Over-served/i)).toBeInTheDocument();
-    expect(screen.getAllByText('↗').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/^Over-served\./i).length).toBeGreaterThan(0);
     expect(await allocationsRepository.getAll()).toHaveLength(0);
 
     await user.click(
@@ -184,9 +184,7 @@ describe('AllocationStudioPage', () => {
     render(<AllocationStudioPage />);
 
     await screen.findByRole('heading', { name: /^Allocation Studio$/i });
-    const dragTokenSection = screen
-      .getByRole('heading', { name: /^Drag token$/i })
-      .closest('section');
+    const dragTokenSection = screen.getByRole('heading', { name: /^Drag token$/i }).closest('div');
 
     expect(dragTokenSection).not.toBeNull();
     expect(

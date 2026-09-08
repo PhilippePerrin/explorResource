@@ -273,7 +273,7 @@ describe('ResourcesPage', () => {
       expect(within(summarySection).getByText('6 d')).toBeInTheDocument();
       expect(within(summarySection).getByText('14 d')).toBeInTheDocument();
       expect(screen.getByText(/Over-served/i)).toBeInTheDocument();
-      expect(screen.getAllByText('↗').length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText(/^Over-served\./i).length).toBeGreaterThan(0);
     });
   }, 10000);
 
@@ -399,9 +399,9 @@ describe('ResourcesPage', () => {
     await waitFor(() => {
       expect(within(summarySection).getByText(/Critical overload/i)).toBeInTheDocument();
       expect(within(summarySection).getByText(/125%/i)).toBeInTheDocument();
-      expect(screen.getAllByText('⛔').length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText(/^Critical overload\./i).length).toBeGreaterThan(0);
       expect(screen.getByText(/Over-served/i)).toBeInTheDocument();
-      expect(screen.getAllByText('↗').length).toBeGreaterThan(0);
+      expect(screen.getAllByLabelText(/^Over-served\./i).length).toBeGreaterThan(0);
     });
   }, 10000);
 });

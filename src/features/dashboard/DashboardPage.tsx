@@ -11,8 +11,10 @@ import {
 } from 'recharts';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { AlertTriangle, Ban, Circle, Info } from '@/components/icons';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
+import { Card } from '@/components/ui';
 import type {
   Allocation,
   AppSettings,
@@ -23,8 +25,22 @@ import type {
   WorkingDaysCalendar,
 } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
+import { usePrefersReducedMotion } from '@/theme/usePrefersReducedMotion';
 
-import { buildDashboardViewModel, MONTH_LABELS } from './dashboardModel';
+import {
+  CHART_AXIS_COLOR,
+  CHART_GRID_COLOR,
+  CHART_LEGEND_STYLE,
+  CHART_LINE_COLORS,
+  CHART_TOOLTIP_STYLE,
+} from './chartTheme';
+import { buildDashboardViewModel, MONTH_LABELS, type DashboardAlert } from './dashboardModel';
+
+const ALERT_ICONS: Record<DashboardAlert['tone'], typeof AlertTriangle> = {
+  danger: Ban,
+  warning: AlertTriangle,
+  info: Info,
+};
 
 const resourcesRepository = createRepository('resources');
 const allocationsRepository = createRepository('allocations');
@@ -67,6 +83,7 @@ export function DashboardPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
   const loadRequestIdRef = useRef(0);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     void loadData();
@@ -209,9 +226,9 @@ export function DashboardPage() {
       <FeedbackMessage message={feedback} />
 
       {loading ? (
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+        <Card>
           <p>Loading dashboard…</p>
-        </section>
+        </Card>
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -246,7 +263,7 @@ export function DashboardPage() {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <Card>
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Utilization trend</h2>
@@ -268,38 +285,48 @@ export function DashboardPage() {
               >
                 <ResponsiveContainer height="100%" width="100%">
                   <LineChart data={viewModel.months}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="label" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
+                    <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
+                    <XAxis
+                      dataKey="label"
+                      stroke={CHART_AXIS_COLOR}
+                      tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }}
+                    />
+                    <YAxis
+                      stroke={CHART_AXIS_COLOR}
+                      tick={{ fill: CHART_AXIS_COLOR, fontSize: 12 }}
+                    />
+                    <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                    <Legend wrapperStyle={CHART_LEGEND_STYLE} />
                     <Line
                       dataKey="netCapacityDays"
+                      isAnimationActive={!prefersReducedMotion}
                       name="Net capacity (d)"
-                      stroke="#2563eb"
+                      stroke={CHART_LINE_COLORS.netCapacity}
                       strokeWidth={2}
                       type="monotone"
                     />
                     <Line
                       dataKey="assignedLoadDays"
+                      isAnimationActive={!prefersReducedMotion}
                       name="Allocated load (d)"
-                      stroke="#f59e0b"
+                      stroke={CHART_LINE_COLORS.allocatedLoad}
                       strokeWidth={2}
                       type="monotone"
                     />
                     <Line
                       dataKey="remainingDemandDays"
+                      isAnimationActive={!prefersReducedMotion}
                       name="Uncovered demand (d)"
-                      stroke="#ef4444"
+                      stroke={CHART_LINE_COLORS.uncoveredDemand}
                       strokeWidth={2}
                       type="monotone"
                     />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-            </section>
+            </Card>
 
-            <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <Card>
               <h2 className="text-xl font-semibold">Priority alerts</h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
                 Text, icon, and quantitative alerts for {viewModel.selectedMonthMetrics.label}{' '}
@@ -307,21 +334,27 @@ export function DashboardPage() {
               </p>
               <ul className="mt-4 space-y-3">
                 {viewModel.alerts.length === 0 ? (
-                  <li className="rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4 text-sm">
-                    ○ No overload or uncovered-demand alert for the selected month.
+                  <li className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4 text-sm">
+                    <Circle aria-hidden="true" size={14} strokeWidth={2.25} />
+                    No overload or uncovered-demand alert for the selected month.
                   </li>
                 ) : (
-                  viewModel.alerts.map((alert) => (
-                    <li
-                      key={alert.id}
-                      className={`rounded-lg border p-4 text-sm ${alert.tone === 'danger' ? 'border-red-500/40 bg-red-950/20' : alert.tone === 'warning' ? 'border-orange-500/40 bg-orange-950/20' : 'border-[var(--surf-divider)] bg-[var(--surf-700)]'}`}
-                    >
-                      <p className="font-semibold">
-                        <span aria-hidden="true">{alert.icon}</span> {alert.title}
-                      </p>
-                      <p className="mt-1 text-[var(--text-secondary)]">{alert.description}</p>
-                    </li>
-                  ))
+                  viewModel.alerts.map((alert) => {
+                    const AlertIcon = ALERT_ICONS[alert.tone];
+
+                    return (
+                      <li
+                        key={alert.id}
+                        className={`rounded-lg border p-4 text-sm ${alert.tone === 'danger' ? 'border-red-500/40 bg-red-950/20' : alert.tone === 'warning' ? 'border-orange-500/40 bg-orange-950/20' : 'border-[var(--surf-divider)] bg-[var(--surf-700)]'}`}
+                      >
+                        <p className="flex items-center gap-2 font-semibold">
+                          <AlertIcon aria-hidden="true" size={16} strokeWidth={2.25} />
+                          {alert.title}
+                        </p>
+                        <p className="mt-1 text-[var(--text-secondary)]">{alert.description}</p>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
 
@@ -364,7 +397,7 @@ export function DashboardPage() {
                   </p>
                 )}
               </div>
-            </section>
+            </Card>
           </section>
         </>
       )}

@@ -2,11 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { AlertTriangle, Ban, Circle, CircleDot, FileText } from '@/components/icons';
+import { Tabs } from '@/components/ui';
 import type { AppSettings } from '@/domain/entities';
 import { exportBackup, restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
 import { deletePlannerDb } from '@/persistence/db';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { useThemePreference } from '@/theme/useThemePreference';
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+  { value: 'system', label: 'System' },
+] as const;
 
 import {
   applySettingsFormValues,
@@ -117,6 +126,8 @@ export function SettingsPage() {
   const [resetStage, setResetStage] = useState<ResetStage | null>(null);
   const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(null);
   const [appSettings, setAppSettings] = useState<AppSettings>(resolveAppSettings(null));
+  const { preference: themePreference, updatePreference: updateThemePreference } =
+    useThemePreference();
 
   const form = useForm<SettingsFormValues>({
     defaultValues: createSettingsFormValues(appSettings.visualThresholds),
@@ -311,10 +322,11 @@ export function SettingsPage() {
 
       {hasUnsavedChanges ? (
         <p
-          className="rounded-lg border border-[var(--color-bmx-gold)] bg-[var(--surf-800)] px-4 py-3 text-sm"
+          className="flex items-center gap-2 rounded-lg border border-[var(--color-bmx-gold)] bg-[var(--surf-800)] px-4 py-3 text-sm"
           role="status"
         >
-          ⚠ Unsaved changes in utilization thresholds. Save before closing the tab.
+          <AlertTriangle aria-hidden="true" size={16} strokeWidth={2.25} />
+          Unsaved changes in utilization thresholds. Save before closing the tab.
         </p>
       ) : null}
 
@@ -373,8 +385,9 @@ export function SettingsPage() {
                   setValueAs: parsePercentageInput,
                 })}
               />
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                ○ Values below this threshold stay in the Available band.
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                <Circle aria-hidden="true" size={12} strokeWidth={2.25} />
+                Values below this threshold stay in the Available band.
               </p>
               {form.formState.errors.availableBelow ? (
                 <p className="mt-1 text-sm text-red-400" role="alert">
@@ -397,8 +410,9 @@ export function SettingsPage() {
                   setValueAs: parsePercentageInput,
                 })}
               />
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                ◔ Values from {formatPercentage(form.watch('availableBelow') || 0)}% through this
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                <CircleDot aria-hidden="true" size={12} strokeWidth={2.25} />
+                Values from {formatPercentage(form.watch('availableBelow') || 0)}% through this
                 threshold stay in the Used band.
               </p>
               {form.formState.errors.usedTo ? (
@@ -422,9 +436,10 @@ export function SettingsPage() {
                   setValueAs: parsePercentageInput,
                 })}
               />
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                ⚠ Values above {formatPercentage(form.watch('usedTo') || 0)}% and up to this
-                threshold stay in the Overload band.
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                <AlertTriangle aria-hidden="true" size={12} strokeWidth={2.25} />
+                Values above {formatPercentage(form.watch('usedTo') || 0)}% and up to this threshold
+                stay in the Overload band.
               </p>
               {form.formState.errors.overloadTo ? (
                 <p className="mt-1 text-sm text-red-400" role="alert">
@@ -447,8 +462,9 @@ export function SettingsPage() {
                   setValueAs: parsePercentageInput,
                 })}
               />
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                ⛔ Values above {formatPercentage(form.watch('overloadTo') || 0)}% are critical
+              <p className="mt-1 flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
+                <Ban aria-hidden="true" size={12} strokeWidth={2.25} />
+                Values above {formatPercentage(form.watch('overloadTo') || 0)}% are critical
                 overload.
               </p>
               {form.formState.errors.criticalAbove ? (
@@ -469,6 +485,23 @@ export function SettingsPage() {
         </section>
 
         <div className="grid gap-6">
+          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <h2 className="text-xl font-semibold">Appearance</h2>
+            <p className="mt-3 text-sm text-[var(--text-secondary)]">
+              Choose a theme, or follow the operating system setting.
+            </p>
+            <div className="mt-4">
+              <Tabs
+                items={THEME_OPTIONS}
+                label="Theme"
+                value={themePreference}
+                onChange={(value) => {
+                  void updateThemePreference(value as (typeof THEME_OPTIONS)[number]['value']);
+                }}
+              />
+            </div>
+          </section>
+
           <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
             <h2 className="text-xl font-semibold">Precision and tolerance</h2>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -538,10 +571,11 @@ export function SettingsPage() {
               </div>
 
               {selectedBackupFile ? (
-                <p className="text-sm text-[var(--text-secondary)]">
+                <p className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
                   Selected file:{' '}
-                  <span className="font-medium text-[var(--text-primary)]">
-                    📄 {selectedBackupFile.name}
+                  <span className="inline-flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
+                    <FileText aria-hidden="true" size={14} strokeWidth={2.25} />
+                    {selectedBackupFile.name}
                   </span>
                 </p>
               ) : (
