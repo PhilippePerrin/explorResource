@@ -1,0 +1,225 @@
+@import "tailwindcss";
+
+@theme {
+  /* bioMérieux brand palette — Pantone values from brand guidelines */
+  --color-bmx-blue:       #00427f;
+  --color-bmx-green:      #3c9845;
+  --color-bmx-lime:       #81b444;
+  --color-bmx-yellow:     #bfd630;
+  --color-bmx-cyan:       #4ec3e0;
+  --color-bmx-gold:       #ffdd37;
+  --color-bmx-dark-green: #27b051;
+  --color-bmx-lime-alt:   #71c043;
+
+  /* Gray scale (Pantone CoolGray) */
+  --color-bmx-gray-80: #5e5e5d;
+  --color-bmx-gray-50: #a4a5a5;
+  --color-bmx-gray-30: #b2b2b2;
+  --color-bmx-gray-25: #cbcccc;
+
+  /* Dark-mode surface ramp (derived from brand navy) */
+  --color-surface-900: #060e1f;
+  --color-surface-800: #0a1628;
+  --color-surface-700: #0d1f3c;
+  --color-surface-600: #122448;
+  --color-surface-500: #1a3360;
+  --color-bmx-divider:    #1e3b6e;
+
+  /* Typography */
+  --font-sans:   Arial, Helvetica, sans-serif;
+  --font-accent: 'Rockwell', Georgia, serif;
+}
+
+/* ── Theme tokens ─────────────────────────────────────────── */
+:root {
+  /* Dark mode (default) */
+  --surf-900:        #060e1f;
+  --surf-800:        #0a1628;
+  --surf-700:        #0d1f3c;
+  --surf-600:        #122448;
+  --surf-500:        #1a3360;
+  --surf-divider:    #1e3b6e;
+  --text-primary:    #f1f5f9;
+  --text-secondary:  #cbcccc;
+  --text-muted:      #a4a5a5;
+  --backdrop:        rgba(6,14,31,0.6);
+  --filter-bar-bg:   rgba(6,14,31,0.94);
+
+  /* Gray text scale (responsive) */
+  --gray-25: #cbcccc;
+  --gray-30: #b2b2b2;
+  --gray-50: #a4a5a5;
+
+  /* Chip/tag tokens (pillar, project, filter chips) */
+  --chip-bg:     rgba(0,66,127,0.22);
+  --chip-text:   #4ec3e0;
+  --chip-border: #1e3b6e;
+}
+
+[data-theme="light"] {
+  /* Light surfaces */
+  --surf-900:        #f0f2f5;    /* page background — neutral gray */
+  --surf-800:        #ffffff;    /* panels, settings drawer */
+  --surf-700:        #ffffff;    /* cards */
+  --surf-600:        #f5f7fa;    /* input backgrounds */
+  --surf-500:        #e8ecf2;    /* hover states */
+  --surf-divider:    #dde2ea;    /* borders */
+
+  /* Text — WCAG AA compliant on white */
+  --text-primary:    #0d1117;    /* 16.6:1 on white */
+  --text-secondary:  #374151;    /* 9.0:1 on white */
+  --text-muted:      #6b7280;    /* 4.6:1 on white */
+  --backdrop:        rgba(15,23,42,0.45);
+  --filter-bar-bg:   rgba(240,242,245,0.94);
+
+  /* Gray scale — darkened for light backgrounds */
+  --gray-25: #1e293b;            /* 13.9:1 on white */
+  --gray-30: #374151;            /* 9.0:1 on white */
+  --gray-50: #64748b;            /* 4.6:1 on white */
+
+  /* Chip/tag tokens — brand blue on pale blue */
+  --chip-bg:     #dce9f7;        /* pale brand-blue tint */
+  --chip-text:   #00427f;        /* brand navy — 8.0:1 on #dce9f7 */
+  --chip-border: #a9c5e8;        /* light blue border */
+}
+
+/* Global resets and base styles */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--surf-900);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+/* Visible focus ring — WCAG AA */
+:focus-visible {
+  outline: 2px solid #4ec3e0;
+  outline-offset: 2px;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--surf-800); }
+::-webkit-scrollbar-thumb { background: var(--surf-500); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4ec3e0; }
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* 2-line text clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Visually hidden (accessibility) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Card hover glow */
+.card-glow:hover {
+  box-shadow: 0 0 0 1.5px #4ec3e0, 0 8px 32px rgba(78, 195, 224, 0.12);
+}
+
+/* Light mode: card elevation (opportunity cards, KPI cards) */
+[data-theme="light"] .card-glow {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
+}
+[data-theme="light"] .card-glow:hover {
+  box-shadow: 0 0 0 2px #4ec3e0, 0 6px 20px rgba(0,66,127,0.10);
+  transform: translateY(-1px);
+}
+[data-theme="light"] .kpi-card {
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
+}
+
+/* Animated skeleton pulse */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* Drawer slide-in */
+@keyframes drawer-slide-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.drawer-enter {
+  animation: drawer-slide-in 0.28s ease-out forwards;
+}
+
+/* Stats drawer slide-in (from left) */
+@keyframes drawer-slide-in-left {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+.drawer-enter-left {
+  animation: drawer-slide-in-left 0.28s ease-out forwards;
+}
+
+/* ── Roadmap (Portfolio Flight Path) animations ───────────── */
+@keyframes roadmap-track-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.roadmap-track {
+  animation: roadmap-track-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes roadmap-bar-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.roadmap-bar {
+  transform-origin: left center;
+  animation: roadmap-bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes roadmap-pulse {
+  0%, 100% { opacity: 0.55; }
+  50%      { opacity: 1; }
+}
+.roadmap-pulse {
+  animation: roadmap-pulse 2.6s ease-in-out infinite;
+}
