@@ -4,6 +4,7 @@ import {
   calculateWorkingDaysTotal,
   createWorkingDaysMutationPayload,
   duplicateWorkingDaysToNextYear,
+  parseLocaleNumber,
 } from '@/features/working-days';
 
 describe('working days model', () => {
@@ -53,5 +54,10 @@ describe('working days model', () => {
     expect(payload).toHaveLength(12);
     expect(payload[0]?.year).toBe(2027);
     expect(payload[11]?.workingDaysCount).toBe(29);
+  });
+
+  it('accepts both dot and comma decimal separators in working-day inputs', () => {
+    expect(parseLocaleNumber('20.5')).toBe(20.5);
+    expect(parseLocaleNumber('20,5')).toBe(20.5);
   });
 });

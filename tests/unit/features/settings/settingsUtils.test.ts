@@ -4,6 +4,7 @@ import {
   applySettingsFormValues,
   createDefaultAppSettings,
   createSettingsFormValues,
+  parsePercentageInput,
   settingsFormSchema,
 } from '@/features/settings';
 
@@ -59,5 +60,10 @@ describe('settingsUtils', () => {
       overloadTo: 115,
       criticalAbove: 130,
     });
+  });
+
+  it('accepts both dot and comma decimal separators for percentages', () => {
+    expect(parsePercentageInput('80.5')).toBe(80.5);
+    expect(parsePercentageInput('80,5')).toBe(80.5);
   });
 });

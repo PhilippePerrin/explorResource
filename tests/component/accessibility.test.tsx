@@ -135,6 +135,9 @@ describe('accessibility smoke tests', () => {
       </MemoryRouter>,
     );
     await screen.findByRole('heading', { name: /^Resources$/i });
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading resources/i)).not.toBeInTheDocument();
+    });
 
     await expectNoAxeViolations(container);
   });
