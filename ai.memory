@@ -45,7 +45,8 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 | Lot 3 — Moteur de calcul | ✅ Terminé | 2026-09-08 |
 | Lot 4 — Référentiels & calendriers | ✅ Terminé | 2026-09-08 |
 | Lot 5 — Projects & Releases | ✅ Terminé | 2026-09-08 |
-| Lots 6-14 | ⏳ En attente | — |
+| Lot 6 — Resources & Allocations (CRUD) | ✅ Terminé | 2026-09-08 |
+| Lots 7-14 | ⏳ En attente | — |
 
 ## Dette technique
 
@@ -66,7 +67,8 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 - 2026-09-08 — Lot 3 : `typecheck` ✅, `lint` ✅, `format` ✅, `format:check` ✅, `test` ✅ 22/22, `build` ✅. Nouveau module pur `src/domain/calculations/` : capacités brute/nette/disponible, charge affectée, charge non affectée, classification d'utilisation configurable via `AppSettings.visualThresholds`, et `tauxUtilisation` avec cas limite `capacity = 0` géré via `ratePercent: null` + drapeau `isCriticalOverload`. Aucun changement du schéma `AppSettings` nécessaire.
 - 2026-09-08 — Lot 4 : `typecheck` ✅, `lint` ✅, `format` ✅, `format:check` ✅, `test` ✅ 41/41, `build` ✅. Nouvelles pages exportées : `CompaniesPage`, `ResourceTypesPage`, `WorkingDaysPage`, `NonWorkingDaysPage`. Décisions clés : archivage logique avec suppression définitive conditionnée aux références (Companies via `Resource.companyId`; ResourceTypes via `Resource`, `DemandSnapshot`, `Allocation`), duplication d'année pour calendriers, grille annuelle d'absences avec collage TSV/Excel et totaux ligne/colonne. Écart minimal : le package `@hookform/resolvers` étant absent, les formulaires `react-hook-form` utilisent des resolvers Zod inline équivalents sans ajout de dépendance.
 - 2026-09-08 — Lot 5 : nouvelles pages `ProjectsPage`, `GroupsPage`, `ReleasesPage` avec CRUD réutilisant `createRepository`, formulaires `react-hook-form` + Zod inline, liens N-N via `ProjectRelease`, archivage conditionné aux références (`DemandSnapshot`/`Allocation` pour Projects, `ProjectRelease` pour Releases) et timeline simple des go-live dates. Décision UI : `Group` reste dans `src/features/projects` via une page dédiée en lecture seule car l'entité est adjacente au domaine projet sans justifier une navigation propre. Aucun changement d'entité ou de schéma : `Group` existait déjà et a été réutilisé tel quel.
+- 2026-09-08 — Lot 6 : nouvelle page exportée `ResourcesPage` avec CRUD Resource + gestion basique des `Allocation` directement dans le panneau de détail ressource (décision UI documentée dans la page et conservée jusqu'au futur lot Allocation Studio). Réutilisation stricte des schémas existants (`Resource`, `Allocation`) et du moteur Lot 3 pour le résumé mensuel (capacité brute/nette, charge affectée, disponible, taux d'utilisation). Déviation minimale documentée : `DemandSnapshot` ne référence pas directement `resourceId` dans le modèle actuel, donc la règle de suppression définitive Resource s'appuie sur les références réellement disponibles (`Allocation` + `ResourceNonWorkingDays`) pour éviter les orphelins et préserver l'historique. Hypothèse locale pour les drapeaux d'over-service : en présence de plusieurs `DemandSnapshot` pour la même clé projet/type/mois, le plus récent par `updatedAt` est traité comme la demande courante jusqu'au lot import/comparaison.
 
 ## Prochaines actions
 
-- Préparer le Lot 6 (Resources & Allocation rules) en réutilisant les référentiels, `src/domain/calculations/` et les conventions CRUD établies aux lots 4 et 5.
+- Préparer le Lot 7 (imports) en réutilisant les référentiels, `src/domain/calculations/` et les conventions CRUD établies aux lots 4 à 6.
