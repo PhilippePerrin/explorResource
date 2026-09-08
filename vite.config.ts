@@ -15,7 +15,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['assets/biomerieux-logo.jpeg'],
+      includeAssets: [
+        'assets/biomerieux-logo.jpeg',
+        'icons/apple-touch-icon.png',
+        'icons/pwa-192x192.png',
+        'icons/pwa-512x512.png',
+        'icons/pwa-maskable-512x512.png',
+      ],
       manifest: {
         id: REPO_BASE,
         name: 'Resource Capacity & Project Demand Planner',
@@ -29,10 +35,22 @@ export default defineConfig({
         theme_color: '#00427f',
         icons: [
           {
-            src: 'assets/biomerieux-logo.jpeg',
-            sizes: '842x596',
-            type: 'image/jpeg',
+            src: 'icons/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
             purpose: 'any',
+          },
+          {
+            src: 'icons/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any',
+          },
+          {
+            src: 'icons/pwa-maskable-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
           },
         ],
       },
@@ -40,8 +58,43 @@ export default defineConfig({
         // App-shell caching only. Business data lives in IndexedDB and must
         // never be intercepted or cached by the service worker.
         navigateFallback: `${REPO_BASE}index.html`,
-        globPatterns: ['**/*.{js,css,html,svg,ico}'],
-        runtimeCaching: [],
+        cleanupOutdatedCaches: true,
+        globPatterns: ['**/*.{js,css,html,svg,ico,png,webmanifest}'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ request, url }) =>
+              request.mode === 'navigate' && url.pathname.startsWith(REPO_BASE),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-shell-pages',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 7 * 24 * 60 * 60,
+              },
+            },
+          },
+          {
+            urlPattern: ({ request, url }) =>
+              url.pathname.startsWith(REPO_BASE) &&
+              ['font', 'image', 'script', 'style', 'worker'].includes(request.destination),
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'app-shell-assets',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+              expiration: {
+                maxEntries: 64,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+              },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: false,

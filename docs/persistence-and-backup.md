@@ -23,9 +23,11 @@ Schema version is a single incrementing integer. Each version bump is one additi
 - **Reset**: full data wipe requires double confirmation.
 - **Quota/write errors**: surfaced as typed errors (`PersistenceWriteError`) with a human-readable message; no silent data loss.
 
+Lot 11's Settings UI reuses `src/persistence/backup.ts` directly for export, validation, and restore. No parallel JSON import/export implementation is allowed in feature code.
+
 ## Unsaved changes
 
-The UI must track a dirty/unsaved-changes flag and warn before navigation/close (`beforeunload`) whenever there are unsaved changes — implemented in the relevant feature lots (Non-working Days, Allocation Studio, etc.), backed by this persistence layer's explicit-save model (no auto-save assumed unless a feature says otherwise).
+The UI must track a dirty/unsaved-changes flag and warn before navigation/close (`beforeunload`) whenever there are unsaved changes — implemented in the relevant feature lots (Non-working Days, Allocation Studio, Settings thresholds, etc.), backed by this persistence layer's explicit-save model (no auto-save assumed unless a feature says otherwise).
 
 ## No network transmission
 

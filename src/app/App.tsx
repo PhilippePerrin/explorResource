@@ -1,5 +1,7 @@
 import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
 
+import { UpdateBanner } from './UpdateBanner';
+
 /**
  * Root application shell.
  *
@@ -35,6 +37,7 @@ export default function App() {
           <NavLink to="/">Dashboard</NavLink>
         </nav>
       </header>
+      <UpdateBanner />
       <Routes>
         <Route path="/" element={<DashboardPlaceholder />} />
       </Routes>

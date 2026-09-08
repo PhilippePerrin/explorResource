@@ -37,18 +37,21 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 
 ## État des lots
 
-| Lot | Statut | Date |
-|---|---|---|
-| Lot 0 — Bootstrap & outillage | ✅ Terminé (commit `37b87ac`, `dc2e51d`) | 2026-09-08 |
-| Lot 1 — Documentation & mémoire | ✅ Terminé (commit `bca0545`) | 2026-09-08 |
-| Lot 2 — Domaine & persistance | ✅ Terminé (commit `6adf432`, agent parallèle) | 2026-09-08 |
-| Lot 3 — Moteur de calcul | ✅ Terminé | 2026-09-08 |
-| Lot 4 — Référentiels & calendriers | ✅ Terminé | 2026-09-08 |
-| Lot 5 — Projects & Releases | ✅ Terminé | 2026-09-08 |
-| Lot 6 — Resources & Allocations (CRUD) | ✅ Terminé | 2026-09-08 |
-| Lot 7 — Excel Import Pipeline | ✅ Terminé | 2026-09-08 |
-| Lot 8 — Import Historisation & Comparison | ✅ Terminé | 2026-09-08 |
-| Lots 9-14 | ⏳ En attente | — |
+| Lot                                                                | Statut                                         | Date       |
+| ------------------------------------------------------------------ | ---------------------------------------------- | ---------- |
+| Lot 0 — Bootstrap & outillage                                      | ✅ Terminé (commit `37b87ac`, `dc2e51d`)       | 2026-09-08 |
+| Lot 1 — Documentation & mémoire                                    | ✅ Terminé (commit `bca0545`)                  | 2026-09-08 |
+| Lot 2 — Domaine & persistance                                      | ✅ Terminé (commit `6adf432`, agent parallèle) | 2026-09-08 |
+| Lot 3 — Moteur de calcul                                           | ✅ Terminé                                     | 2026-09-08 |
+| Lot 4 — Référentiels & calendriers                                 | ✅ Terminé                                     | 2026-09-08 |
+| Lot 5 — Projects & Releases                                        | ✅ Terminé                                     | 2026-09-08 |
+| Lot 6 — Resources & Allocations (CRUD)                             | ✅ Terminé                                     | 2026-09-08 |
+| Lot 7 — Excel Import Pipeline                                      | ✅ Terminé                                     | 2026-09-08 |
+| Lot 8 — Import Historisation & Comparison                          | ✅ Terminé                                     | 2026-09-08 |
+| Lot 9 — Dashboard / Capacity / Demand Coverage / Allocation Studio | ⏳ En cours (agent parallèle)                  | 2026-09-08 |
+| Lot 10 — Demand Evolution                                          | ⏳ En attente                                  | —          |
+| Lot 11 — PWA / Backup UI / GitHub Pages                            | ✅ Terminé                                     | 2026-09-08 |
+| Lots 12-14                                                         | ⏳ En attente                                  | —          |
 
 ## Dette technique
 
@@ -76,7 +79,10 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 - 2026-09-08 — Lot 8 : historisation/comparaison d'import implémentée dans `src/import/comparison.ts` + `src/features/imports/ImportsPage.tsx`. Décision clé sur la **demande courante** : elle est désormais explicitement documentée comme le **dernier `DemandSnapshot` par clé** (`projectCode + resourceTypeId + year + month`, tri `updatedAt` puis `createdAt`), ce qui rend possible un rollback fonctionnel **sans pointeur séparé ni mutation d'historique**.
 - 2026-09-08 — Lot 8 : le rollback crée de **nouveaux `DemandSnapshot` `origin = manual-adjustment` / `importBatchId = 'manual'`** et ajoute une `AuditEntry` `import-rollback`; aucun `ImportBatch` ni ancien `DemandSnapshot` n'est supprimé. Si une clé est absente de l'import restauré mais encore active dans l'état courant, un snapshot manuel à `0` est écrit pour aligner explicitement l'état courant sur la version restaurée.
 - 2026-09-08 — Lot 8 : conséquence assumée du modèle append-only : un projet/type/mois absent d'un import plus récent **reste courant** tant qu'aucun snapshot plus récent (y compris à `0`) ne l'écrase. Ceci respecte la règle métier "removed project is never deleted, only absent from latest import" et explique pourquoi certains rollbacks globaux n'ont besoin de réécrire qu'un sous-ensemble des clés visibles en comparaison.
+- 2026-09-08 — Lot 11 : nouvelle page exportée `SettingsPage` avec configuration des seuils visuels d'utilisation (UI simplifiée en 4 bornes métier, remappées vers `AppSettings.visualThresholds` à 6 champs), indicateur "unsaved changes" + `beforeunload`, UI de backup/export/restore réutilisant **strictement** `src/persistence/backup.ts`, et reset IndexedDB à double confirmation.
+- 2026-09-08 — Lot 11 : PWA complétée avec `src/app/UpdateBanner.tsx` monté dans `App.tsx`, `registerType: 'prompt'`, service worker limité au shell `/explorResource/` en `NetworkFirst`, et icônes PWA carrées dérivées du logo `public/assets/biomerieux-logo.jpeg` sans modifier l'original.
+- 2026-09-08 — Lot 11 : déviation assumée/minimale — la tolérance numérique `1e-6` reste **affichée à titre informatif** dans Settings, car le moteur de normalisation actuel utilise encore la valeur globale par défaut et aucun branchement runtime vers `AppSettings.numericTolerance` n'existe sans refactor plus large (hors périmètre de ce lot).
 
 ## Prochaines actions
 
-- Préparer le Lot 8 (dashboards/analyses) en s'appuyant sur l'historique d'import maintenant disponible (`ImportBatch`, `ImportRawRow`, `DemandSnapshot`, `Allocation` d'origine import).
+- Finaliser Lot 9 en parallèle puis enchaîner sur Lot 10/12+ (Demand Evolution, reporting, stabilisation finale) en s'appuyant sur les lots 0-11 désormais disponibles.
