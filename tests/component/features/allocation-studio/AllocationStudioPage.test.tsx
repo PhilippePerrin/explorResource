@@ -189,6 +189,9 @@ describe('AllocationStudioPage', () => {
       .closest('section');
 
     expect(dragTokenSection).not.toBeNull();
+    expect(
+      await within(dragTokenSection as HTMLElement).findByText('Alice Martin'),
+    ).toBeInTheDocument();
 
     await user.selectOptions(
       within(dragTokenSection as HTMLElement).getByLabelText(/^Resource$/i),

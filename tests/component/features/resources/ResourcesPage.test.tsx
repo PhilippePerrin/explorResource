@@ -61,6 +61,7 @@ describe('ResourcesPage', () => {
     const user = userEvent.setup();
     renderPage();
     const detailsSection = getSectionForHeading(/Create resource/i);
+    await within(detailsSection).findByRole('option', { name: 'Developer' });
 
     await user.type(screen.getByLabelText(/First name/i), 'Alice');
     await user.type(screen.getByLabelText(/Last name/i), 'Martin');
