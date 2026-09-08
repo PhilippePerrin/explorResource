@@ -1,0 +1,68 @@
+# ai.memory
+
+Agent-readable memory log for **Resource Capacity & Project Demand Planner**. Not an application database — a journal for coding agents. Never store secrets here. Every entry is dated. Mark items as `FACT` (verified), `HYPOTHÈSE` (assumption), or `PROPOSITION` (suggestion pending decision). Superseded entries are struck through or moved to "Resolved" rather than deleted, so history stays auditable.
+
+---
+
+## Contexte stable (FACT)
+
+- 2026-09-08 — Application locale, mono-utilisateur (Domain Manager), sans authentification, sans backend. PWA React/TS/Vite déployée sur GitHub Pages sous `/explorResource/`.
+- 2026-09-08 — Fichier Excel réel fourni (`data/export-philippe.perrin-151251-20260908-101608.xlsx`) est un export d'un outil PSA (probablement Certinia/OpenAir, noms définis `ATT__RM_...`). Feuille `DemandWorkload` (166 lignes), feuille cachée `plw-metadata`.
+- 2026-09-08 — Hiérarchie des lignes confirmée par inspection réelle : `Groupe (GIS.../RUN...)` → `Projet (E####/P####/R####)` → `Ligne demande` (col. D = libellé type de ressource) → `Ligne(s) supply` (col. D = nom de ressource réel).
+- 2026-09-08 — Le fichier source marque lui-même 34 lignes "hors données" via les noms définis `NO_IMPORT1..34` ; styles Excel `33` (groupe) vs `30` (projet) corrèlent avec cette classification — utilisables comme indices secondaires, jamais seuls.
+- 2026-09-08 — **Découverte critique** : les valeurs numériques des cellules mensuelles des lignes "demande" sont un **écart (gap = demande − supply)**, pas la demande brute. La demande/supply réelle par mois est uniquement disponible dans les **commentaires de cellule** (`comments1.xml`, texte `Demand : X (Day) / Supply : Y (Day)`).
+- 2026-09-08 — Codes non conformes à `^[EPR]\d{4}$` trouvés dans le fichier réel : `GIS0006, GIS0010, GIS0022, GIS0097, GIS0112, GIS0114, GIS0120` (groupes GIS), `RUN0001, RUN0040` (groupes RUN). `R0016` est un vrai projet conforme (préfixe R) situé sous le groupe `RUN0001`.
+- 2026-09-08 — Bruit flottant réel confirmé dans le fichier (`-4.4408920985006262E-16`), utilisé comme cas de test pour la normalisation.
+- 2026-09-08 — `data/index.css` contient déjà les tokens Tailwind v4 (`@theme`) + thèmes clair/sombre complets ; à réutiliser tel quel, jamais réécrit.
+- 2026-09-08 — Logo `data/logo-bmx.jpeg` : 842×596 px, copié vers `public/assets/biomerieux-logo.jpeg`.
+- 2026-09-08 — "Open Knowledge Format (OKF) v0.2" (Google Cloud Platform) existe réellement (vérifié via fetch de la spec), mais cible des corpus de connaissance agent (concepts, provenance, attestation) — hors périmètre pour la documentation de ce projet. Décision : documentation Markdown pragmatique, pas de conformité OKF stricte.
+
+## Décisions confirmées (Phase 1 de planification — FACT)
+
+Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés en lecture seule · lignes supply initialisent les Allocations · demande/supply réelle extraite des commentaires avec repli par écart · ajustements manuels revus ligne par ligne à chaque import · projet absent conservé et marqué · entités inconnues toujours signalées (jamais auto-créées) · tolérance numérique `1e-6` · archivage logique par défaut · doc Markdown pragmatique · UI en anglais · repo GitHub Pages = `explorResource`.
+
+## Hypothèses temporaires (HYPOTHÈSE)
+
+- 2026-09-08 — HYPOTHÈSE : `HashRouter` est préféré à `BrowserRouter` + `basename` pour la compatibilité GitHub Pages (pas de réécriture serveur pour les deep links). À revalider si un besoin d'URLs partageables sans `#` apparaît (le cahier des charges autorise le partage de filtres via l'URL si non sensible — compatible avec HashRouter, juste avec un `#` dans l'URL).
+- 2026-09-08 — HYPOTHÈSE : le format des commentaires de cellule (`Demand : X (Day) / Y (FTE)\nSupply : ...`) est stable d'un export à l'autre du même outil PSA. Mitigé par un repli automatique sur le calcul par écart si le format ne correspond pas.
+
+## Questions ouvertes
+
+- Aucune question bloquante ouverte au 2026-09-08 après la phase de clarification (Phase 1). Toute nouvelle question sera ajoutée ici avec la date et le lot concerné.
+
+## Décisions d'architecture (voir aussi `docs/adr/`)
+
+- 2026-09-08 — ADR-0001 : IndexedDB (via `idb`) comme source de vérité, JSON comme format d'export/backup uniquement (pas de "fichier JSON" comme stockage primaire malgré la formulation initiale du besoin — clarifié comme couvrant l'export/restauration).
+- 2026-09-08 — ADR-0002 (implicite, à formaliser) : Tailwind CSS v4 via `@tailwindcss/vite` (pas de config PostCSS séparée), car `data/index.css` utilise la syntaxe `@theme` de Tailwind v4.
+
+## État des lots
+
+| Lot | Statut | Date |
+|---|---|---|
+| Lot 0 — Bootstrap & outillage | ✅ Terminé (commit `37b87ac`, `dc2e51d`) | 2026-09-08 |
+| Lot 1 — Documentation & mémoire | 🔄 En cours | 2026-09-08 |
+| Lot 2 — Domaine & persistance | 🔄 En cours (agent parallèle) | 2026-09-08 |
+| Lot 3 — Moteur de calcul | ⏳ En attente (dépend de Lot 2) | — |
+| Lots 4-14 | ⏳ En attente | — |
+
+## Dette technique
+
+- 2026-09-08 — `npm audit` signale 10 vulnérabilités (6 modérées, 2 hautes, 2 critiques) dans les dépendances de développement (build tooling). À revisiter avant la mise en production finale (Lot 13/14) ; pas de code applicatif affecté au moment de l'écriture.
+- 2026-09-08 — `.sf/` (résidu Salesforce CLI, non lié au projet) reste présent dans le repo ; non versionné dans `.gitignore` intentionnellement pour l'instant car hors périmètre — à évaluer si son fichier `catalog.json` continue de se modifier de façon intempestive.
+
+## Incidents et solutions
+
+- 2026-09-08 — `npm create vite@latest` interactif impossible à automatiser proprement en PowerShell (prompts non capturés) → scaffolding manuel de tous les fichiers de config (`package.json`, `tsconfig*.json`, `vite.config.ts`, ESLint, Prettier, Vitest, Playwright, GitHub Actions).
+- 2026-09-08 — Erreur de build initiale `Unable to resolve @import "tailwindcss"` → résolue en ajoutant les dépendances `tailwindcss` + `@tailwindcss/vite` et le plugin dans `vite.config.ts` (Tailwind v4 ne nécessite pas de config PostCSS séparée avec ce plugin).
+- 2026-09-08 — `tsc` échouait sur `vite.config.ts` (option `test` inconnue) → résolu avec `/// <reference types="vitest/config" />` en tête de fichier.
+- 2026-09-08 — Warnings React Router (`v7_startTransition`, `v7_relativeSplatPath`) → activés en avance via les `future` flags du `HashRouter` pour respecter l'exigence "zéro warning".
+
+## Résultats de tests
+
+- 2026-09-08 — Lot 0 : `typecheck` ✅, `lint` ✅, `format:check` ✅, `test` (vitest) ✅ 3/3, `build` ✅ (PWA générée, precache 6 entrées), `test:e2e` (Playwright, Chromium) ✅ 1/1.
+
+## Prochaines actions
+
+- Terminer Lot 1 (ce fichier + `docs/*` + `README.md` + `CHANGELOG.md`).
+- Terminer Lot 2 (entités zod, repository IndexedDB, migrations, backup) — en cours via agent parallèle.
+- Démarrer Lot 3 (moteur de calcul) dès que Lot 2 est validé.
