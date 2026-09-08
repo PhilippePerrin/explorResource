@@ -10,6 +10,7 @@ import { createRepository } from '@/persistence/repository';
 const resourceTypesRepository = createRepository('resourceTypes');
 const resourcesRepository = createRepository('resources');
 const importBatchesRepository = createRepository('importBatches');
+const demandSnapshotsRepository = createRepository('demandSnapshots');
 const projectsRepository = createRepository('projects');
 
 function createMockAnalysis(overrides: Partial<ImportAnalysis> = {}): ImportAnalysis {
@@ -154,7 +155,7 @@ describe('ImportsPage', () => {
 
     expect(await screen.findByRole('heading', { name: /^Imports$/i })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /Step /i })).toHaveLength(10);
-    expect(screen.getByText(/No validated imports yet\./i)).toBeInTheDocument();
+    expect(screen.getByText(/No imports yet\./i)).toBeInTheDocument();
   });
 
   it('blocks commit when the analysis contains blocking anomalies', async () => {
@@ -219,5 +220,150 @@ describe('ImportsPage', () => {
     });
 
     expect(screen.getByText('fixture.xlsx')).toBeInTheDocument();
+  });
+
+  it('renders aggregate comparison indicators and restores demand from the reference import', async () => {
+    const user = userEvent.setup();
+
+    await importBatchesRepository.put({
+      id: '11111111-1111-4111-8111-111111111111',
+      importedAt: '2026-09-07T10:00:00.000Z',
+      referenceDate: '2026-09-01',
+      note: 'Older import',
+      fileName: 'older.xlsx',
+      fileSha256: '1'.repeat(64),
+      rowCount: 10,
+      status: 'validated',
+      createdAt: '2026-09-07T10:00:00.000Z',
+      updatedAt: '2026-09-07T10:00:00.000Z',
+    });
+    await importBatchesRepository.put({
+      id: '22222222-2222-4222-8222-222222222222',
+      importedAt: '2026-09-08T10:00:00.000Z',
+      referenceDate: '2026-09-08',
+      note: 'Latest import',
+      fileName: 'latest.xlsx',
+      fileSha256: '2'.repeat(64),
+      rowCount: 12,
+      status: 'validated',
+      createdAt: '2026-09-08T10:00:00.000Z',
+      updatedAt: '2026-09-08T10:00:00.000Z',
+    });
+
+    const snapshots = [
+      {
+        id: 'a1fd409c-b960-4a71-8872-5a46b8011111',
+        importBatchId: '11111111-1111-4111-8111-111111111111',
+        projectCode: 'E0100',
+        resourceTypeId: '2b973647-498d-4c42-8d90-71f668f30c2e',
+        year: 2026,
+        month: 1,
+        demandDays: 4,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-09-07T10:00:00.000Z',
+        updatedAt: '2026-09-07T10:00:00.000Z',
+      },
+      {
+        id: 'a1fd409c-b960-4a71-8872-5a46b8011112',
+        importBatchId: '11111111-1111-4111-8111-111111111111',
+        projectCode: 'E0100',
+        resourceTypeId: '8cbef9bd-b82f-4825-a912-71f668f30c2f',
+        year: 2026,
+        month: 1,
+        demandDays: 1,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-09-07T10:00:00.000Z',
+        updatedAt: '2026-09-07T10:00:00.000Z',
+      },
+      {
+        id: 'a1fd409c-b960-4a71-8872-5a46b8011113',
+        importBatchId: '11111111-1111-4111-8111-111111111111',
+        projectCode: 'E0300',
+        resourceTypeId: '2b973647-498d-4c42-8d90-71f668f30c2e',
+        year: 2026,
+        month: 1,
+        demandDays: 2,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-09-07T10:00:00.000Z',
+        updatedAt: '2026-09-07T10:00:00.000Z',
+      },
+      {
+        id: 'a1fd409c-b960-4a71-8872-5a46b8012221',
+        importBatchId: '22222222-2222-4222-8222-222222222222',
+        projectCode: 'E0100',
+        resourceTypeId: '2b973647-498d-4c42-8d90-71f668f30c2e',
+        year: 2026,
+        month: 1,
+        demandDays: 6,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-09-08T10:00:00.000Z',
+        updatedAt: '2026-09-08T10:00:00.000Z',
+      },
+      {
+        id: 'a1fd409c-b960-4a71-8872-5a46b8012222',
+        importBatchId: '22222222-2222-4222-8222-222222222222',
+        projectCode: 'E0200',
+        resourceTypeId: '2b973647-498d-4c42-8d90-71f668f30c2e',
+        year: 2026,
+        month: 1,
+        demandDays: 1.5,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-09-08T10:00:00.000Z',
+        updatedAt: '2026-09-08T10:00:00.000Z',
+      },
+    ];
+
+    await resourceTypesRepository.put({
+      id: '8cbef9bd-b82f-4825-a912-71f668f30c2f',
+      label: 'Commerce - QA - EUR',
+      shortCode: 'QA',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 2,
+      createdAt: '2026-09-08T10:00:00.000Z',
+      updatedAt: '2026-09-08T10:00:00.000Z',
+    });
+
+    for (const snapshot of snapshots) {
+      await demandSnapshotsRepository.put(snapshot);
+    }
+
+    render(<ImportsPage workerClientFactory={() => createWorkerClient(createMockAnalysis())} />);
+
+    expect(await screen.findByText('older.xlsx')).toBeInTheDocument();
+    expect(screen.getByText('latest.xlsx')).toBeInTheDocument();
+    expect(screen.getByText(/Department positive/i)).toBeInTheDocument();
+    expect(screen.getByText(/Department negative/i)).toBeInTheDocument();
+    expect(screen.getByText(/Department net/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/\+3\.5/).length).toBeGreaterThan(0);
+    expect(screen.getByText(/✨ New project/i)).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /Restore current demand from reference import/i }),
+    );
+
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    expect(screen.getByText(/nothing is deleted/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Restore demand/i }));
+
+    expect(await screen.findByText(/history was preserved/i)).toBeInTheDocument();
+
+    await waitFor(async () => {
+      const storedSnapshots = await demandSnapshotsRepository.getAll();
+      const manualSnapshots = storedSnapshots.filter(
+        (snapshot) => snapshot.importBatchId === 'manual',
+      );
+
+      expect(manualSnapshots).toHaveLength(2);
+      expect(manualSnapshots.every((snapshot) => snapshot.origin === 'manual-adjustment')).toBe(
+        true,
+      );
+    });
   });
 });

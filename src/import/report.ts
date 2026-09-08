@@ -64,6 +64,7 @@ export function generateImportReportMarkdown(options: {
   lines.push(`- Unchanged keys: ${comparison.unchangedCount}`);
   lines.push(`- Positive delta (days): ${formatAmount(comparison.positiveDelta)}`);
   lines.push(`- Negative delta (days): ${formatAmount(comparison.negativeDelta)}`);
+  lines.push(`- Net delta (days): ${formatAmount(comparison.netDelta)}`);
   lines.push('');
 
   if (comparison.items.length > 0) {

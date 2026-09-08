@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import type { ImportBatch, Resource, ResourceType } from '@/domain/entities';
+import type { DemandSnapshot, ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
+  buildDemandComparisonSummary,
+  buildDemandRollbackPlan,
   buildImportComparisonSummary,
   commitImportAnalysis,
   createImportWorkerClient,
@@ -12,6 +14,11 @@ import {
   IMPORT_WIZARD_STEPS,
   importWizardReducer,
   initialImportWizardState,
+  restoreDemandFromImportBatch,
+  selectLatestDemandSnapshots,
+  type DemandRollbackPlan,
+  type ImportComparisonProjectSummary,
+  type ImportComparisonSummary,
   type ImportWorkerClient,
 } from '@/import';
 import { createRepository } from '@/persistence/repository';
@@ -21,6 +28,9 @@ const resourcesRepository = createRepository('resources');
 const importBatchesRepository = createRepository('importBatches');
 const demandSnapshotsRepository = createRepository('demandSnapshots');
 
+type ComparisonSourceId = 'current' | ImportBatch['id'];
+type RollbackScope = DemandRollbackPlan['scope'];
+
 interface ImportsPageProps {
   workerClientFactory?: () => ImportWorkerClient;
 }
@@ -29,12 +39,29 @@ interface ImportsPageData {
   resourceTypes: ResourceType[];
   resources: Resource[];
   importBatches: ImportBatch[];
+  demandSnapshots: DemandSnapshot[];
+}
+
+interface PendingRollback {
+  scope: RollbackScope;
+  targetBatch: ImportBatch;
+  plan: DemandRollbackPlan;
+  title: string;
+  successMessage: string;
 }
 
 function formatAmount(value: number): string {
   return new Intl.NumberFormat('en-US', {
     maximumFractionDigits: 2,
     minimumFractionDigits: value % 1 === 0 ? 0 : 1,
+  }).format(value);
+}
+
+function formatDeltaAmount(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: value !== 0 && value % 1 !== 0 ? 1 : 0,
+    signDisplay: 'exceptZero',
   }).format(value);
 }
 
@@ -45,11 +72,68 @@ function formatDateTime(value: string): string {
   }).format(new Date(value));
 }
 
-function resolvePreviousBatch(importBatches: ImportBatch[]): ImportBatch | null {
+function formatMonthLabel(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, '0')}`;
+}
+
+function resolveLatestValidatedBatch(importBatches: ImportBatch[]): ImportBatch | null {
   return (
     [...importBatches]
       .filter((batch) => batch.status === 'validated')
       .sort((left, right) => right.importedAt.localeCompare(left.importedAt))[0] ?? null
+  );
+}
+
+function describeCurrentSource(hasManualAdjustments: boolean): string {
+  return hasManualAdjustments
+    ? 'Current effective demand (includes manual rollback state)'
+    : 'Current effective demand';
+}
+
+function getSourceLabel(options: {
+  sourceId: ComparisonSourceId;
+  validatedImportHistory: ImportBatch[];
+  hasManualAdjustments: boolean;
+}): string {
+  if (options.sourceId === 'current') {
+    return describeCurrentSource(options.hasManualAdjustments);
+  }
+
+  const batch = options.validatedImportHistory.find((item) => item.id === options.sourceId);
+  return batch ? `${batch.fileName} (${formatDateTime(batch.importedAt)})` : 'Unknown import batch';
+}
+
+function getProjectIndicatorSummary(projectSummary: ImportComparisonProjectSummary): string[] {
+  const indicators: string[] = [];
+
+  if (projectSummary.projectState === 'new-project') {
+    indicators.push('✨ New project');
+  }
+
+  if (projectSummary.projectState === 'removed-project') {
+    indicators.push('🗑 Removed project');
+  }
+
+  if (projectSummary.addedResourceTypeLabels.length > 0) {
+    indicators.push(`➕ Type added: ${projectSummary.addedResourceTypeLabels.join(', ')}`);
+  }
+
+  if (projectSummary.removedResourceTypeLabels.length > 0) {
+    indicators.push(`➖ Type removed: ${projectSummary.removedResourceTypeLabels.join(', ')}`);
+  }
+
+  if (indicators.length === 0) {
+    indicators.push('≈ No structural change');
+  }
+
+  return indicators;
+}
+
+function StatusPill({ label }: { label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full border border-[var(--surf-divider)] px-2 py-1 text-xs font-medium">
+      {label}
+    </span>
   );
 }
 
@@ -66,6 +150,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
     resourceTypes: [],
     resources: [],
     importBatches: [],
+    demandSnapshots: [],
   });
   const [wizardState, dispatch] = useReducer(importWizardReducer, initialImportWizardState);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -73,16 +158,92 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
   const [submitting, setSubmitting] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [comparisonSourceId, setComparisonSourceId] = useState<ComparisonSourceId>('current');
+  const [referenceBatchId, setReferenceBatchId] = useState<ImportBatch['id'] | ''>('');
+  const [busyRollback, setBusyRollback] = useState(false);
+  const [pendingRollback, setPendingRollback] = useState<PendingRollback | null>(null);
   const loadRequestIdRef = useRef(0);
   const workerClient = useMemo(() => workerClientFactory(), [workerClientFactory]);
   const blockingAnomalies = hasBlockingAnomalies(wizardState);
-  const validatedImportHistory = useMemo(
+  const importHistory = useMemo(
     () =>
-      [...data.importBatches]
-        .filter((batch) => batch.status === 'validated')
-        .sort((left, right) => right.importedAt.localeCompare(left.importedAt)),
+      [...data.importBatches].sort((left, right) =>
+        right.importedAt.localeCompare(left.importedAt),
+      ),
     [data.importBatches],
   );
+  const validatedImportHistory = useMemo(
+    () => importHistory.filter((batch) => batch.status === 'validated'),
+    [importHistory],
+  );
+  const demandSnapshotsByImportBatchId = useMemo(() => {
+    const snapshotsByBatchId = new Map<string, DemandSnapshot[]>();
+
+    for (const snapshot of data.demandSnapshots) {
+      const currentSnapshots = snapshotsByBatchId.get(snapshot.importBatchId) ?? [];
+      currentSnapshots.push(snapshot);
+      snapshotsByBatchId.set(snapshot.importBatchId, currentSnapshots);
+    }
+
+    return snapshotsByBatchId;
+  }, [data.demandSnapshots]);
+  const resourceTypeLabelsById = useMemo(
+    () =>
+      new Map(
+        data.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label] as const),
+      ),
+    [data.resourceTypes],
+  );
+  const currentEffectiveSnapshots = useMemo(
+    () => selectLatestDemandSnapshots(data.demandSnapshots),
+    [data.demandSnapshots],
+  );
+  const currentHasManualAdjustments = useMemo(
+    () => currentEffectiveSnapshots.some((snapshot) => snapshot.importBatchId === 'manual'),
+    [currentEffectiveSnapshots],
+  );
+  const referenceBatch = useMemo(
+    () => validatedImportHistory.find((batch) => batch.id === referenceBatchId) ?? null,
+    [referenceBatchId, validatedImportHistory],
+  );
+  const comparisonSelectionError =
+    comparisonSourceId !== 'current' && comparisonSourceId === referenceBatchId
+      ? 'Select two different sources to compare imports manually.'
+      : '';
+  const comparisonSummary = useMemo<ImportComparisonSummary | null>(() => {
+    if (comparisonSelectionError) {
+      return null;
+    }
+
+    const comparedSnapshots =
+      comparisonSourceId === 'current'
+        ? currentEffectiveSnapshots
+        : (demandSnapshotsByImportBatchId.get(comparisonSourceId) ?? []);
+    const previousDemandSnapshots = referenceBatch
+      ? (demandSnapshotsByImportBatchId.get(referenceBatch.id) ?? [])
+      : [];
+
+    return buildDemandComparisonSummary({
+      comparedSnapshots,
+      previousBatch: referenceBatch
+        ? {
+            id: referenceBatch.id,
+            fileName: referenceBatch.fileName,
+            importedAt: referenceBatch.importedAt,
+            referenceDate: referenceBatch.referenceDate,
+          }
+        : null,
+      previousDemandSnapshots,
+      resourceTypeLabelsById,
+    });
+  }, [
+    comparisonSelectionError,
+    comparisonSourceId,
+    currentEffectiveSnapshots,
+    demandSnapshotsByImportBatchId,
+    referenceBatch,
+    resourceTypeLabelsById,
+  ]);
 
   useEffect(() => {
     void loadData();
@@ -94,26 +255,67 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
     };
   }, [workerClient]);
 
+  useEffect(() => {
+    const defaultReferenceBatchId = validatedImportHistory[1]?.id ?? '';
+    const validBatchIds = new Set(validatedImportHistory.map((batch) => batch.id));
+    const nextComparisonSourceId =
+      comparisonSourceId === 'current' || validBatchIds.has(comparisonSourceId)
+        ? comparisonSourceId
+        : 'current';
+    const nextReferenceBatchId = validBatchIds.has(referenceBatchId)
+      ? referenceBatchId
+      : defaultReferenceBatchId;
+
+    if (nextComparisonSourceId !== comparisonSourceId) {
+      setComparisonSourceId(nextComparisonSourceId);
+    }
+
+    if (nextReferenceBatchId !== referenceBatchId) {
+      setReferenceBatchId(nextReferenceBatchId);
+    }
+  }, [comparisonSourceId, referenceBatchId, validatedImportHistory]);
+
   async function loadData() {
     setLoading(true);
     const requestId = ++loadRequestIdRef.current;
 
     try {
-      const [resourceTypes, resources, importBatches] = await Promise.all([
+      const [resourceTypes, resources, importBatches, demandSnapshots] = await Promise.all([
         resourceTypesRepository.getAll(),
         resourcesRepository.getAll(),
         importBatchesRepository.getAll(),
+        demandSnapshotsRepository.getAll(),
       ]);
 
       if (loadRequestIdRef.current !== requestId) {
         return;
       }
 
-      setData({ resourceTypes, resources, importBatches });
+      setData({ resourceTypes, resources, importBatches, demandSnapshots });
     } finally {
       if (loadRequestIdRef.current === requestId) {
         setLoading(false);
       }
+    }
+  }
+
+  function chooseAlternativeReferenceBatch(excludedBatchId: string): ImportBatch['id'] | '' {
+    return validatedImportHistory.find((batch) => batch.id !== excludedBatchId)?.id ?? '';
+  }
+
+  function handleSelectComparedSource(sourceId: ComparisonSourceId) {
+    setComparisonSourceId(sourceId);
+
+    if (sourceId !== 'current' && sourceId === referenceBatchId) {
+      setReferenceBatchId(chooseAlternativeReferenceBatch(sourceId));
+    }
+  }
+
+  function handleSelectReferenceBatch(batchId: ImportBatch['id']) {
+    setReferenceBatchId(batchId);
+
+    if (comparisonSourceId !== 'current' && comparisonSourceId === batchId) {
+      setComparisonSourceId('current');
     }
   }
 
@@ -154,9 +356,9 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         })),
       });
 
-      const previousBatch = resolvePreviousBatch(data.importBatches);
+      const previousBatch = resolveLatestValidatedBatch(data.importBatches);
       const previousDemandSnapshots = previousBatch
-        ? await demandSnapshotsRepository.getByIndex('by-importBatchId', previousBatch.id)
+        ? (demandSnapshotsByImportBatchId.get(previousBatch.id) ?? [])
         : [];
       const comparison = buildImportComparisonSummary({
         analysis,
@@ -175,9 +377,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
           month: snapshot.month,
           demandDays: snapshot.demandDays,
         })),
-        resourceTypeLabelsById: new Map(
-          data.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label] as const),
-        ),
+        resourceTypeLabelsById,
       });
 
       dispatch({ type: 'analysis-succeeded', analysis, comparison });
@@ -240,6 +440,61 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
     anchor.download = `${wizardState.analysis?.fileName ?? 'import-report'}.md`;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  function openRollbackDialog(
+    scope: RollbackScope,
+    targetBatch: ImportBatch,
+    successMessage: string,
+  ) {
+    const plan = buildDemandRollbackPlan({
+      currentSnapshots: currentEffectiveSnapshots,
+      targetSnapshots: demandSnapshotsByImportBatchId.get(targetBatch.id) ?? [],
+      targetImportBatchId: targetBatch.id,
+      scope,
+    });
+
+    setPendingRollback({
+      scope,
+      targetBatch,
+      plan,
+      title: scope.kind === 'all' ? 'Restore all current demand?' : `Restore ${scope.projectCode}?`,
+      successMessage,
+    });
+  }
+
+  async function handleConfirmRollback() {
+    if (!pendingRollback) {
+      return;
+    }
+
+    setBusyRollback(true);
+    setFeedback('');
+
+    try {
+      const result = await restoreDemandFromImportBatch({
+        targetImportBatchId: pendingRollback.targetBatch.id,
+        scope: pendingRollback.scope,
+      });
+
+      await loadData();
+      setComparisonSourceId('current');
+      setReferenceBatchId(pendingRollback.targetBatch.id);
+      setFeedback(
+        result.restoredSnapshotCount === 0
+          ? `Current demand already matches ${pendingRollback.targetBatch.fileName} for the selected scope.`
+          : `${pendingRollback.successMessage} ${result.restoredSnapshotCount} manual snapshot(s) created; history was preserved.`,
+      );
+      setPendingRollback(null);
+    } catch (error) {
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : 'Unable to restore demand from the selected import.',
+      );
+    } finally {
+      setBusyRollback(false);
+    }
   }
 
   function renderStepContent() {
@@ -426,7 +681,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                       <td className="px-3 py-2">{snapshot.projectCode}</td>
                       <td className="px-3 py-2">{snapshot.resourceTypeLabel}</td>
                       <td className="px-3 py-2">
-                        {snapshot.year}-{String(snapshot.month).padStart(2, '0')}
+                        {formatMonthLabel(snapshot.year, snapshot.month)}
                       </td>
                       <td className="px-3 py-2 text-right">{formatAmount(snapshot.demandDays)}</td>
                       <td className="px-3 py-2 text-right">{formatAmount(snapshot.supplyDays)}</td>
@@ -455,7 +710,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 <li key={header.cellRef}>
                   {header.cellRef}: {header.label} →{' '}
                   {Number.isInteger(header.month)
-                    ? `${header.year}-${String(header.month).padStart(2, '0')}`
+                    ? formatMonthLabel(header.year, header.month)
                     : 'unparseable'}
                 </li>
               ))}
@@ -591,7 +846,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 ? `${wizardState.comparison.previousBatch.fileName} (${formatDateTime(wizardState.comparison.previousBatch.importedAt)})`
                 : 'none'}
             </p>
-            <dl className="grid gap-3 md:grid-cols-3">
+            <dl className="grid gap-3 md:grid-cols-5">
               <div className="rounded-lg border border-[var(--surf-divider)] p-4">
                 <dt className="text-sm text-[var(--text-secondary)]">New keys</dt>
                 <dd className="mt-1 text-xl font-semibold">
@@ -608,6 +863,18 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 <dt className="text-sm text-[var(--text-secondary)]">Positive delta</dt>
                 <dd className="mt-1 text-xl font-semibold">
                   {formatAmount(wizardState.comparison?.positiveDelta ?? 0)}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <dt className="text-sm text-[var(--text-secondary)]">Negative delta</dt>
+                <dd className="mt-1 text-xl font-semibold">
+                  {formatAmount(wizardState.comparison?.negativeDelta ?? 0)}
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <dt className="text-sm text-[var(--text-secondary)]">Net delta</dt>
+                <dd className="mt-1 text-xl font-semibold">
+                  {formatAmount(wizardState.comparison?.netDelta ?? 0)}
                 </dd>
               </div>
             </dl>
@@ -627,9 +894,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                     <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
                       <td className="px-3 py-2">{item.projectCode}</td>
                       <td className="px-3 py-2">{item.resourceTypeLabel}</td>
-                      <td className="px-3 py-2">
-                        {item.year}-{String(item.month).padStart(2, '0')}
-                      </td>
+                      <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
                       <td className="px-3 py-2 text-right">{formatAmount(item.deltaDays)}</td>
                       <td className="px-3 py-2">{item.state}</td>
                     </tr>
@@ -755,7 +1020,8 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         <h1 className="text-3xl font-semibold">Imports</h1>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
           Analyze PSA Excel exports off the main thread, review anomalies, compare against the
-          previous validated import, then commit everything atomically.
+          previous validated import, keep immutable history, and restore current demand without
+          deleting any import records.
         </p>
       </header>
 
@@ -839,36 +1105,85 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
       </section>
 
       <section className="space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
-        <div>
-          <h2 className="text-xl font-semibold">Import history</h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            Immutable validated batches stored in IndexedDB.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Import history</h2>
+            <p className="text-sm text-[var(--text-secondary)]">
+              All import batches stay immutable. Restoring demand creates new manual snapshots and
+              never deletes history.
+            </p>
+          </div>
+          <StatusPill label={`${validatedImportHistory.length} validated batch(es)`} />
         </div>
 
-        {validatedImportHistory.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">No validated imports yet.</p>
+        {importHistory.length === 0 ? (
+          <p className="text-sm text-[var(--text-secondary)]">No imports yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-[var(--surf-700)]">
                 <tr>
                   <th className="px-3 py-2">Imported at</th>
+                  <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Reference date</th>
                   <th className="px-3 py-2">File</th>
                   <th className="px-3 py-2 text-right">Rows</th>
-                  <th className="px-3 py-2">SHA-256</th>
+                  <th className="px-3 py-2">Note</th>
+                  <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {validatedImportHistory.map((batch) => (
+                {importHistory.map((batch) => (
                   <tr className="border-t border-[var(--surf-divider)]" key={batch.id}>
                     <td className="px-3 py-2">{formatDateTime(batch.importedAt)}</td>
+                    <td className="px-3 py-2">
+                      <StatusPill label={batch.status} />
+                    </td>
                     <td className="px-3 py-2">{batch.referenceDate}</td>
-                    <td className="px-3 py-2">{batch.fileName}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{batch.fileName}</div>
+                      <div className="font-mono text-xs text-[var(--text-secondary)]">
+                        {batch.id}
+                      </div>
+                    </td>
                     <td className="px-3 py-2 text-right">{batch.rowCount}</td>
-                    <td className="px-3 py-2 font-mono text-xs">
-                      {batch.fileSha256.slice(0, 16)}…
+                    <td className="px-3 py-2">{batch.note ?? '—'}</td>
+                    <td className="px-3 py-2">
+                      {batch.status === 'validated' ? (
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
+                            onClick={() => handleSelectComparedSource(batch.id)}
+                            type="button"
+                          >
+                            Compare as source
+                          </button>
+                          <button
+                            className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
+                            onClick={() => handleSelectReferenceBatch(batch.id)}
+                            type="button"
+                          >
+                            Compare as reference
+                          </button>
+                          <button
+                            className="rounded-md bg-[var(--color-bmx-blue)] px-3 py-1 text-xs font-medium text-white"
+                            onClick={() =>
+                              openRollbackDialog(
+                                { kind: 'all' },
+                                batch,
+                                `Restored the current department demand from ${batch.fileName}.`,
+                              )
+                            }
+                            type="button"
+                          >
+                            Restore all demand
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          Only validated batches can be compared or restored.
+                        </span>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -877,6 +1192,353 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
           </div>
         )}
       </section>
+
+      <section className="space-y-5 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold">Demand comparison</h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            Default view = current effective demand vs. the immediately preceding validated import.
+            Positive, negative, and net deltas stay separate at both department and project level.
+          </p>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <label className="space-y-2 text-sm font-medium">
+            Compared demand set
+            <select
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
+              onChange={(event) =>
+                handleSelectComparedSource(event.target.value as ComparisonSourceId)
+              }
+              value={comparisonSourceId}
+            >
+              <option value="current">{describeCurrentSource(currentHasManualAdjustments)}</option>
+              {validatedImportHistory.map((batch) => (
+                <option key={batch.id} value={batch.id}>
+                  {batch.fileName} ({formatDateTime(batch.importedAt)})
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-2 text-sm font-medium">
+            Reference import
+            <select
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-2"
+              onChange={(event) => handleSelectReferenceBatch(event.target.value)}
+              value={referenceBatchId}
+            >
+              {validatedImportHistory.length === 0 ? (
+                <option value="">No validated import yet</option>
+              ) : null}
+              {validatedImportHistory.map((batch) => (
+                <option key={batch.id} value={batch.id}>
+                  {batch.fileName} ({formatDateTime(batch.importedAt)})
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="rounded-lg border border-[var(--surf-divider)] p-4 text-sm">
+            <p className="text-[var(--text-secondary)]">Compared label</p>
+            <p className="mt-1 font-medium">
+              {getSourceLabel({
+                sourceId: comparisonSourceId,
+                validatedImportHistory,
+                hasManualAdjustments: currentHasManualAdjustments,
+              })}
+            </p>
+          </div>
+          <div className="rounded-lg border border-[var(--surf-divider)] p-4 text-sm">
+            <p className="text-[var(--text-secondary)]">Reference label</p>
+            <p className="mt-1 font-medium">
+              {referenceBatch
+                ? `${referenceBatch.fileName} (${formatDateTime(referenceBatch.importedAt)})`
+                : 'No previous validated import available'}
+            </p>
+          </div>
+        </div>
+
+        {currentHasManualAdjustments ? (
+          <p className="rounded-md border border-amber-500/40 bg-amber-950/20 p-3 text-sm">
+            ℹ Current demand is derived from the latest snapshot per key. Manual rollback snapshots
+            therefore override validated imports without mutating or deleting history.
+          </p>
+        ) : null}
+
+        {comparisonSelectionError ? (
+          <p className="rounded-md border border-red-500/50 bg-red-950/20 p-3 text-sm" role="alert">
+            {comparisonSelectionError}
+          </p>
+        ) : null}
+
+        {comparisonSummary ? (
+          <>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <p className="text-sm text-[var(--text-secondary)]">Department positive</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {formatDeltaAmount(comparisonSummary.departmentSummary.positiveDelta)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <p className="text-sm text-[var(--text-secondary)]">Department negative</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {formatDeltaAmount(comparisonSummary.departmentSummary.negativeDelta)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <p className="text-sm text-[var(--text-secondary)]">Department net</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {formatDeltaAmount(comparisonSummary.departmentSummary.netDelta)}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <p className="text-sm text-[var(--text-secondary)]">Changed keys</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {comparisonSummary.departmentSummary.changedItemCount}
+                </p>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+                <p className="text-sm text-[var(--text-secondary)]">Project summaries</p>
+                <p className="mt-1 text-2xl font-semibold">
+                  {comparisonSummary.projectSummaries.length}
+                </p>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-[var(--surf-divider)] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Department aggregation</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Never silently netted: positive, negative, and net totals are displayed
+                    together.
+                  </p>
+                </div>
+                {referenceBatch ? (
+                  <button
+                    className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
+                    onClick={() =>
+                      openRollbackDialog(
+                        { kind: 'all' },
+                        referenceBatch,
+                        `Restored the current department demand from ${referenceBatch.fileName}.`,
+                      )
+                    }
+                    type="button"
+                  >
+                    Restore current demand from reference import
+                  </button>
+                ) : null}
+              </div>
+              <dl className="mt-4 grid gap-3 md:grid-cols-4">
+                <div>
+                  <dt className="text-sm text-[var(--text-secondary)]">Positive total</dt>
+                  <dd className="mt-1 font-semibold">
+                    {formatDeltaAmount(comparisonSummary.departmentSummary.positiveDelta)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-[var(--text-secondary)]">Negative total</dt>
+                  <dd className="mt-1 font-semibold">
+                    {formatDeltaAmount(comparisonSummary.departmentSummary.negativeDelta)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-[var(--text-secondary)]">Net</dt>
+                  <dd className="mt-1 font-semibold">
+                    {formatDeltaAmount(comparisonSummary.departmentSummary.netDelta)}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-sm text-[var(--text-secondary)]">Project changes</dt>
+                  <dd className="mt-1 font-semibold">
+                    {
+                      comparisonSummary.projectSummaries.filter(
+                        (projectSummary) => projectSummary.changedItemCount > 0,
+                      ).length
+                    }
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Project aggregation</h3>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    Indicators include new/removed projects plus resource types added or removed.
+                  </p>
+                </div>
+                <StatusPill label={`${comparisonSummary.projectSummaries.length} project row(s)`} />
+              </div>
+
+              {comparisonSummary.projectSummaries.length === 0 ? (
+                <p className="text-sm text-[var(--text-secondary)]">
+                  No demand snapshots to compare yet.
+                </p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
+                  <table className="min-w-full text-left text-sm">
+                    <thead className="bg-[var(--surf-700)]">
+                      <tr>
+                        <th className="px-3 py-2">Project</th>
+                        <th className="px-3 py-2">Indicators</th>
+                        <th className="px-3 py-2 text-right">Positive</th>
+                        <th className="px-3 py-2 text-right">Negative</th>
+                        <th className="px-3 py-2 text-right">Net</th>
+                        <th className="px-3 py-2 text-right">Changed keys</th>
+                        <th className="px-3 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {comparisonSummary.projectSummaries.map((projectSummary) => (
+                        <tr
+                          className="border-t border-[var(--surf-divider)] align-top"
+                          key={projectSummary.projectCode}
+                        >
+                          <td className="px-3 py-2 font-medium">{projectSummary.projectCode}</td>
+                          <td className="px-3 py-2">
+                            <ul className="space-y-1">
+                              {getProjectIndicatorSummary(projectSummary).map((indicator) => (
+                                <li key={`${projectSummary.projectCode}-${indicator}`}>
+                                  {indicator}
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {formatDeltaAmount(projectSummary.positiveDelta)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {formatDeltaAmount(projectSummary.negativeDelta)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {formatDeltaAmount(projectSummary.netDelta)}
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            {projectSummary.changedItemCount}
+                          </td>
+                          <td className="px-3 py-2">
+                            {referenceBatch ? (
+                              <button
+                                className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
+                                onClick={() =>
+                                  openRollbackDialog(
+                                    { kind: 'project', projectCode: projectSummary.projectCode },
+                                    referenceBatch,
+                                    `Restored project ${projectSummary.projectCode} from ${referenceBatch.fileName}.`,
+                                  )
+                                }
+                                type="button"
+                              >
+                                Restore project from reference import
+                              </button>
+                            ) : (
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                Reference import required
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold">Per-key details</h3>
+              <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
+                <table className="min-w-full text-left text-sm">
+                  <thead className="bg-[var(--surf-700)]">
+                    <tr>
+                      <th className="px-3 py-2">Project</th>
+                      <th className="px-3 py-2">Resource type</th>
+                      <th className="px-3 py-2">Month</th>
+                      <th className="px-3 py-2 text-right">Reference</th>
+                      <th className="px-3 py-2 text-right">Compared</th>
+                      <th className="px-3 py-2 text-right">Delta</th>
+                      <th className="px-3 py-2">Indicators</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonSummary.items.slice(0, 50).map((item) => (
+                      <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
+                        <td className="px-3 py-2">{item.projectCode}</td>
+                        <td className="px-3 py-2">{item.resourceTypeLabel}</td>
+                        <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
+                        <td className="px-3 py-2 text-right">
+                          {formatAmount(item.previousDemandDays)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatAmount(item.nextDemandDays)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatDeltaAmount(item.deltaDays)}
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap gap-2">
+                            <StatusPill label={item.state} />
+                            {item.projectState !== 'existing-project' ? (
+                              <StatusPill label={item.projectState} />
+                            ) : null}
+                            {item.resourceTypeState !== 'unchanged-resource-type' ? (
+                              <StatusPill label={item.resourceTypeState} />
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-[var(--text-secondary)]">No comparison available yet.</p>
+        )}
+      </section>
+
+      <ConfirmDialog
+        busy={busyRollback}
+        cancelLabel="Keep current demand"
+        confirmLabel="Restore demand"
+        description={
+          pendingRollback ? (
+            <div className="space-y-3">
+              <p>
+                This restores{' '}
+                {pendingRollback.scope.kind === 'all'
+                  ? 'all current demand'
+                  : pendingRollback.scope.projectCode}
+                {' from '}
+                <strong>{pendingRollback.targetBatch.fileName}</strong> (
+                {pendingRollback.targetBatch.referenceDate}).
+              </p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>
+                  {pendingRollback.plan.changedCount} key(s) will receive a new manual snapshot.
+                </li>
+                <li>
+                  {pendingRollback.plan.zeroedCount} key(s) are absent from the selected import and
+                  will be set to 0.
+                </li>
+                <li>
+                  Historical ImportBatch and DemandSnapshot records are kept; nothing is deleted.
+                </li>
+              </ul>
+            </div>
+          ) : (
+            'Historical data remains untouched.'
+          )
+        }
+        onCancel={() => setPendingRollback(null)}
+        onConfirm={handleConfirmRollback}
+        open={pendingRollback !== null}
+        title={pendingRollback?.title ?? 'Restore demand?'}
+      />
 
       <ConfirmDialog
         cancelLabel="Keep editing"

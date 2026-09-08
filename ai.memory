@@ -47,7 +47,8 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 | Lot 5 — Projects & Releases | ✅ Terminé | 2026-09-08 |
 | Lot 6 — Resources & Allocations (CRUD) | ✅ Terminé | 2026-09-08 |
 | Lot 7 — Excel Import Pipeline | ✅ Terminé | 2026-09-08 |
-| Lots 8-14 | ⏳ En attente | — |
+| Lot 8 — Import Historisation & Comparison | ✅ Terminé | 2026-09-08 |
+| Lots 9-14 | ⏳ En attente | — |
 
 ## Dette technique
 
@@ -72,6 +73,9 @@ Voir tableau complet dans `AGENTS.md` §4. Résumé : Groupes GIS/RUN importés 
 - 2026-09-08 — Lot 7 : pipeline d'import Excel implémenté sous `src/import/` + `src/workers/import.worker.ts` + `src/features/imports/`. Décision clé : **pas de parser ZIP/XML manuel** finalement, car la vérification expérimentale sur le vrai fichier a confirmé que `xlsx@0.18.5` expose bien les commentaires réels via `worksheet[cellRef].c` avec `cellComments: true`; l'extraction `Demand : X (Day)` / `Supply : Y (Day)` s'appuie donc directement sur SheetJS. Repli conservé : si commentaire absent/invalide, la demande est dérivée du gap et marquée en anomalie.
 - 2026-09-08 — Lot 7 : import exécuté hors thread UI via un Web Worker Vite natif (`?worker`, protocole simple `postMessage`, sans dépendance Comlink car absente et non nécessaire). Commit final atomique via une seule transaction IndexedDB sur `importBatches`, `importRawRows`, `demandSnapshots`, `groups`, `projects`, `allocations`.
 - 2026-09-08 — Lot 7 : rapport final choisi en **Markdown téléchargeable**. Déviation minimale : les allocations d'origine `import` sont **upsertées par clé métier** (`resourceId + projectCode + resourceTypeId + year + month`) mais les anciennes allocations import non recroisées par le nouveau fichier ne sont pas supprimées automatiquement, afin d'éviter un écrasement destructif avant l'UX de revue ligne-par-ligne prévue plus tard.
+- 2026-09-08 — Lot 8 : historisation/comparaison d'import implémentée dans `src/import/comparison.ts` + `src/features/imports/ImportsPage.tsx`. Décision clé sur la **demande courante** : elle est désormais explicitement documentée comme le **dernier `DemandSnapshot` par clé** (`projectCode + resourceTypeId + year + month`, tri `updatedAt` puis `createdAt`), ce qui rend possible un rollback fonctionnel **sans pointeur séparé ni mutation d'historique**.
+- 2026-09-08 — Lot 8 : le rollback crée de **nouveaux `DemandSnapshot` `origin = manual-adjustment` / `importBatchId = 'manual'`** et ajoute une `AuditEntry` `import-rollback`; aucun `ImportBatch` ni ancien `DemandSnapshot` n'est supprimé. Si une clé est absente de l'import restauré mais encore active dans l'état courant, un snapshot manuel à `0` est écrit pour aligner explicitement l'état courant sur la version restaurée.
+- 2026-09-08 — Lot 8 : conséquence assumée du modèle append-only : un projet/type/mois absent d'un import plus récent **reste courant** tant qu'aucun snapshot plus récent (y compris à `0`) ne l'écrase. Ceci respecte la règle métier "removed project is never deleted, only absent from latest import" et explique pourquoi certains rollbacks globaux n'ont besoin de réécrire qu'un sous-ensemble des clés visibles en comparaison.
 
 ## Prochaines actions
 

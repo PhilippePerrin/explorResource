@@ -60,3 +60,10 @@ IndexedDB schema version is a single incrementing integer (`DB_VERSION` in `src/
 ## Numeric storage
 
 All day-amount fields are plain `number`, unrounded. Normalization to zero for float noise happens only at calculation/read time via `normalizeAmount`, never mutating stored values silently.
+
+## Current demand resolution
+
+- `DemandSnapshot` history is append-only.
+- The **current effective demand** for a `(projectCode, resourceTypeId, year, month)` key is the **latest snapshot by `updatedAt` then `createdAt`**, regardless of whether it came from a validated `ImportBatch` or from a manual-adjustment snapshot.
+- Functional rollback therefore does **not** mutate or delete historical imports. It creates new `DemandSnapshot` rows with `origin = manual-adjustment` and `importBatchId = 'manual'`, so the restored values become current while the full import history stays auditable.
+- If a key is absent from the restored import but currently present, rollback writes a `0`-demand manual snapshot for that key to make the effective current state match the selected historical version explicitly.

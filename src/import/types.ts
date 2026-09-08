@@ -136,13 +136,42 @@ export interface ImportAnalysis {
 export interface ImportComparisonItem {
   key: string;
   projectCode: string;
+  resourceTypeId: string;
   resourceTypeLabel: string;
   year: number;
   month: number;
   previousDemandDays: number;
   nextDemandDays: number;
   deltaDays: number;
+  trend: 'increased' | 'decreased' | 'unchanged';
+  projectState: 'new-project' | 'removed-project' | 'existing-project';
+  resourceTypeState: 'resource-type-added' | 'resource-type-removed' | 'unchanged-resource-type';
   state: 'new' | 'removed' | 'increased' | 'decreased' | 'unchanged';
+}
+
+export interface ImportComparisonTotals {
+  positiveDelta: number;
+  negativeDelta: number;
+  netDelta: number;
+  itemCount: number;
+  changedItemCount: number;
+}
+
+export interface ImportComparisonProjectSummary extends ImportComparisonTotals {
+  projectCode: string;
+  itemCount: number;
+  newCount: number;
+  removedCount: number;
+  increasedCount: number;
+  decreasedCount: number;
+  unchangedCount: number;
+  projectState: 'new-project' | 'removed-project' | 'existing-project';
+  addedResourceTypeLabels: string[];
+  removedResourceTypeLabels: string[];
+}
+
+export interface ImportComparisonDepartmentSummary extends ImportComparisonTotals {
+  label: string;
 }
 
 export interface ImportComparisonSummary {
@@ -150,11 +179,14 @@ export interface ImportComparisonSummary {
   items: ImportComparisonItem[];
   positiveDelta: number;
   negativeDelta: number;
+  netDelta: number;
   newCount: number;
   removedCount: number;
   increasedCount: number;
   decreasedCount: number;
   unchangedCount: number;
+  departmentSummary: ImportComparisonDepartmentSummary;
+  projectSummaries: ImportComparisonProjectSummary[];
 }
 
 export interface AnalyzeImportRequest {
@@ -178,4 +210,31 @@ export interface ImportCommitResult {
   upsertedAllocations: number;
   importedDemandSnapshots: number;
   importedRawRows: number;
+}
+
+export interface DemandRollbackPlanSnapshot {
+  key: string;
+  projectCode: DemandSnapshot['projectCode'];
+  resourceTypeId: DemandSnapshot['resourceTypeId'];
+  year: DemandSnapshot['year'];
+  month: DemandSnapshot['month'];
+  demandDays: DemandSnapshot['demandDays'];
+  supplyDays: DemandSnapshot['supplyDays'];
+  currentDemandDays: DemandSnapshot['demandDays'];
+  currentSupplyDays: DemandSnapshot['supplyDays'];
+  zeroedFromCurrent: boolean;
+}
+
+export interface DemandRollbackPlan {
+  scope: { kind: 'all' } | { kind: 'project'; projectCode: DemandSnapshot['projectCode'] };
+  targetImportBatchId: ImportBatch['id'];
+  changedCount: number;
+  unchangedCount: number;
+  zeroedCount: number;
+  snapshotsToCreate: DemandRollbackPlanSnapshot[];
+}
+
+export interface RestoreDemandFromImportBatchResult {
+  restoredSnapshotCount: number;
+  plan: DemandRollbackPlan;
 }
