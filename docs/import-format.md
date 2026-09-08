@@ -32,6 +32,8 @@ Parsing strategy (decided 2026-09-08):
 2. If both values are found, use them directly.
 3. If the comment is missing or does not match the expected pattern, fall back to: `supply = 0` (or the row's supply-row total if determinable), `demand = supply + cellValue`, and flag the row/cell as an anomaly ("derived from gap, not confirmed by comment").
 
+Implementation note (Lot 7, 2026-09-08): the repository implementation first **verified experimentally** that the existing `xlsx` dependency (`0.18.5`) exposes the real workbook comments through `worksheet[cellRef].c` when read with `cellComments: true` / `cellStyles: true`. That path worked on the provided production fixture, so no manual zip/XML fallback was added at this stage.
+
 ## Classification criteria (combined, never style-only)
 
 - Project-code regex on column A.
@@ -41,6 +43,7 @@ Parsing strategy (decided 2026-09-08):
 - Hierarchical position (row directly following a Group/Project row).
 - Excel style (secondary signal only).
 - Content of `Status`, `Resource`, `Activity` columns.
+- Real-person rows may still classify as **supply** even if `Status` is unexpectedly populated (real fixture example: row 99 = `Simulation` + `Mustapha ELMADI`), because classification stays multi-criteria instead of trusting any one column blindly.
 
 Any row that cannot be classified with confidence is presented to the user in the import wizard — never silently dropped or ignored.
 
@@ -57,4 +60,4 @@ SHA-256 of the raw file bytes (Web Crypto API, computed client-side) is compared
 
 ## Wizard steps
 
-1. File selection → 2. Technical analysis → 3. Preview → 4. Column/type mapping → 5. Row classification → 6. Anomaly review → 7. Comparison with previous import → 8. Validation → 9. Atomic import → 10. Final report (downloadable).
+1. File selection → 2. Technical analysis → 3. Preview → 4. Column/type mapping → 5. Row classification → 6. Anomaly review → 7. Comparison with previous import → 8. Validation → 9. Atomic import → 10. Final report (downloadable Markdown in the current implementation).
