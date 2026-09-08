@@ -9,3 +9,22 @@ vi.mock('virtual:pwa-register/react', () => ({
     updateServiceWorker: vi.fn(),
   }),
 }));
+
+// jsdom always reports 0 for offsetHeight/offsetWidth (no real layout engine), which makes
+// @tanstack/react-virtual measure a zero-height viewport. It then renders zero virtual items and
+// falls back to rendering every row unvirtualized - correct for tiny lists, but for large synthetic
+// datasets (e.g. the 200-resource capacity heatmap test) this renders every row as real DOM and can
+// be slow/flaky under CI contention. Stubbing a realistic fixed viewport size lets the virtualizer
+// behave deterministically in tests the same way it does in real browsers.
+Object.defineProperty(HTMLElement.prototype, 'offsetHeight', {
+  configurable: true,
+  get() {
+    return 600;
+  },
+});
+Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
+  configurable: true,
+  get() {
+    return 800;
+  },
+});

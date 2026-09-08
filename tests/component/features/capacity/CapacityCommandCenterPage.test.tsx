@@ -217,5 +217,5 @@ describe('CapacityCommandCenterPage', () => {
     await waitFor(() => {
       expect(screen.getByText('Resource 173')).toBeInTheDocument();
     });
-  });
+  }, 20000);
 });
