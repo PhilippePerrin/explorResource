@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import type { WorkingDaysCalendar } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -145,7 +146,7 @@ export function WorkingDaysPage() {
   const errorMessages = getErrorMessages(form.formState.errors);
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6" id="working-days-page">
+    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6" id="working-days-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Working Days</h1>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
@@ -154,18 +155,7 @@ export function WorkingDaysPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
@@ -315,6 +305,6 @@ export function WorkingDaysPage() {
         open={showDuplicateDialog}
         title="Duplicate working days to next year"
       />
-    </main>
+    </div>
   );
 }

@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import type { UtilizationResult, UtilizationStatus } from '@/domain/calculations';
 
 function formatValue(value: number, displayPrecision: number): string {
@@ -43,7 +45,7 @@ interface UtilizationBadgeProps {
   compact?: boolean;
 }
 
-export function UtilizationBadge({
+function UtilizationBadgeComponent({
   utilization,
   displayPrecision = 1,
   tooltip,
@@ -67,3 +69,5 @@ export function UtilizationBadge({
     </span>
   );
 }
+
+export const UtilizationBadge = memo(UtilizationBadgeComponent);

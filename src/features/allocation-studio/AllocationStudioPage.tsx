@@ -1,9 +1,10 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from '@dnd-kit/core';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { buildResourceMonthSummary } from '@/domain/calculations';
@@ -136,7 +137,11 @@ function getErrorSummary(errors: FieldErrors<AllocationChangeValues>): string[] 
     .filter((message): message is string => Boolean(message));
 }
 
-function DraggableToken(props: { id: string; label: string; data: Record<string, unknown> }) {
+function DraggableTokenComponent(props: {
+  id: string;
+  label: string;
+  data: Record<string, unknown>;
+}) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: props.id,
     data: props.data,
@@ -158,8 +163,22 @@ function DraggableToken(props: { id: string; label: string; data: Record<string,
   );
 }
 
-function DroppableProjectCell(props: { id: string; children: ReactNode }) {
-  const { isOver, setNodeRef } = useDroppable({ id: props.id });
+const DraggableToken = memo(DraggableTokenComponent);
+
+interface DroppableProjectCellProps {
+  id: string;
+  activationLabel: string;
+  onActivate?: () => void;
+  children: ReactNode;
+}
+
+function DroppableProjectCellComponent({
+  id,
+  activationLabel,
+  onActivate,
+  children,
+}: DroppableProjectCellProps) {
+  const { isOver, setNodeRef } = useDroppable({ id });
 
   return (
     <div
@@ -170,10 +189,22 @@ function DroppableProjectCell(props: { id: string; children: ReactNode }) {
           : 'border-[var(--surf-divider)] bg-[var(--surf-700)]'
       }`}
     >
-      {props.children}
+      {onActivate ? (
+        <button
+          aria-label={activationLabel}
+          className="mb-2 rounded-md border border-[var(--color-bmx-blue)] px-2 py-1 text-left text-[11px] font-medium"
+          onClick={onActivate}
+          type="button"
+        >
+          Apply prepared token here
+        </button>
+      ) : null}
+      {children}
     </div>
   );
 }
+
+const DroppableProjectCell = memo(DroppableProjectCellComponent);
 
 export function AllocationStudioPage() {
   const now = new Date();
@@ -365,23 +396,33 @@ export function AllocationStudioPage() {
   );
   const formErrors = getErrorSummary(form.formState.errors);
 
-  function simulateChange(values: AllocationChangeValues) {
-    const simulatedAllocations = applyAllocationChange(history.present, values);
-    const preview = buildSimulationPreview({
-      currentAllocations: history.present,
-      simulatedAllocations,
-      change: values,
-      resources: data.resources,
-      workingDaysCalendars: data.workingDaysCalendars,
-      resourceNonWorkingDays: data.resourceNonWorkingDays,
-      appSettings: data.appSettings,
-      demandSnapshots: data.demandSnapshots,
-    });
+  const simulateChange = useCallback(
+    (values: AllocationChangeValues) => {
+      const simulatedAllocations = applyAllocationChange(history.present, values);
+      const preview = buildSimulationPreview({
+        currentAllocations: history.present,
+        simulatedAllocations,
+        change: values,
+        resources: data.resources,
+        workingDaysCalendars: data.workingDaysCalendars,
+        resourceNonWorkingDays: data.resourceNonWorkingDays,
+        appSettings: data.appSettings,
+        demandSnapshots: data.demandSnapshots,
+      });
 
-    setSimulation(preview);
+      setSimulation(preview);
 
-    return { simulatedAllocations, preview };
-  }
+      return { simulatedAllocations, preview };
+    },
+    [
+      data.appSettings,
+      data.demandSnapshots,
+      data.resourceNonWorkingDays,
+      data.resources,
+      data.workingDaysCalendars,
+      history.present,
+    ],
+  );
 
   async function handleSimulate(values: AllocationChangeValues) {
     simulateChange(values);
@@ -484,8 +525,36 @@ export function AllocationStudioPage() {
     setFeedback('Month copied into the current draft. Save draft to persist changes.');
   }
 
+  const applyPreparedTokenToCell = useCallback(
+    (projectCode: string, targetResourceTypeId: string, month: number) => {
+      if (!dragDraft.resourceId) {
+        setFeedback(
+          'Select a resource in the drag token panel before using keyboard drop targets.',
+        );
+        return;
+      }
+
+      const values: AllocationChangeValues = {
+        mode: 'add',
+        resourceId: dragDraft.resourceId,
+        sourceProjectCode: '',
+        projectCode,
+        resourceTypeId: targetResourceTypeId,
+        year,
+        month,
+        allocatedDays: dragDraft.allocatedDays,
+      };
+      const { simulatedAllocations } = simulateChange(values);
+      setHistory((current) => commitAllocationStudioHistory(current, simulatedAllocations));
+      setFeedback(
+        `Prepared allocation added to ${projectCode} for month ${month}. Save draft to commit changes.`,
+      );
+    },
+    [dragDraft.allocatedDays, dragDraft.resourceId, simulateChange, year],
+  );
+
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="allocation-studio-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="allocation-studio-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Allocation Studio</h1>
         <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
@@ -494,17 +563,7 @@ export function AllocationStudioPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <section className="grid gap-4 lg:grid-cols-4">
         <label className="text-sm font-medium" htmlFor="studio-year">
@@ -965,6 +1024,11 @@ export function AllocationStudioPage() {
                     Drag a prepared resource token onto a project/month cell, or move an existing
                     allocation chip to another cell.
                   </p>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    Keyboard users can focus any board cell and press Enter or Space to apply the
+                    prepared drag token, or use the keyboard allocation form for explicit add, set,
+                    and move operations.
+                  </p>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">
                   Draft rows: {boardRows.length}
@@ -979,6 +1043,9 @@ export function AllocationStudioPage() {
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-collapse text-left text-sm">
+                    <caption className="sr-only">
+                      Allocation board by project and month, with keyboard-operable drop targets.
+                    </caption>
                     <thead>
                       <tr className="border-b border-[var(--surf-divider)]">
                         <th className="px-3 py-2 font-semibold" scope="col">
@@ -1007,7 +1074,15 @@ export function AllocationStudioPage() {
                           {row.months.map((cell) => (
                             <td className="px-3 py-2" key={cell.month}>
                               <DroppableProjectCell
+                                activationLabel={`${row.projectCode} ${row.projectName}, month ${cell.month}. Focus and press Enter or Space to apply the prepared drag token.`}
                                 id={`drop::${row.projectCode}::${row.resourceTypeId}::${year}::${cell.month}`}
+                                onActivate={() =>
+                                  applyPreparedTokenToCell(
+                                    row.projectCode,
+                                    row.resourceTypeId,
+                                    cell.month,
+                                  )
+                                }
                               >
                                 <div className="mb-2">
                                   <DemandCoverageBadge
@@ -1068,6 +1143,6 @@ export function AllocationStudioPage() {
           </DndContext>
         </section>
       </section>
-    </main>
+    </div>
   );
 }

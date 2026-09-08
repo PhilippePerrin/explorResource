@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import {
   classifyDemandCoverageState,
   type DemandAllocationSummary,
@@ -74,7 +76,7 @@ interface DemandCoverageBadgeProps {
   compact?: boolean;
 }
 
-export function DemandCoverageBadge({
+function DemandCoverageBadgeComponent({
   summary,
   displayPrecision = 1,
   tooltip,
@@ -96,3 +98,5 @@ export function DemandCoverageBadge({
     </span>
   );
 }
+
+export const DemandCoverageBadge = memo(DemandCoverageBadgeComponent);

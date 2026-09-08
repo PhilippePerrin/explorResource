@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import {
@@ -749,7 +750,7 @@ export function ResourcesPage() {
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resources-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resources-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Resources</h1>
         <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
@@ -759,18 +760,7 @@ export function ResourcesPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(22rem,30rem)_1fr]">
         <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
@@ -1719,7 +1709,7 @@ export function ResourcesPage() {
         title="Confirm allocation deletion"
         tone="danger"
       />
-    </main>
+    </div>
   );
 }
 

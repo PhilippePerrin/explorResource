@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import type { AppSettings } from '@/domain/entities';
 import { exportBackup, restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
 import { deletePlannerDb } from '@/persistence/db';
@@ -297,7 +298,7 @@ export function SettingsPage() {
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="settings-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="settings-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Settings</h1>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
@@ -306,18 +307,7 @@ export function SettingsPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       {hasUnsavedChanges ? (
         <p
@@ -664,6 +654,6 @@ export function SettingsPage() {
         title="Final reset confirmation"
         tone="danger"
       />
-    </main>
+    </div>
   );
 }

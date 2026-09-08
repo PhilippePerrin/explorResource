@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -108,6 +108,11 @@ describe('CapacityCommandCenterPage', () => {
     expect(await screen.findByText(/125%/i)).toBeInTheDocument();
     expect(screen.getAllByText('⛔').length).toBeGreaterThan(0);
 
+    const januaryCell = screen.getByRole('button', { name: /Alice Martin, January 2026\./i });
+    januaryCell.focus();
+    await user.keyboard('{ArrowUp}');
+    expect(screen.getByRole('button', { name: /Bob Durand, January 2026\./i })).toHaveFocus();
+
     await user.type(screen.getByLabelText(/^Search$/i), 'Alice');
     await waitFor(() => {
       expect(screen.getByText('Alice Martin')).toBeInTheDocument();
@@ -133,7 +138,7 @@ describe('CapacityCommandCenterPage', () => {
       expect(screen.queryByText('Bob Durand')).not.toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole('button', { name: /Critical overload/i }));
+    await user.click(screen.getByRole('button', { name: /Alice Martin, January 2026\./i }));
 
     await waitFor(() => {
       const drilldown = screen.getByRole('heading', { name: /Drill-down/i }).closest('section');
@@ -141,6 +146,76 @@ describe('CapacityCommandCenterPage', () => {
       expect(
         within(drilldown as HTMLElement).getByText(/Assigned load: 25 d/i),
       ).toBeInTheDocument();
+    });
+  });
+
+  it('handles a 200-resource by 12-month synthetic dataset with a stable virtual canvas', async () => {
+    await resourceTypesRepository.put({
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    for (let month = 1; month <= 12; month += 1) {
+      await workingDaysRepository.put({
+        id: `20000000-0000-4000-8000-${month.toString(16).padStart(12, '0')}`,
+        year: 2026,
+        month,
+        workingDaysCount: 20,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+    }
+
+    for (let index = 1; index <= 200; index += 1) {
+      const resourceId = `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`;
+      await resourcesRepository.put({
+        id: resourceId,
+        firstName: 'Resource',
+        lastName: index.toString().padStart(3, '0'),
+        resourceTypeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        collaborationType: 'internal',
+        status: 'active',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
+
+      for (let month = 1; month <= 12; month += 1) {
+        await allocationsRepository.put({
+          id: `10000000-0000-4000-8000-${(index * 100 + month).toString(16).padStart(12, '0')}`,
+          resourceId,
+          projectCode: 'E0100',
+          resourceTypeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+          year: 2026,
+          month,
+          allocatedDays: 10,
+          origin: 'manual',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        });
+      }
+    }
+
+    renderPage();
+
+    const body = await screen.findByTestId('capacity-virtualized-body');
+    await screen.findByText('Resource 001');
+    expect((body.firstElementChild as HTMLElement | null)?.style.height).toBe(`${200 * 58}px`);
+
+    Object.defineProperty(body, 'scrollTop', {
+      configurable: true,
+      value: 10000,
+      writable: true,
+    });
+    fireEvent.scroll(body);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resource 173')).toBeInTheDocument();
     });
   });
 });

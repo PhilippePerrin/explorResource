@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { memo, type ReactNode } from 'react';
 
 interface MetricCardProps {
   title: string;
@@ -7,12 +7,12 @@ interface MetricCardProps {
   accent?: ReactNode;
 }
 
-export function MetricCard({ title, value, hint, accent }: MetricCardProps) {
+function MetricCardComponent({ title, value, hint, accent }: MetricCardProps) {
   return (
     <article className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-medium text-[var(--text-secondary)]">{title}</h3>
+          <p className="text-sm font-medium text-[var(--text-secondary)]">{title}</p>
           <p className="mt-2 text-2xl font-semibold">{value}</p>
         </div>
         {accent ? <div className="text-xs text-[var(--text-secondary)]">{accent}</div> : null}
@@ -21,3 +21,5 @@ export function MetricCard({ title, value, hint, accent }: MetricCardProps) {
     </article>
   );
 }
+
+export const MetricCard = memo(MetricCardComponent);

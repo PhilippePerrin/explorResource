@@ -157,17 +157,9 @@ body {
 }
 
 /* Card hover glow */
-.card-glow:hover {
-  box-shadow: 0 0 0 1.5px #4ec3e0, 0 8px 32px rgba(78, 195, 224, 0.12);
-}
-
 /* Light mode: card elevation (opportunity cards, KPI cards) */
 [data-theme="light"] .card-glow {
   box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.04);
-}
-[data-theme="light"] .card-glow:hover {
-  box-shadow: 0 0 0 2px #4ec3e0, 0 6px 20px rgba(0,66,127,0.10);
-  transform: translateY(-1px);
 }
 [data-theme="light"] .kpi-card {
   box-shadow: 0 1px 4px rgba(0,0,0,0.07), 0 0 0 1px rgba(0,0,0,0.04);
@@ -178,26 +170,15 @@ body {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-.skeleton-pulse {
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-}
-
 /* Drawer slide-in */
 @keyframes drawer-slide-in {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
-.drawer-enter {
-  animation: drawer-slide-in 0.28s ease-out forwards;
-}
-
 /* Stats drawer slide-in (from left) */
 @keyframes drawer-slide-in-left {
   from { transform: translateX(-100%); }
   to { transform: translateX(0); }
-}
-.drawer-enter-left {
-  animation: drawer-slide-in-left 0.28s ease-out forwards;
 }
 
 /* ── Roadmap (Portfolio Flight Path) animations ───────────── */
@@ -205,21 +186,47 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.roadmap-track {
-  animation: roadmap-track-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
 @keyframes roadmap-bar-grow {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
-}
-.roadmap-bar {
-  transform-origin: left center;
-  animation: roadmap-bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 @keyframes roadmap-pulse {
   0%, 100% { opacity: 0.55; }
   50%      { opacity: 1; }
 }
-.roadmap-pulse {
-  animation: roadmap-pulse 2.6s ease-in-out infinite;
+
+@media (prefers-reduced-motion: no-preference) {
+  .card-glow:hover {
+    box-shadow: 0 0 0 1.5px #4ec3e0, 0 8px 32px rgba(78, 195, 224, 0.12);
+  }
+
+  [data-theme="light"] .card-glow:hover {
+    box-shadow: 0 0 0 2px #4ec3e0, 0 6px 20px rgba(0,66,127,0.10);
+    transform: translateY(-1px);
+  }
+
+  .skeleton-pulse {
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+  }
+
+  .drawer-enter {
+    animation: drawer-slide-in 0.28s ease-out forwards;
+  }
+
+  .drawer-enter-left {
+    animation: drawer-slide-in-left 0.28s ease-out forwards;
+  }
+
+  .roadmap-track {
+    animation: roadmap-track-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .roadmap-bar {
+    transform-origin: left center;
+    animation: roadmap-bar-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .roadmap-pulse {
+    animation: roadmap-pulse 2.6s ease-in-out infinite;
+  }
 }

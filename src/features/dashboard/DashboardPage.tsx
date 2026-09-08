@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import type {
@@ -162,7 +163,7 @@ export function DashboardPage() {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="dashboard-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="dashboard-page">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-2">
           <h1 className="text-3xl font-semibold">Dashboard</h1>
@@ -205,18 +206,7 @@ export function DashboardPage() {
         </div>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       {loading ? (
         <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
@@ -378,6 +368,6 @@ export function DashboardPage() {
           </section>
         </>
       )}
-    </main>
+    </div>
   );
 }

@@ -10,7 +10,7 @@ last_updated: 2026-09-08
 ## Layers
 
 - **Unit** (`tests/unit/`, Vitest): capacity/workload formulas, normalization, decimal parsing (French/English separators), Excel row classification, project/month parsing, import comparison logic, IndexedDB migrations, entity validation, backup serialization/restoration.
-- **Component** (`tests/component/`, Vitest + React Testing Library): forms and their validation, non-working-days grid, allocation editing, filters, indicators, overload modal, import wizard, import comparison UI, unsaved-changes handling, critical responsive layouts.
+- **Component** (`tests/component/`, Vitest + React Testing Library): forms and their validation, non-working-days grid, allocation editing, filters, indicators, overload modal, import wizard, import comparison UI, unsaved-changes handling, critical responsive layouts, dialog focus handling, and axe-core accessibility smoke checks.
 - **E2E** (`tests/e2e/`, Playwright): the 20 acceptance scenarios from `functional-specification.md` (first launch, settings init, resource/project/release creation, real-file import, anomaly resolution, partial allocation, voluntary overload, allocation edit, save, reload persistence, second import + comparison, backup export/restore, controlled wipe, offline behavior, GitHub Pages sub-path navigation, keyboard-only navigation without drag-and-drop).
 
 ## Fixtures

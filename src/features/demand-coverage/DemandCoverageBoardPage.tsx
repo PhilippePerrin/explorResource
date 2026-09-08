@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import type { DemandCoverageState } from '@/domain/calculations';
 import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
@@ -232,7 +233,7 @@ export function DemandCoverageBoardPage() {
   );
 
   return (
-    <main
+    <div
       className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
       id="demand-coverage-board-page"
     >
@@ -244,17 +245,7 @@ export function DemandCoverageBoardPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <FilterBar
         favorites={favorites}
@@ -369,6 +360,6 @@ export function DemandCoverageBoardPage() {
           </div>
         )}
       </section>
-    </main>
+    </div>
   );
 }

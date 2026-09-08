@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import type { DemandSnapshot, ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
   buildDemandComparisonSummary,
@@ -1025,11 +1026,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         </p>
       </header>
 
-      {feedback ? (
-        <p className="rounded-md border border-[var(--surf-divider)] p-3 text-sm" role="status">
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
       {wizardState.errorMessage ? (
         <p className="rounded-md border border-red-500/50 bg-red-950/20 p-3 text-sm" role="alert">
           {wizardState.errorMessage}

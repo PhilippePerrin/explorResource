@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import type { Resource, ResourceNonWorkingDays } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -142,7 +143,7 @@ export function NonWorkingDaysPage() {
   const totals = useMemo(() => calculateNonWorkingDayTotals(rows), [rows]);
 
   return (
-    <main
+    <div
       className="mx-auto flex w-full max-w-[96rem] flex-col gap-6 p-6"
       id="non-working-days-page"
     >
@@ -156,17 +157,10 @@ export function NonWorkingDaysPage() {
       </header>
 
       <div aria-live="polite" className="sr-only">
-        {feedback} {validationMessage}
+        {validationMessage}
       </div>
 
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       {validationMessage ? (
         <div
@@ -365,6 +359,6 @@ export function NonWorkingDaysPage() {
         open={showDuplicateDialog}
         title="Duplicate non-working days to next year"
       />
-    </main>
+    </div>
   );
 }

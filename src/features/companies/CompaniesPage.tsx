@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import type { Company, Resource } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
@@ -192,7 +193,7 @@ export function CompaniesPage() {
   const errorSummary = getErrorSummary(form.formState.errors);
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="companies-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="companies-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Companies</h1>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
@@ -201,18 +202,7 @@ export function CompaniesPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <section className="grid gap-6 lg:grid-cols-[minmax(20rem,26rem)_1fr]">
         <div className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
@@ -419,6 +409,6 @@ export function CompaniesPage() {
         }
         tone={pendingAction?.type === 'delete' ? 'danger' : 'default'}
       />
-    </main>
+    </div>
   );
 }

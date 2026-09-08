@@ -183,7 +183,7 @@ describe('ImportsPage', () => {
     const fileInput = (await screen.findByLabelText(/Excel workbook/i)) as HTMLInputElement;
     await user.upload(fileInput, new File(['fixture'], 'fixture.xlsx'));
     await user.click(screen.getByRole('button', { name: /Start technical analysis/i }));
-    expect(await screen.findByText(/Technical analysis completed/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Technical analysis completed/i)).length).toBeGreaterThan(0);
 
     for (let index = 0; index < 5; index += 1) {
       await user.click(screen.getByRole('button', { name: /Next step/i }));
@@ -200,7 +200,7 @@ describe('ImportsPage', () => {
     const fileInput = (await screen.findByLabelText(/Excel workbook/i)) as HTMLInputElement;
     await user.upload(fileInput, new File(['fixture'], 'fixture.xlsx'));
     await user.click(screen.getByRole('button', { name: /Start technical analysis/i }));
-    expect(await screen.findByText(/Technical analysis completed/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Technical analysis completed/i)).length).toBeGreaterThan(0);
 
     for (let index = 0; index < 5; index += 1) {
       await user.click(screen.getByRole('button', { name: /Next step/i }));
@@ -352,7 +352,7 @@ describe('ImportsPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Restore demand/i }));
 
-    expect(await screen.findByText(/history was preserved/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/history was preserved/i)).length).toBeGreaterThan(0);
 
     await waitFor(async () => {
       const storedSnapshots = await demandSnapshotsRepository.getAll();

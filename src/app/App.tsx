@@ -1,19 +1,60 @@
-import { HashRouter, Routes, Route, NavLink } from 'react-router-dom';
+import { Suspense, lazy } from 'react';
+import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
 
 import { UpdateBanner } from './UpdateBanner';
-import { AllocationStudioPage } from '@/features/allocation-studio';
-import { CapacityCommandCenterPage } from '@/features/capacity';
-import { CompaniesPage } from '@/features/companies';
-import { DashboardPage } from '@/features/dashboard';
-import { DemandCoverageBoardPage } from '@/features/demand-coverage';
-import { ImportsPage } from '@/features/imports';
-import { NonWorkingDaysPage } from '@/features/non-working-days';
-import { GroupsPage, ProjectsPage } from '@/features/projects';
-import { ReleasesPage } from '@/features/releases';
-import { ResourceTypesPage } from '@/features/resource-types';
-import { ResourcesPage } from '@/features/resources';
-import { SettingsPage } from '@/features/settings';
-import { WorkingDaysPage } from '@/features/working-days';
+
+const DashboardPage = lazy(() =>
+  import('@/features/dashboard').then((module) => ({ default: module.DashboardPage })),
+);
+const CapacityCommandCenterPage = lazy(() =>
+  import('@/features/capacity').then((module) => ({
+    default: module.CapacityCommandCenterPage,
+  })),
+);
+const DemandCoverageBoardPage = lazy(() =>
+  import('@/features/demand-coverage').then((module) => ({
+    default: module.DemandCoverageBoardPage,
+  })),
+);
+const AllocationStudioPage = lazy(() =>
+  import('@/features/allocation-studio').then((module) => ({
+    default: module.AllocationStudioPage,
+  })),
+);
+const ProjectsPage = lazy(() =>
+  import('@/features/projects').then((module) => ({ default: module.ProjectsPage })),
+);
+const GroupsPage = lazy(() =>
+  import('@/features/projects').then((module) => ({ default: module.GroupsPage })),
+);
+const ReleasesPage = lazy(() =>
+  import('@/features/releases').then((module) => ({ default: module.ReleasesPage })),
+);
+const ResourcesPage = lazy(() =>
+  import('@/features/resources').then((module) => ({ default: module.ResourcesPage })),
+);
+const NonWorkingDaysPage = lazy(() =>
+  import('@/features/non-working-days').then((module) => ({
+    default: module.NonWorkingDaysPage,
+  })),
+);
+const WorkingDaysPage = lazy(() =>
+  import('@/features/working-days').then((module) => ({ default: module.WorkingDaysPage })),
+);
+const ImportsPage = lazy(() =>
+  import('@/features/imports').then((module) => ({ default: module.ImportsPage })),
+);
+const CompaniesPage = lazy(() =>
+  import('@/features/companies').then((module) => ({ default: module.CompaniesPage })),
+);
+const ResourceTypesPage = lazy(() =>
+  import('@/features/resource-types').then((module) => ({
+    default: module.ResourceTypesPage,
+  })),
+);
+const SettingsPage = lazy(() =>
+  import('@/features/settings').then((module) => ({ default: module.SettingsPage })),
+);
 
 /**
  * Root application shell.
@@ -46,7 +87,7 @@ export default function App() {
         Skip to main content
       </a>
       <header>
-        <h1 className="sr-only">Resource Capacity &amp; Project Demand Planner</h1>
+        <p className="sr-only">Resource Capacity &amp; Project Demand Planner</p>
         <nav aria-label="Primary">
           {NAV_ITEMS.map((item) => (
             <NavLink key={item.to} to={item.to} end={item.to === '/'}>
@@ -57,22 +98,34 @@ export default function App() {
       </header>
       <UpdateBanner />
       <main id="main-content">
-        <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/capacity" element={<CapacityCommandCenterPage />} />
-          <Route path="/demand-coverage" element={<DemandCoverageBoardPage />} />
-          <Route path="/allocation-studio" element={<AllocationStudioPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
-          <Route path="/groups" element={<GroupsPage />} />
-          <Route path="/releases" element={<ReleasesPage />} />
-          <Route path="/resources" element={<ResourcesPage />} />
-          <Route path="/non-working-days" element={<NonWorkingDaysPage />} />
-          <Route path="/working-days" element={<WorkingDaysPage />} />
-          <Route path="/imports" element={<ImportsPage />} />
-          <Route path="/companies" element={<CompaniesPage />} />
-          <Route path="/resource-types" element={<ResourceTypesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
+        <Suspense
+          fallback={
+            <div
+              aria-live="polite"
+              className="mx-auto w-full max-w-7xl rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] px-6 py-4 text-sm"
+              role="status"
+            >
+              Loading page…
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/capacity" element={<CapacityCommandCenterPage />} />
+            <Route path="/demand-coverage" element={<DemandCoverageBoardPage />} />
+            <Route path="/allocation-studio" element={<AllocationStudioPage />} />
+            <Route path="/projects" element={<ProjectsPage />} />
+            <Route path="/groups" element={<GroupsPage />} />
+            <Route path="/releases" element={<ReleasesPage />} />
+            <Route path="/resources" element={<ResourcesPage />} />
+            <Route path="/non-working-days" element={<NonWorkingDaysPage />} />
+            <Route path="/working-days" element={<WorkingDaysPage />} />
+            <Route path="/imports" element={<ImportsPage />} />
+            <Route path="/companies" element={<CompaniesPage />} />
+            <Route path="/resource-types" element={<ResourceTypesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </Suspense>
       </main>
     </HashRouter>
   );

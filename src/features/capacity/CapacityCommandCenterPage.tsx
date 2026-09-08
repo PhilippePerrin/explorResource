@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   flexRender,
   getCoreRowModel,
@@ -7,6 +8,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
+import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import type {
@@ -82,6 +84,7 @@ export function CapacityCommandCenterPage() {
   } | null>(null);
   const loadRequestIdRef = useRef(0);
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
+  const heatmapRegionRef = useRef<HTMLDivElement | null>(null);
   const filterDefinitions = useMemo<FilterDefinitions<CapacityFilters>>(
     () => ({
       year: { defaultValue: initialDate.getFullYear(), param: 'year' },
@@ -159,6 +162,53 @@ export function CapacityCommandCenterPage() {
     return [...years].sort((left, right) => left - right);
   }, [data.allocations, data.workingDaysCalendars, filters.year]);
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
+  const visibleMonths = useMemo(() => getFocusMonths(filters.focus), [filters.focus]);
+  const focusGridCell = useCallback((rowIndex: number, monthIndex: number) => {
+    const target = heatmapRegionRef.current?.querySelector<HTMLButtonElement>(
+      `[data-grid-cell="true"][data-row-index="${rowIndex}"][data-month-index="${monthIndex}"]`,
+    );
+    target?.focus();
+  }, []);
+  const handleGridKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+      const rowIndex = Number(event.currentTarget.dataset.rowIndex);
+      const monthIndex = Number(event.currentTarget.dataset.monthIndex);
+
+      if (!Number.isInteger(rowIndex) || !Number.isInteger(monthIndex)) {
+        return;
+      }
+
+      switch (event.key) {
+        case 'ArrowRight':
+          event.preventDefault();
+          focusGridCell(rowIndex, Math.min(monthIndex + 1, visibleMonths.length - 1));
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          focusGridCell(rowIndex, Math.max(monthIndex - 1, 0));
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          focusGridCell(rowIndex + 1, monthIndex);
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          focusGridCell(Math.max(rowIndex - 1, 0), monthIndex);
+          break;
+        case 'Home':
+          event.preventDefault();
+          focusGridCell(rowIndex, 0);
+          break;
+        case 'End':
+          event.preventDefault();
+          focusGridCell(rowIndex, visibleMonths.length - 1);
+          break;
+        default:
+          break;
+      }
+    },
+    [focusGridCell, visibleMonths.length],
+  );
   const rows = useMemo(
     () =>
       buildCapacityRows({
@@ -188,7 +238,6 @@ export function CapacityCommandCenterPage() {
       filters.year,
     ],
   );
-  const visibleMonths = useMemo(() => getFocusMonths(filters.focus), [filters.focus]);
   const filterFields = useMemo<FilterBarField[]>(
     () => [
       {
@@ -311,7 +360,12 @@ export function CapacityCommandCenterPage() {
 
             return (
               <button
+                aria-label={`${row.original.resourceName}, ${new Intl.DateTimeFormat('en-US', { month: 'long' }).format(new Date(filters.year, month - 1, 1))} ${filters.year}. ${buildCapacityDrilldownTooltip(summary, displayPrecision)}`}
                 className="rounded-lg border border-transparent p-1 text-left hover:border-[var(--surf-divider)] focus:outline-none focus:ring-2 focus:ring-[var(--color-bmx-blue)]"
+                data-grid-cell="true"
+                data-month-index={visibleMonths.indexOf(month)}
+                data-row-index={row.index}
+                onKeyDown={handleGridKeyDown}
                 onClick={() => setSelectedDrilldown({ row: row.original, month })}
                 type="button"
               >
@@ -327,7 +381,7 @@ export function CapacityCommandCenterPage() {
         }),
       ),
     ],
-    [columnHelper, displayPrecision, filters.year, visibleMonths],
+    [columnHelper, displayPrecision, filters.year, handleGridKeyDown, visibleMonths],
   );
   const table = useReactTable({
     data: rows,
@@ -364,7 +418,7 @@ export function CapacityCommandCenterPage() {
     : [];
 
   return (
-    <main
+    <div
       className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
       id="capacity-command-center-page"
     >
@@ -376,17 +430,7 @@ export function CapacityCommandCenterPage() {
         </p>
       </header>
 
-      <div aria-live="polite" className="sr-only">
-        {feedback}
-      </div>
-      {feedback ? (
-        <p
-          className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-800)] px-4 py-3 text-sm"
-          role="status"
-        >
-          {feedback}
-        </p>
-      ) : null}
+      <FeedbackMessage message={feedback} />
 
       <FilterBar
         favorites={favorites}
@@ -401,7 +445,9 @@ export function CapacityCommandCenterPage() {
       <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-semibold">Utilization heatmap</h2>
+            <h2 className="text-xl font-semibold" id="capacity-heatmap-heading">
+              Utilization heatmap
+            </h2>
             <p className="text-sm text-[var(--text-secondary)]">
               Rows are virtualized for responsive rendering.
             </p>
@@ -412,9 +458,25 @@ export function CapacityCommandCenterPage() {
         {loading ? (
           <p>Loading capacity heatmap…</p>
         ) : (
-          <div>
+          <div
+            aria-describedby="capacity-grid-instructions"
+            aria-labelledby="capacity-heatmap-heading"
+            ref={heatmapRegionRef}
+            role="region"
+          >
+            <p className="sr-only" id="capacity-grid-instructions">
+              Use Tab to enter the heatmap buttons, then use arrow keys to move between months and
+              resources. Press Enter or Space to open the drill-down for the focused month.
+            </p>
             <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
+              <table
+                aria-colcount={visibleMonths.length + 2}
+                aria-rowcount={rows.length + 1}
+                className="min-w-full border-collapse text-left text-sm"
+              >
+                <caption className="sr-only">
+                  Capacity utilization heatmap by resource and month.
+                </caption>
                 <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id} className="border-b border-[var(--surf-divider)]">
@@ -539,6 +601,6 @@ export function CapacityCommandCenterPage() {
           </p>
         )}
       </section>
-    </main>
+    </div>
   );
 }

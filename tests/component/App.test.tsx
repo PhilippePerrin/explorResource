@@ -3,11 +3,10 @@ import { render, screen } from '@testing-library/react';
 import App from '../../src/app/App';
 
 describe('App shell', () => {
-  it('renders the application title', () => {
+  it('renders the application title text and current route heading', async () => {
     render(<App />);
-    expect(
-      screen.getByRole('heading', { name: /Resource Capacity & Project Demand Planner/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Resource Capacity & Project Demand Planner/i)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /^Dashboard$/i })).toBeInTheDocument();
   });
 
   it('renders a skip link for keyboard accessibility', () => {

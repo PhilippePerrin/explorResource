@@ -51,7 +51,7 @@ export function GroupsPage() {
     filteredGroups.find((group) => group.id === selectedGroupId) ?? filteredGroups[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="groups-page">
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="groups-page">
       <header className="space-y-2">
         <h1 className="text-3xl font-semibold">Groups</h1>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
@@ -186,6 +186,6 @@ export function GroupsPage() {
           </div>
         </section>
       </section>
-    </main>
+    </div>
   );
 }
