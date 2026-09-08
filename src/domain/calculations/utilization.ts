@@ -52,7 +52,7 @@ export function classifyUtilizationStatus(
   ratePercent: number,
   thresholds: UtilizationThresholds = DEFAULT_VISUAL_THRESHOLDS,
 ): UtilizationStatus {
-  const normalizedRate = normalizeAmount(ratePercent);
+  const normalizedRate = Number(normalizeAmount(ratePercent).toFixed(10));
 
   if (normalizedRate < thresholds.availableBelow) {
     return 'available';
@@ -118,10 +118,11 @@ export function tauxUtilisation(
   }
 
   const ratePercent = normalizeAmount((assignedLoadDays / netCapacityDays) * 100);
-  const status = classifyUtilizationStatus(ratePercent, thresholds);
+  const stableRatePercent = Number(ratePercent.toFixed(10));
+  const status = classifyUtilizationStatus(stableRatePercent, thresholds);
 
   return {
-    ratePercent,
+    ratePercent: stableRatePercent,
     status,
     isCriticalOverload: status === 'critical-overload',
   };
