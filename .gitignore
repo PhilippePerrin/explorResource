@@ -26,3 +26,6 @@ yarn-error.log*
 # Env
 .env
 .env.local
+
+# Salesforce CLI local cache (unrelated to this project)
+.sf/
