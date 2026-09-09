@@ -1,8 +1,9 @@
 import { validateStoreValue } from '@/persistence/schemaRegistry';
 import { openPlannerDb } from '@/persistence/db';
-import { withWriteErrorHandling } from '@/persistence/repository';
+import { runTransaction } from '@/persistence/transaction';
+import type { SqliteWriteOp } from '@/persistence/sqlite/types';
 
-import type { ImportBatch, ImportRawRow } from '@/domain/entities';
+import type { Allocation, Group, ImportBatch, ImportRawRow, Project } from '@/domain/entities';
 
 import type { ImportAnalysis, ImportCommitResult } from './types';
 
@@ -33,11 +34,11 @@ export async function commitImportAnalysis(options: {
   ensureCommitReady(analysis);
 
   const db = await openPlannerDb();
-  const [existingProjects, existingGroups, existingAllocations] = await Promise.all([
+  const [existingProjects, existingGroups, existingAllocations] = (await Promise.all([
     db.getAll('projects'),
     db.getAll('groups'),
     db.getAll('allocations'),
-  ]);
+  ])) as [Project[], Group[], Allocation[]];
 
   const projectByCode = new Map(
     existingProjects.map((project) => [project.code, project] as const),
@@ -164,41 +165,32 @@ export async function commitImportAnalysis(options: {
     ];
   });
 
-  await withWriteErrorHandling('importBatches', 'commit import batch', async () => {
-    const transaction = db.transaction(
-      ['importBatches', 'importRawRows', 'demandSnapshots', 'groups', 'projects', 'allocations'],
-      'readwrite',
-    );
+  const ops: SqliteWriteOp[] = [
+    { store: 'importBatches', op: 'put', value: importBatch },
+    ...groupsToUpsert.map((group): SqliteWriteOp => ({ store: 'groups', op: 'put', value: group })),
+    ...projectsToUpsert.map((project): SqliteWriteOp => ({
+      store: 'projects',
+      op: 'put',
+      value: project,
+    })),
+    ...rawRows.map((rawRow): SqliteWriteOp => ({
+      store: 'importRawRows',
+      op: 'put',
+      value: rawRow,
+    })),
+    ...demandSnapshots.map((demandSnapshot): SqliteWriteOp => ({
+      store: 'demandSnapshots',
+      op: 'put',
+      value: demandSnapshot,
+    })),
+    ...allocationsToUpsert.map((allocation): SqliteWriteOp => ({
+      store: 'allocations',
+      op: 'put',
+      value: allocation,
+    })),
+  ];
 
-    try {
-      await transaction.objectStore('importBatches').put(importBatch);
-
-      for (const group of groupsToUpsert) {
-        await transaction.objectStore('groups').put(group);
-      }
-
-      for (const project of projectsToUpsert) {
-        await transaction.objectStore('projects').put(project);
-      }
-
-      for (const rawRow of rawRows) {
-        await transaction.objectStore('importRawRows').put(rawRow);
-      }
-
-      for (const demandSnapshot of demandSnapshots) {
-        await transaction.objectStore('demandSnapshots').put(demandSnapshot);
-      }
-
-      for (const allocation of allocationsToUpsert) {
-        await transaction.objectStore('allocations').put(allocation);
-      }
-
-      await transaction.done;
-    } catch (error) {
-      transaction.abort();
-      throw error;
-    }
-  });
+  await runTransaction('importBatches', 'commit import batch', ops);
 
   const createdProjectCount = projectsToUpsert.filter(
     (project) => !projectByCode.has(project.code),

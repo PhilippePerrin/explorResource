@@ -1,7 +1,8 @@
 ---
 title: 'ADR-0001: IndexedDB as source of truth, JSON as backup format'
 id: adr-0001
-status: accepted
+status: superseded
+superseded-by: adr-0005
 date: 2026-09-08
 ---
 

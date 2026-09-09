@@ -7,12 +7,15 @@ export default defineConfig({
   retries: process.env['CI'] ? 2 : 0,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:4173/explorResource/',
+    baseURL: 'http://localhost:4173/',
     trace: 'on-first-retry',
   },
   webServer: {
-    command: 'npm run build && npm run preview -- --port 4173',
-    url: 'http://localhost:4173/explorResource/',
+    // Built with --mode e2e so VITE_E2E_TEST_HOOKS is compiled in (see
+    // .env.e2e and src/testHooks.ts) — the release build served by Rebex
+    // Tiny Web Server never sets this.
+    command: 'tsc -b && vite build --mode e2e && vite preview --port 4173',
+    url: 'http://localhost:4173/',
     reuseExistingServer: !process.env['CI'],
     timeout: 120_000,
   },

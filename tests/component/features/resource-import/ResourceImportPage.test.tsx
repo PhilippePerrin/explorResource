@@ -114,7 +114,9 @@ describe('ResourceImportPage', () => {
     await user.click(screen.getByRole('button', { name: /Next step/i }));
     await user.click(screen.getByRole('button', { name: /Commit resource import/i }));
 
-    expect(await screen.findByText(/Resource import committed successfully/i)).toBeInTheDocument();
+    expect(
+      (await screen.findAllByText(/Resource import committed successfully/i)).length,
+    ).toBeGreaterThan(0);
     expect(await screen.findByRole('button', { name: /Download report/i })).toBeInTheDocument();
 
     const resourceTypes = await resourceTypesRepository.getAll();

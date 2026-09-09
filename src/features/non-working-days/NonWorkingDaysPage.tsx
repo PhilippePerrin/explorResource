@@ -49,10 +49,7 @@ export function NonWorkingDaysPage() {
     try {
       const [resources, allEntries] = await Promise.all([
         resourcesRepository.getAll(),
-        nonWorkingDaysRepository.getByIndex(
-          'by-year-month',
-          IDBKeyRange.bound([year, 1], [year, 12]),
-        ),
+        nonWorkingDaysRepository.getByIndex('by-year-month', { from: [year, 1], to: [year, 12] }),
       ]);
       const entries = allEntries.filter((entry) => entry.year === year);
       setData({ resources, entries });
@@ -116,10 +113,10 @@ export function NonWorkingDaysPage() {
 
     try {
       const targetYear = selectedYear + 1;
-      const targetEntries = await nonWorkingDaysRepository.getByIndex(
-        'by-year-month',
-        IDBKeyRange.bound([targetYear, 1], [targetYear, 12]),
-      );
+      const targetEntries = await nonWorkingDaysRepository.getByIndex('by-year-month', {
+        from: [targetYear, 1],
+        to: [targetYear, 12],
+      });
       const duplicatedRows = duplicateNonWorkingDayRows(rows);
       const timestamp = new Date().toISOString();
       const mutationPlan = createNonWorkingDayMutationPlan(

@@ -1,5 +1,3 @@
-import { openDB, type DBSchema, type IDBPDatabase, type IDBPTransaction } from 'idb';
-
 import type {
   Allocation,
   AppSettings,
@@ -19,31 +17,19 @@ import type {
   WorkingDaysCalendar,
 } from '@/domain/entities';
 
-export const DATABASE_NAME = 'resource-capacity-project-demand-planner';
-export const DB_VERSION = 1;
+import { SCHEMA_VERSION } from './sqlite/migrations';
+import { createDirectSqliteClient } from './sqlite/directDriver';
+import { createSqliteWorkerClient } from './sqlite/workerClient';
+import { DATABASE_NAME, STORE_NAMES, type StoreName } from './sqlite/schema';
+import type { SqliteClient } from './sqlite/types';
 
-export const STORE_NAMES = [
-  'appSettings',
-  'companies',
-  'resourceTypes',
-  'resources',
-  'releases',
-  'projects',
-  'groups',
-  'projectReleases',
-  'workingDaysCalendars',
-  'resourceNonWorkingDays',
-  'importBatches',
-  'importRawRows',
-  'demandSnapshots',
-  'allocations',
-  'changeSets',
-  'auditEntries',
-] as const;
+export { DATABASE_NAME, STORE_NAMES, type StoreName };
+export const DB_VERSION = SCHEMA_VERSION;
 
-export type StoreName = (typeof STORE_NAMES)[number];
-
-export interface PlannerDB extends DBSchema {
+// Kept as a plain TypeScript shape (not tied to any storage engine's own
+// typing) so the ~60 createRepository() call sites across src/features/* keep
+// compiling unchanged after the IndexedDB -> SQLite migration.
+export interface PlannerDB {
   appSettings: {
     key: AppSettings['id'];
     value: AppSettings;
@@ -212,205 +198,50 @@ export interface PlannerDB extends DBSchema {
   };
 }
 
-type Migration = (
-  db: IDBPDatabase<PlannerDB>,
-  transaction: IDBPTransaction<PlannerDB, StoreName[], 'versionchange'>,
-) => void;
-
-type IndexDefinition = {
-  name: string;
-  keyPath: string | string[];
-  options?: IDBIndexParameters;
-};
-
-function createStore(
-  db: IDBPDatabase<PlannerDB>,
-  storeName: StoreName,
-  indexes: IndexDefinition[],
-): void {
-  const store = db.createObjectStore(storeName as never, { keyPath: 'id' });
-
-  for (const index of indexes) {
-    store.createIndex(index.name as never, index.keyPath, index.options);
-  }
-}
-
-function createInitialSchema(db: IDBPDatabase<PlannerDB>): void {
-  createStore(db, 'appSettings', [
-    { name: 'by-schemaVersion', keyPath: 'schemaVersion' },
-    { name: 'by-themePreference', keyPath: 'themePreference' },
-  ]);
-  createStore(db, 'companies', [
-    { name: 'by-name', keyPath: 'name', options: { unique: true } },
-    { name: 'by-status', keyPath: 'status' },
-  ]);
-  createStore(db, 'resourceTypes', [
-    { name: 'by-label', keyPath: 'label', options: { unique: true } },
-    { name: 'by-status', keyPath: 'status' },
-    { name: 'by-displayOrder', keyPath: 'displayOrder' },
-  ]);
-  createStore(db, 'resources', [
-    { name: 'by-resourceTypeId', keyPath: 'resourceTypeId' },
-    { name: 'by-companyId', keyPath: 'companyId' },
-    { name: 'by-collaborationType', keyPath: 'collaborationType' },
-    { name: 'by-status', keyPath: 'status' },
-    { name: 'by-lastName-firstName', keyPath: ['lastName', 'firstName'] },
-  ]);
-  createStore(db, 'releases', [
-    { name: 'by-name', keyPath: 'name', options: { unique: true } },
-    { name: 'by-status', keyPath: 'status' },
-    { name: 'by-goLiveDate', keyPath: 'goLiveDate' },
-  ]);
-  createStore(db, 'projects', [
-    { name: 'by-code', keyPath: 'code', options: { unique: true } },
-    { name: 'by-name', keyPath: 'name' },
-    { name: 'by-status', keyPath: 'status' },
-  ]);
-  createStore(db, 'groups', [
-    { name: 'by-code', keyPath: 'code', options: { unique: true } },
-    { name: 'by-label', keyPath: 'label' },
-    { name: 'by-status', keyPath: 'status' },
-  ]);
-  createStore(db, 'projectReleases', [
-    { name: 'by-projectId', keyPath: 'projectId' },
-    { name: 'by-releaseId', keyPath: 'releaseId' },
-    {
-      name: 'by-projectId-releaseId',
-      keyPath: ['projectId', 'releaseId'],
-      options: { unique: true },
-    },
-  ]);
-  createStore(db, 'workingDaysCalendars', [
-    { name: 'by-year-month', keyPath: ['year', 'month'], options: { unique: true } },
-    { name: 'by-year', keyPath: 'year' },
-  ]);
-  createStore(db, 'resourceNonWorkingDays', [
-    { name: 'by-resourceId', keyPath: 'resourceId' },
-    {
-      name: 'by-resourceId-year-month',
-      keyPath: ['resourceId', 'year', 'month'],
-      options: { unique: true },
-    },
-    { name: 'by-year-month', keyPath: ['year', 'month'] },
-  ]);
-  createStore(db, 'importBatches', [
-    { name: 'by-fileSha256', keyPath: 'fileSha256', options: { unique: true } },
-    { name: 'by-status', keyPath: 'status' },
-    { name: 'by-referenceDate', keyPath: 'referenceDate' },
-    { name: 'by-importedAt', keyPath: 'importedAt' },
-  ]);
-  createStore(db, 'importRawRows', [
-    { name: 'by-importBatchId', keyPath: 'importBatchId' },
-    { name: 'by-classification', keyPath: 'classification' },
-    {
-      name: 'by-importBatchId-rowNumber',
-      keyPath: ['importBatchId', 'rowNumber'],
-      options: { unique: true },
-    },
-  ]);
-  createStore(db, 'demandSnapshots', [
-    { name: 'by-importBatchId', keyPath: 'importBatchId' },
-    { name: 'by-projectCode', keyPath: 'projectCode' },
-    { name: 'by-resourceTypeId', keyPath: 'resourceTypeId' },
-    {
-      name: 'by-projectCode-resourceTypeId-year-month-importBatchId',
-      keyPath: ['projectCode', 'resourceTypeId', 'year', 'month', 'importBatchId'],
-      options: { unique: true },
-    },
-  ]);
-  createStore(db, 'allocations', [
-    { name: 'by-resourceId', keyPath: 'resourceId' },
-    { name: 'by-projectCode', keyPath: 'projectCode' },
-    { name: 'by-resourceTypeId', keyPath: 'resourceTypeId' },
-    {
-      name: 'by-resourceId-year-month',
-      keyPath: ['resourceId', 'year', 'month'],
-    },
-    {
-      name: 'by-projectCode-resourceTypeId-year-month',
-      keyPath: ['projectCode', 'resourceTypeId', 'year', 'month'],
-    },
-  ]);
-  createStore(db, 'changeSets', [
-    { name: 'by-entityType', keyPath: 'entityType' },
-    { name: 'by-entityId', keyPath: 'entityId' },
-    { name: 'by-timestamp', keyPath: 'timestamp' },
-    { name: 'by-entityType-entityId', keyPath: ['entityType', 'entityId'] },
-  ]);
-  createStore(db, 'auditEntries', [
-    { name: 'by-action', keyPath: 'action' },
-    { name: 'by-timestamp', keyPath: 'timestamp' },
-  ]);
-}
-
-// Add future migrations by bumping DB_VERSION and defining migrations[newVersion].
-// Each migration should describe how to reach that exact version from the prior one.
-export const migrations: Record<number, Migration> = {
-  1: (db) => {
-    createInitialSchema(db);
-  },
-};
-
-const dbCache = new Map<string, Promise<IDBPDatabase<PlannerDB>>>();
-
-export function openPlannerDb(databaseName = DATABASE_NAME): Promise<IDBPDatabase<PlannerDB>> {
-  const cached = dbCache.get(databaseName);
-  if (cached) {
-    return cached;
+// OPFS SyncAccessHandles (and therefore the production Worker/sahpool client)
+// are not reliably available under Vitest's jsdom environment, so tests use
+// an in-memory, same-thread client instead. Overridable via
+// __setSqliteClientFactoryForTests (tests/unit/setup.ts) for full isolation
+// between test files/cases.
+function defaultClientFactory(): Promise<SqliteClient> {
+  if (import.meta.env.MODE === 'test' || typeof Worker === 'undefined') {
+    return createDirectSqliteClient();
   }
 
-  const dbPromise = openDB<PlannerDB>(databaseName, DB_VERSION, {
-    upgrade(db, oldVersion, newVersion, transaction) {
-      const targetVersion = newVersion ?? DB_VERSION;
-
-      for (let version = oldVersion + 1; version <= targetVersion; version += 1) {
-        const migration = migrations[version];
-
-        if (!migration) {
-          throw new Error(`Missing IndexedDB migration for version ${version}.`);
-        }
-
-        migration(db, transaction);
-      }
-    },
-    blocked() {
-      console.warn('IndexedDB upgrade is blocked by another open connection.');
-    },
-    blocking() {
-      console.warn('Closing stale IndexedDB connection after a blocking upgrade request.');
-    },
-    terminated() {
-      dbCache.delete(databaseName);
-    },
-  });
-
-  dbCache.set(databaseName, dbPromise);
-  return dbPromise;
+  return Promise.resolve(createSqliteWorkerClient());
 }
 
-export async function closePlannerDb(databaseName = DATABASE_NAME): Promise<void> {
-  const dbPromise = dbCache.get(databaseName);
+let clientFactory: () => Promise<SqliteClient> = defaultClientFactory;
+let clientPromise: Promise<SqliteClient> | null = null;
 
-  if (!dbPromise) {
-    return;
+export function openPlannerDb(): Promise<SqliteClient> {
+  if (!clientPromise) {
+    clientPromise = clientFactory().catch((error: unknown) => {
+      clientPromise = null;
+      throw error;
+    });
   }
 
-  const db = await dbPromise;
-  db.close();
-  dbCache.delete(databaseName);
+  return clientPromise;
 }
 
-export async function deletePlannerDb(databaseName = DATABASE_NAME): Promise<void> {
-  await closePlannerDb(databaseName);
+export function closePlannerDb(): void {
+  clientPromise = null;
+}
 
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(databaseName);
+/** Test-only: forces the next openPlannerDb() to build a fresh client from `factory`. */
+export function __setSqliteClientFactoryForTests(factory: () => Promise<SqliteClient>): void {
+  clientFactory = factory;
+  clientPromise = null;
+}
 
-    request.onerror = () => reject(request.error);
-    request.onblocked = () =>
-      reject(
-        new Error(`Unable to delete IndexedDB database "${databaseName}" because it is blocked.`),
-      );
-    request.onsuccess = () => resolve();
-  });
+// Wipes every row from every table rather than tearing down the underlying
+// OPFS file/VFS: the production database only ever has one live connection
+// (held by the dedicated Worker), so deleting the OPFS directory from the
+// main thread would race that connection's open SyncAccessHandles. Clearing
+// in place is simpler, avoids that race entirely, and is behaviorally
+// equivalent for the "controlled data wipe" flow in Settings.
+export async function deletePlannerDb(): Promise<void> {
+  const client = await openPlannerDb();
+  await client.runTransaction(STORE_NAMES.map((store) => ({ store, op: 'clear' as const })));
 }

@@ -55,7 +55,7 @@ Every entity with a `status` field uses `active | archived`. Hard delete is only
 
 ## Migration strategy
 
-IndexedDB schema version is a single incrementing integer (`DB_VERSION` in `src/persistence/db.ts`). Each version bump adds one migration function; migrations are additive and never destructive without an explicit backup prompt. See `persistence-and-backup.md` for the backup-format versioning (independent of the IndexedDB schema version).
+SQLite schema version is tracked via `PRAGMA user_version` (`DB_VERSION`/`SCHEMA_VERSION` in `src/persistence/sqlite/migrations.ts`). Each version bump adds one migration function; migrations are additive and never destructive without an explicit backup prompt. See `persistence-and-backup.md` for the backup-format versioning (independent of the SQLite schema version).
 
 ## Numeric storage
 

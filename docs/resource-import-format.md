@@ -105,7 +105,7 @@ Same mechanism as the demand importer: SHA-256 of the raw file bytes compared ag
 
 ## Persistence
 
-Reuses the existing `resourceTypes`, `resources`, and `importBatches` IndexedDB stores — no schema
+Reuses the existing `resourceTypes`, `resources`, and `importBatches` tables — no schema
 migration was needed. `ImportBatch` gained an additive `kind: 'demand' | 'resource'` field
 (`.default('demand')`, so every pre-existing batch resolves to `'demand'` with no migration) purely
 to keep the two importers' history/comparison views from mixing; this importer does not persist

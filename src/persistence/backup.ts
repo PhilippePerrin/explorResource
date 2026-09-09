@@ -8,10 +8,15 @@ import {
   UnsupportedBackupFormatError,
   formatZodIssues,
 } from './errors';
-import { withWriteErrorHandling } from './repository';
+import { runTransaction } from './transaction';
 import { storeSchemas, validateStoreValue, type StoreValue } from './schemaRegistry';
+import type { SqliteWriteOp } from './sqlite/types';
 
-export const BACKUP_FORMAT_VERSION = 1;
+// Bumped from 1 (IndexedDB era) to 2 for the SQLite migration. The JSON
+// envelope shape is unchanged, but the two "version 1"s would otherwise
+// silently mean different things (IDB schema v1 vs SQLite schema v1, which
+// both happen to equal DB_VERSION today) — see docs/persistence-and-backup.md.
+export const BACKUP_FORMAT_VERSION = 2;
 
 export type BackupData = Record<StoreName, unknown[]>;
 
@@ -114,26 +119,15 @@ export async function exportBackup(): Promise<BackupFile> {
 
 export async function restoreBackup(backup: BackupFile): Promise<void> {
   const validatedBackup = validateBackup(backup);
-  const db = await openPlannerDb();
 
-  await withWriteErrorHandling('appSettings', 'restore backup', async () => {
-    const transaction = db.transaction(STORE_NAMES, 'readwrite');
+  const ops: SqliteWriteOp[] = STORE_NAMES.flatMap((storeName) => [
+    { store: storeName, op: 'clear' },
+    ...validatedBackup.data[storeName].map((record): SqliteWriteOp => ({
+      store: storeName,
+      op: 'put',
+      value: validateStoreValue(storeName, record),
+    })),
+  ]);
 
-    try {
-      for (const storeName of STORE_NAMES) {
-        await transaction.objectStore(storeName).clear();
-      }
-
-      for (const storeName of STORE_NAMES) {
-        for (const record of validatedBackup.data[storeName]) {
-          await transaction.objectStore(storeName).put(validateStoreValue(storeName, record));
-        }
-      }
-
-      await transaction.done;
-    } catch (error) {
-      transaction.abort();
-      throw error;
-    }
-  });
+  await runTransaction('appSettings', 'restore backup', ops);
 }

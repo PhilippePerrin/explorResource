@@ -4,8 +4,10 @@ import App from './app/App';
 import './index.css';
 import './design-tokens.css';
 import { bootstrapTheme } from './theme/applyTheme';
+import { installTestHooksIfEnabled } from './testHooks';
 
 bootstrapTheme();
+installTestHooksIfEnabled();
 
 const container = document.getElementById('root');
 if (!container) {

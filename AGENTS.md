@@ -41,8 +41,9 @@ There is **no multi-user support, no authentication, no authorization, no approv
 - A resource can only be allocated against a demand of a **compatible ResourceType**.
 - Deletion is **soft (archive) by default**. Hard delete is only allowed when an entity has zero references.
 - Every import creates an **immutable version**. Comparison is always by `projectCode + resourceType + year + month` against the previous validated import by default (or any two user-selected imports).
-- No backend, no authentication, no login, no server API, no telemetry, no secrets in the repo, no unnecessary cookies. **100% client-side, IndexedDB + local file backup.**
-- GitHub Pages compatibility (`base: '/explorResource/'` in Vite, `HashRouter`) must never be broken.
+- No backend, no authentication, no login, no server API, no telemetry, no secrets in the repo, no unnecessary cookies. **100% client-side, SQLite (WebAssembly, OPFS) + local file backup.**
+- Static-hosting compatibility (`base: '/'` in Vite, `HashRouter`, served by Rebex Tiny Web Server locally) must never be broken.
+- The database lives behind one Worker-held OPFS connection (`src/workers/sqlite.worker.ts`) — only one tab/window can hold it at a time. This app is single-user, single-machine by design; don't build multi-tab sync as a workaround.
 - The bioMérieux branding (`src/index.css`, copied verbatim from `data/index.css`) must never be rewritten/redesigned — only consumed via existing CSS variables/Tailwind theme tokens. Non-brand design tokens (elevation/shadow, etc.) live in the companion file `src/design-tokens.css` instead — see `docs/adr/0002-design-token-layering.md`.
 - The logo (`public/assets/biomerieux-logo.jpeg`) is never redrawn in CSS.
 - Shared UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell, IconChip, EmptyState, Skeleton) live in `src/components/ui/`; icons go through the `src/components/icons.ts` barrel (`lucide-react`) and are always decorative (`aria-hidden`) — see `docs/adr/0003-icon-library.md`.
@@ -52,36 +53,48 @@ There is **no multi-user support, no authentication, no authorization, no approv
 
 Dated: 2026-09-08.
 
-| Topic                                                         | Decision                                                                                                                                                                                                                                                  |
-| ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Codes not matching `^[EPR]\d{4}$` (e.g. `GIS####`, `RUN####`) | Imported as read-only `Group` entities. Projects nested under them are still imported normally.                                                                                                                                                           |
-| "Supply" rows (real resource name under a demand row)         | Seed/initialize `Allocation` records at import time (`origin: 'import'`).                                                                                                                                                                                 |
-| Real monthly demand/supply                                    | Extracted from Excel **cell comments** (`Demand : X (Day) ... Supply : Y (Day)`), with automatic fallback to gap-based derivation (`demand = supply + cellValue`) if the comment is missing/unparsable — flagged as a derived-value anomaly in that case. |
-| Manual adjustments vs re-import                               | Row-by-row review proposed at every new import; the Domain Manager chooses keep vs overwrite per project/month.                                                                                                                                           |
-| Project missing from a new import                             | Kept, flagged "absent from latest import", never auto-deleted.                                                                                                                                                                                            |
-| Unknown resource/resource-type in Excel                       | Always flagged as a blocking anomaly in the import wizard; user creates/maps/excludes manually. Never auto-created silently.                                                                                                                              |
-| Numeric normalization tolerance                               | `1e-6` day.                                                                                                                                                                                                                                               |
-| Deletion vs archive                                           | Soft-delete (archive) everywhere by default; hard delete only if zero references.                                                                                                                                                                         |
-| Documentation format                                          | Pragmatic Markdown + YAML frontmatter + Mermaid + ADRs + traceability matrix. **Not** strict OKF v0.2 (a real but unrelated Google format for agent knowledge corpora — verified to exist, but out of scope for this project's docs).                     |
-| UI language                                                   | English.                                                                                                                                                                                                                                                  |
-| GitHub Pages repo/base path                                   | `explorResource` → `/explorResource/`.                                                                                                                                                                                                                    |
+| Topic                                                          | Decision                                                                                                                                                                                                                                                  |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Codes not matching `^[EPR]\d{4}$` (e.g. `GIS####`, `RUN####`)  | Imported as read-only `Group` entities. Projects nested under them are still imported normally.                                                                                                                                                           |
+| "Supply" rows (real resource name under a demand row)          | Seed/initialize `Allocation` records at import time (`origin: 'import'`).                                                                                                                                                                                 |
+| Real monthly demand/supply                                     | Extracted from Excel **cell comments** (`Demand : X (Day) ... Supply : Y (Day)`), with automatic fallback to gap-based derivation (`demand = supply + cellValue`) if the comment is missing/unparsable — flagged as a derived-value anomaly in that case. |
+| Manual adjustments vs re-import                                | Row-by-row review proposed at every new import; the Domain Manager chooses keep vs overwrite per project/month.                                                                                                                                           |
+| Project missing from a new import                              | Kept, flagged "absent from latest import", never auto-deleted.                                                                                                                                                                                            |
+| Unknown resource/resource-type in Excel                        | Always flagged as a blocking anomaly in the import wizard; user creates/maps/excludes manually. Never auto-created silently.                                                                                                                              |
+| Numeric normalization tolerance                                | `1e-6` day.                                                                                                                                                                                                                                               |
+| Deletion vs archive                                            | Soft-delete (archive) everywhere by default; hard delete only if zero references.                                                                                                                                                                         |
+| Documentation format                                           | Pragmatic Markdown + YAML frontmatter + Mermaid + ADRs + traceability matrix. **Not** strict OKF v0.2 (a real but unrelated Google format for agent knowledge corpora — verified to exist, but out of scope for this project's docs).                     |
+| UI language                                                    | English.                                                                                                                                                                                                                                                  |
+| GitHub Pages repo/base path (superseded 2026-09-09, see below) | `explorResource` → `/explorResource/`.                                                                                                                                                                                                                    |
+
+### 4.1 Persistence & hosting migration (dated 2026-09-09)
+
+Superseded the decisions above. See `docs/adr/0005-sqlite-wasm-and-rebex-hosting.md` for the full rationale.
+
+| Topic                   | Decision                                                                                                                                                                                                                               |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Persistence engine      | SQLite compiled to WebAssembly (`@sqlite.org/sqlite-wasm`), OPFS SyncAccessHandle Pool VFS, running in a dedicated Worker. Replaces IndexedDB (`idb`) as the source of truth. Still no backend — the database is entirely client-side. |
+| Hosting                 | GitHub Pages removed entirely (`.github/workflows/deploy.yml` deleted). The app is built as static files (`base: '/'`) and served locally via Rebex Tiny Web Server (a static-file-only server — confirmed no server-side scripting).  |
+| Users                   | Stays single-user, single-machine — no multi-tab/multi-user sync was added.                                                                                                                                                            |
+| Existing IndexedDB data | No automatic migration. Users re-import via Excel or restore an existing JSON backup after updating.                                                                                                                                   |
+| Backup format           | `BACKUP_FORMAT_VERSION` bumped 1 → 2 (JSON envelope shape unchanged) so pre-migration and post-migration backups are never ambiguously treated as the same schema generation.                                                          |
 
 ## 5. Architecture & tech stack
 
-- React 18 + TypeScript strict + Vite. PWA via `vite-plugin-pwa` (Workbox, app-shell caching only — **never cache business data**).
+- React 18 + TypeScript strict + Vite. PWA via `vite-plugin-pwa` (Workbox, app-shell caching only — **never cache business data**; the SQLite `.wasm` binary is precached too, since without it the app can't open its database offline).
 - Tailwind CSS v4 (`@tailwindcss/vite`) consuming `src/index.css` (verbatim copy of the provided branding tokens).
-- Routing: `react-router-dom` `HashRouter` (avoids GitHub Pages 404s on deep-link refresh under a static host with no server rewrite).
+- Routing: `react-router-dom` `HashRouter` (avoids 404s on deep-link refresh under a static host — Rebex Tiny Web Server — with no server-side rewrite).
 - State: React Context + hooks + `useReducer` per domain. No Redux.
-- Persistence: `idb` (IndexedDB wrapper) as the source of truth; JSON export/import for backup (not the primary store).
+- Persistence: `@sqlite.org/sqlite-wasm` (SQLite compiled to WebAssembly, OPFS SyncAccessHandle Pool VFS) as the source of truth, behind a dedicated Worker (`src/workers/sqlite.worker.ts`); JSON export/import for backup (not the primary store).
 - Excel import: `xlsx` (SheetJS) run in a Web Worker; cell-comment extraction required (see §4).
 - Validation: `zod`. Forms: `react-hook-form` + zod resolver.
 - Large tables: `@tanstack/react-table` + `@tanstack/react-virtual`.
 - Charts: `recharts`. Drag-and-drop: `@dnd-kit/*` with a full keyboard/form alternative (never mandatory).
-- Quality: ESLint flat config + Prettier, Vitest + React Testing Library, Playwright, GitHub Actions (`ci.yml` for PR/push checks, `deploy.yml` for GitHub Pages).
+- Quality: ESLint flat config + Prettier, Vitest + React Testing Library, Playwright, GitHub Actions (`ci.yml` for PR/push checks — no deployment workflow; deployment is a manual copy to the Rebex-served folder, see `docs/deployment.md`).
 
 ## 6. Repository layout
 
-See `docs/architecture.md` for the authoritative, up-to-date tree. Summary: `src/domain` (entities, calculations, normalization — framework-free, unit-tested), `src/persistence` (IndexedDB repository, migrations, backup), `src/import` (Excel parsing pipeline, classification, worker), `src/features/*` (one folder per page), `src/components` (shared UI), `src/workers`, `tests/{unit,component,e2e}`, `docs/*`, `AGENTS.md`, `ai.memory`, `.github/copilot-instructions.md`.
+See `docs/architecture.md` for the authoritative, up-to-date tree. Summary: `src/domain` (entities, calculations, normalization — framework-free, unit-tested), `src/persistence` (SQLite repository, migrations, backup — `src/persistence/sqlite/` holds the engine/schema/driver internals), `src/import` (Excel parsing pipeline, classification, worker), `src/features/*` (one folder per page), `src/components` (shared UI), `src/workers` (Excel import parsing + `sqlite.worker.ts`, the only context allowed to hold the OPFS connection), `tests/{unit,component,e2e}`, `docs/*`, `AGENTS.md`, `ai.memory`, `.github/copilot-instructions.md`.
 
 ## 7. Commands
 
@@ -128,9 +141,10 @@ tauxUtilisation = chargeAffectée / capacitéNette * 100  (0 if capacitéNette =
 
 ## 11. Persistence rules
 
-- IndexedDB is the source of truth; every write is validated through the entity's zod schema before being persisted.
-- Migrations are versioned and additive — see `src/persistence/db.ts` header comment for the exact pattern before adding a new one.
-- Backup export/import is the **critical, non-optional** feature (local-only app). Round-trip must be lossless and schema-validated. Restore is atomic (single transaction) and never partially applies a corrupt backup.
+- SQLite (WebAssembly, OPFS) is the source of truth; every write is validated through the entity's zod schema before being persisted (`src/persistence/schemaRegistry.ts`).
+- Migrations are versioned and additive — see `src/persistence/sqlite/migrations.ts` header comment for the exact pattern before adding a new one.
+- Backup export/import is the **critical, non-optional** feature (local-only app). Round-trip must be lossless and schema-validated. Restore is atomic (`src/persistence/transaction.ts`'s `runTransaction`) and never partially applies a corrupt backup.
+- The generic repository (`createRepository`) doesn't support cross-store atomic writes; multi-table commits (import commit, resource-import commit, demand rollback, backup restore) go through `runTransaction` instead — never hand-roll a second ad hoc transaction mechanism.
 
 ## 12. Testing strategy
 
@@ -140,9 +154,9 @@ See `docs/testing-strategy.md`. Minimum: unit tests for every calculation/normal
 
 WCAG 2.2 AA target. Keyboard navigation, visible focus, ARIA labels, no color-only signal, `prefers-reduced-motion` respected, full drag-and-drop keyboard/form alternative.
 
-## 14. GitHub Pages requirements
+## 14. Hosting requirements
 
-`vite.config.ts` `base: '/explorResource/'`, `HashRouter`, PWA manifest/service worker scoped to that base path, `deploy.yml` workflow using `actions/deploy-pages`.
+`vite.config.ts` `base: '/'`, `HashRouter`, PWA manifest/service worker scoped to that base path. No deployment workflow — see `docs/deployment.md` for the manual Rebex Tiny Web Server steps. `.env.e2e` + `playwright.config.ts`'s `--mode e2e` build exist only to expose a test-seeding hook (`src/testHooks.ts`) for Playwright, since the database now lives behind a Worker that `page.evaluate` can't reach directly; never let that hook ship in the real release build.
 
 ## 15. Definition of Done (per lot)
 
@@ -160,4 +174,4 @@ Whenever a business rule, entity, or architectural decision changes: update `AGE
 
 ## 18. Hard prohibitions
 
-No backend. No authentication/login of any kind. No secrets committed. Never break GitHub Pages compatibility. Never silently ignore an Excel row. Never delete data without confirmation. Never claim tests passed without running them. Never claim a file was created without actually creating it.
+No backend. No authentication/login of any kind. No secrets committed. Never break static-hosting compatibility (`base: '/'`, `HashRouter`, no server-side rewrite assumed). Never silently ignore an Excel row. Never delete data without confirmation. Never claim tests passed without running them. Never claim a file was created without actually creating it.

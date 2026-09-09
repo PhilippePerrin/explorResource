@@ -9,7 +9,7 @@ last_updated: 2026-09-08
 
 ## Data locality
 
-All business data (projects, resources, allocations, imports, etc.) is stored **exclusively in the browser's IndexedDB**. No business data is ever transmitted to a server — there is no backend and no external API call for business data.
+All business data (projects, resources, allocations, imports, etc.) is stored **exclusively in a local SQLite database (WebAssembly, persisted via OPFS — the browser's Origin Private File System)**. No business data is ever transmitted to a server — there is no backend and no external API call for business data.
 
 ## Authentication
 

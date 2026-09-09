@@ -1,8 +1,9 @@
 import type { AuditEntry, DemandSnapshot, ImportBatch } from '@/domain/entities';
 import { normalizeAmount } from '@/domain/normalization/normalizeAmount';
 import { openPlannerDb } from '@/persistence/db';
-import { withWriteErrorHandling } from '@/persistence/repository';
+import { runTransaction } from '@/persistence/transaction';
 import { validateStoreValue } from '@/persistence/schemaRegistry';
+import type { SqliteWriteOp } from '@/persistence/sqlite/types';
 
 import type {
   DemandRollbackPlan,
@@ -436,10 +437,10 @@ export async function restoreDemandFromImportBatch(options: {
 }): Promise<RestoreDemandFromImportBatchResult> {
   const { targetImportBatchId, scope } = options;
   const db = await openPlannerDb();
-  const [importBatches, demandSnapshots] = await Promise.all([
+  const [importBatches, demandSnapshots] = (await Promise.all([
     db.getAll('importBatches'),
     db.getAll('demandSnapshots'),
-  ]);
+  ])) as [ImportBatch[], DemandSnapshot[]];
   const targetBatch = importBatches.find((batch) => batch.id === targetImportBatchId);
 
   if (!targetBatch) {
@@ -495,21 +496,16 @@ export async function restoreDemandFromImportBatch(options: {
     timestamp,
   });
 
-  await withWriteErrorHandling('demandSnapshots', 'restore import demand', async () => {
-    const transaction = db.transaction(['demandSnapshots', 'auditEntries'], 'readwrite');
+  const ops: SqliteWriteOp[] = [
+    ...restoredSnapshots.map((snapshot): SqliteWriteOp => ({
+      store: 'demandSnapshots',
+      op: 'put',
+      value: snapshot,
+    })),
+    { store: 'auditEntries', op: 'put', value: auditEntry },
+  ];
 
-    try {
-      for (const snapshot of restoredSnapshots) {
-        await transaction.objectStore('demandSnapshots').put(snapshot);
-      }
-
-      await transaction.objectStore('auditEntries').put(auditEntry);
-      await transaction.done;
-    } catch (error) {
-      transaction.abort();
-      throw error;
-    }
-  });
+  await runTransaction('demandSnapshots', 'restore import demand', ops);
 
   return {
     restoredSnapshotCount: restoredSnapshots.length,

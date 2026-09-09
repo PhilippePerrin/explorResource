@@ -19,17 +19,17 @@ test('first launch shows the application shell', async ({ page }) => {
   await expect(page.getByRole('heading', { name: /^Dashboard$/i })).toBeVisible();
 });
 
-test('first launch uses the GitHub Pages base path and registers the scoped PWA shell', async ({
+test('first launch uses the root base path and registers the scoped PWA shell', async ({
   page,
 }) => {
   await page.goto('/');
 
-  await expect(page).toHaveURL(/\/explorResource\/#?$/);
+  await expect(page).toHaveURL(/\/#?$/);
 
   const manifestHref = await page
     .locator('link[rel="manifest"]')
     .evaluate((element) => element.getAttribute('href'));
-  expect(manifestHref).toBe('/explorResource/manifest.webmanifest');
+  expect(manifestHref).toBe('/manifest.webmanifest');
 
   const serviceWorkerScope = await page.evaluate(async () => {
     if (!('serviceWorker' in navigator)) {
@@ -40,7 +40,7 @@ test('first launch uses the GitHub Pages base path and registers the scoped PWA 
     return registration.scope;
   });
 
-  expect(serviceWorkerScope).toContain('/explorResource/');
+  expect(serviceWorkerScope).toContain(new URL('/', page.url()).href);
 });
 
 test('keyboard navigation reaches the primary nav and first page control', async ({ page }) => {

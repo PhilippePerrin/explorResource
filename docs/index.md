@@ -22,12 +22,12 @@ Convention: pragmatic Markdown with YAML frontmatter (stable `id`, `status`, `la
 | [architecture.md](./architecture.md)                         | Tech stack, repository layout, diagrams                           |
 | [import-format.md](./import-format.md)                       | Excel structure, classification strategy, cell-comment parsing    |
 | [resource-import-format.md](./resource-import-format.md)     | Availability list Excel structure, classification, matching rules |
-| [persistence-and-backup.md](./persistence-and-backup.md)     | IndexedDB, migrations, backup/restore                             |
-| [pwa-and-github-pages.md](./pwa-and-github-pages.md)         | Manifest, service worker, base path, offline strategy             |
+| [persistence-and-backup.md](./persistence-and-backup.md)     | SQLite (WebAssembly/OPFS), migrations, backup/restore             |
+| [pwa-and-hosting.md](./pwa-and-hosting.md)                   | Manifest, service worker, base path, offline strategy, hosting    |
 | [testing-strategy.md](./testing-strategy.md)                 | Unit/component/E2E coverage plan                                  |
 | [accessibility.md](./accessibility.md)                       | WCAG 2.2 AA commitments                                           |
 | [security-and-privacy.md](./security-and-privacy.md)         | Local-only data handling                                          |
-| [deployment.md](./deployment.md)                             | Build & GitHub Pages deployment steps                             |
+| [deployment.md](./deployment.md)                             | Build & Rebex Tiny Web Server deployment steps                    |
 | [troubleshooting.md](./troubleshooting.md)                   | Known issues and fixes                                            |
 | [traceability-matrix.md](./traceability-matrix.md)           | Requirement → lot → files → test                                  |
 | [adr/](./adr/)                                               | Architecture Decision Records                                     |

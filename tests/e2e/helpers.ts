@@ -18,8 +18,6 @@ import type {
   WorkingDaysCalendar,
 } from '@/domain/entities';
 
-import { DATABASE_NAME } from '@/persistence/db';
-
 const IMPORT_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const REAL_IMPORT_FILE_NAME = 'export-philippe.perrin-151251-20260908-101608.xlsx';
 const REAL_IMPORT_FILE_PATH = path.join(process.cwd(), 'tests', 'fixtures', REAL_IMPORT_FILE_NAME);
@@ -441,47 +439,20 @@ export async function openPrimaryPage(
 }
 
 export async function seedDatabase(page: Page, seed: SeedStoreMap) {
-  await page.evaluate(
-    async ({ databaseName, recordsByStore }) => {
-      function openDb(name: string): Promise<IDBDatabase> {
-        return new Promise((resolve, reject) => {
-          const request = window.indexedDB.open(name);
-          request.onerror = () => reject(request.error);
-          request.onsuccess = () => resolve(request.result);
-        });
-      }
+  // Writes through the app's own repository layer (window.__plannerTestSeed,
+  // installed by src/testHooks.ts) rather than touching storage directly:
+  // the production database lives behind a dedicated Worker (OPFS), which
+  // page.evaluate (main-thread only) cannot reach the way it could reach
+  // IndexedDB before this migration.
+  await page.evaluate(async (recordsByStore) => {
+    if (!window.__plannerTestSeed) {
+      throw new Error(
+        'window.__plannerTestSeed is unavailable — was the app built with --mode e2e (VITE_E2E_TEST_HOOKS=1)?',
+      );
+    }
 
-      const storeNames = Object.keys(recordsByStore);
-
-      if (storeNames.length === 0) {
-        return;
-      }
-
-      const database = await openDb(databaseName);
-
-      await new Promise<void>((resolve, reject) => {
-        const transaction = database.transaction(storeNames, 'readwrite');
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-        transaction.onabort = () => reject(transaction.error);
-
-        for (const storeName of storeNames) {
-          const store = transaction.objectStore(storeName);
-          const records = recordsByStore[storeName] ?? [];
-
-          for (const record of records) {
-            store.put(record);
-          }
-        }
-      });
-
-      database.close();
-    },
-    {
-      databaseName: DATABASE_NAME,
-      recordsByStore: seed,
-    },
-  );
+    await window.__plannerTestSeed(recordsByStore);
+  }, seed);
 }
 
 export async function setupAppWithSeed(page: Page, seed: SeedStoreMap) {

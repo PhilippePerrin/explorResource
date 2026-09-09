@@ -2,6 +2,7 @@ import { Suspense, lazy } from 'react';
 import { HashRouter, Route, Routes } from 'react-router-dom';
 
 import { AppShell } from './AppShell';
+import { DatabaseLockGuard } from './DatabaseLockGuard';
 
 const DashboardPage = lazy(() =>
   import('@/features/dashboard').then((module) => ({ default: module.DashboardPage })),
@@ -62,43 +63,46 @@ const SettingsPage = lazy(() =>
 /**
  * Root application shell.
  *
- * A HashRouter is used deliberately: GitHub Pages serves static files and has
- * no server-side rewrite for deep links, so hash-based routing avoids 404s on
- * refresh/direct navigation under the `/explorResource/` base path.
+ * A HashRouter is used deliberately: the app is served as static files (by
+ * Rebex Tiny Web Server, or any plain static host) with no server-side
+ * rewrite for deep links, so hash-based routing avoids 404s on refresh/direct
+ * navigation.
  */
 export default function App() {
   return (
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppShell>
-        <Suspense
-          fallback={
-            <div
-              aria-live="polite"
-              className="mx-auto w-full max-w-7xl rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] px-6 py-4 text-sm"
-              role="status"
-            >
-              Loading page…
-            </div>
-          }
-        >
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/capacity" element={<CapacityCommandCenterPage />} />
-            <Route path="/demand-coverage" element={<DemandCoverageBoardPage />} />
-            <Route path="/allocation-studio" element={<AllocationStudioPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/groups" element={<GroupsPage />} />
-            <Route path="/releases" element={<ReleasesPage />} />
-            <Route path="/resources" element={<ResourcesPage />} />
-            <Route path="/non-working-days" element={<NonWorkingDaysPage />} />
-            <Route path="/working-days" element={<WorkingDaysPage />} />
-            <Route path="/imports" element={<ImportsPage />} />
-            <Route path="/resources/import" element={<ResourceImportPage />} />
-            <Route path="/companies" element={<CompaniesPage />} />
-            <Route path="/resource-types" element={<ResourceTypesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-          </Routes>
-        </Suspense>
+        <DatabaseLockGuard>
+          <Suspense
+            fallback={
+              <div
+                aria-live="polite"
+                className="mx-auto w-full max-w-7xl rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] px-6 py-4 text-sm"
+                role="status"
+              >
+                Loading page…
+              </div>
+            }
+          >
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/capacity" element={<CapacityCommandCenterPage />} />
+              <Route path="/demand-coverage" element={<DemandCoverageBoardPage />} />
+              <Route path="/allocation-studio" element={<AllocationStudioPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/groups" element={<GroupsPage />} />
+              <Route path="/releases" element={<ReleasesPage />} />
+              <Route path="/resources" element={<ResourcesPage />} />
+              <Route path="/non-working-days" element={<NonWorkingDaysPage />} />
+              <Route path="/working-days" element={<WorkingDaysPage />} />
+              <Route path="/imports" element={<ImportsPage />} />
+              <Route path="/resources/import" element={<ResourceImportPage />} />
+              <Route path="/companies" element={<CompaniesPage />} />
+              <Route path="/resource-types" element={<ResourceTypesPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+            </Routes>
+          </Suspense>
+        </DatabaseLockGuard>
       </AppShell>
     </HashRouter>
   );

@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { AppSettings, Company, ImportBatch } from '@/domain/entities';
 import {
-  DATABASE_NAME,
   DB_VERSION,
   STORE_NAMES,
-  deletePlannerDb,
+  __setSqliteClientFactoryForTests,
   openPlannerDb,
 } from '@/persistence/db';
+import { createDirectSqliteClient } from '@/persistence/sqlite/directDriver';
 import { UnsupportedBackupFormatError } from '@/persistence/errors';
 import { createRepository } from '@/persistence/repository';
 import {
@@ -17,11 +17,9 @@ import {
   validateBackup,
 } from '@/persistence/backup';
 
-const openTestDb = () => openPlannerDb(DATABASE_NAME);
-
-const appSettingsRepository = createRepository('appSettings', openTestDb);
-const companiesRepository = createRepository('companies', openTestDb);
-const importBatchesRepository = createRepository('importBatches', openTestDb);
+const appSettingsRepository = createRepository('appSettings');
+const companiesRepository = createRepository('companies');
+const importBatchesRepository = createRepository('importBatches');
 
 function nowIso(): string {
   return new Date('2026-01-15T10:00:00.000Z').toISOString();
@@ -80,15 +78,21 @@ async function snapshotDatabase() {
   return JSON.parse(JSON.stringify(backup)) as ReturnType<typeof JSON.parse>;
 }
 
-beforeEach(async () => {
-  await deletePlannerDb(DATABASE_NAME);
+beforeEach(() => {
+  // Every test gets a fresh, isolated in-memory SQLite database (no leftover
+  // rows or migration state carried over from the previous test).
+  __setSqliteClientFactoryForTests(() => createDirectSqliteClient());
 });
 
-describe('IndexedDB schema and persistence', () => {
-  it('creates the full object store schema on a fresh database', async () => {
-    const db = await openTestDb();
-    expect(db.version).toBe(DB_VERSION);
-    expect([...db.objectStoreNames]).toEqual([...STORE_NAMES].sort());
+describe('SQLite schema and persistence', () => {
+  it('creates the full table schema on a fresh database, one table per store', async () => {
+    const db = await openPlannerDb();
+    const tables = (await db.getAll('appSettings')) as unknown[];
+    expect(tables).toEqual([]);
+
+    for (const storeName of STORE_NAMES) {
+      await expect(db.getAll(storeName)).resolves.toEqual([]);
+    }
   });
 
   it('round-trips backup export and restore without data loss', async () => {
@@ -97,9 +101,6 @@ describe('IndexedDB schema and persistence', () => {
     await importBatchesRepository.put(buildImportBatch());
 
     const exported = await exportBackup();
-    await deletePlannerDb(DATABASE_NAME);
-    await openTestDb();
-
     await restoreBackup(exported);
 
     const restored = await exportBackup();
@@ -145,12 +146,31 @@ describe('IndexedDB schema and persistence', () => {
     expect(afterRestore.data).toEqual(beforeRestore.data);
   });
 
+  it('does not partially apply a transaction when one write fails midway', async () => {
+    await companiesRepository.put(buildCompany());
+    const beforeRestore = await snapshotDatabase();
+    const db = await openPlannerDb();
+
+    await expect(
+      db.runTransaction([
+        { store: 'importBatches', op: 'put', value: buildImportBatch() },
+        // A second write to the same unique fileSha256 violates the UNIQUE
+        // index and must roll back the whole transaction, including the
+        // first (otherwise valid) write above.
+        { store: 'importBatches', op: 'put', value: { ...buildImportBatch(), id: 'other-id' } },
+      ]),
+    ).rejects.toThrow();
+
+    const afterRestore = await exportBackup();
+    expect(afterRestore.data).toEqual(beforeRestore.data);
+  });
+
   it('rethrows write failures as PersistenceWriteError', async () => {
-    const db = await openTestDb();
+    const db = await openPlannerDb();
     const putSpy = vi
       .spyOn(db, 'put')
       .mockRejectedValueOnce(
-        Object.assign(new Error('quota exceeded'), { name: 'QuotaExceededError' }),
+        Object.assign(new Error('database or disk is full'), { resultCode: 13 }),
       );
 
     await expect(appSettingsRepository.put(buildAppSettings())).rejects.toMatchObject({

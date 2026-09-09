@@ -1,4 +1,3 @@
-import 'fake-indexeddb/auto';
 import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
@@ -28,6 +27,21 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: () => undefined,
     dispatchEvent: () => false,
   }),
+});
+
+// jsdom has no ResizeObserver implementation. Chart components (recharts'
+// ResponsiveContainer, used on the Dashboard) create one unconditionally on
+// mount, so any test that renders far enough to mount a chart needs a stub.
+class StubResizeObserver {
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+}
+
+Object.defineProperty(window, 'ResizeObserver', {
+  configurable: true,
+  writable: true,
+  value: StubResizeObserver,
 });
 
 // jsdom always reports 0 for offsetHeight/offsetWidth (no real layout engine), which makes

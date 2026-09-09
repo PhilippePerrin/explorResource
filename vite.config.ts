@@ -4,9 +4,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// GitHub Pages deployment target: https://<owner>.github.io/explorResource/
-// Keep this in sync with .github/workflows/deploy.yml and docs/pwa-and-github-pages.md.
-const REPO_BASE = '/explorResource/';
+// Served locally by Rebex Tiny Web Server (or `vite preview`) from its root.
+// Keep this in sync with docs/pwa-and-hosting.md.
+const REPO_BASE = '/';
 
 export default defineConfig({
   base: REPO_BASE,
@@ -63,11 +63,15 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // App-shell caching only. Business data lives in IndexedDB and must
-        // never be intercepted or cached by the service worker.
+        // App-shell caching only. Business data lives in the local SQLite
+        // database (OPFS) and must never be intercepted or cached by the
+        // service worker.
         navigateFallback: `${REPO_BASE}index.html`,
         cleanupOutdatedCaches: true,
-        globPatterns: ['**/*.{js,css,html,svg,ico,png,webmanifest}'],
+        // Includes .wasm: the SQLite engine's binary must be precached too,
+        // or opening the local database (and therefore the whole app) fails
+        // offline after the first visit.
+        globPatterns: ['**/*.{js,css,html,svg,ico,png,webmanifest,wasm}'],
         runtimeCaching: [
           {
             urlPattern: ({ request, url }) =>
@@ -114,9 +118,22 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  worker: {
+    format: 'es',
+  },
+  optimizeDeps: {
+    // The SQLite Wasm package manages its own Worker/wasm loading; letting
+    // esbuild pre-bundle it breaks that. Per the package's own Vite guidance.
+    exclude: ['@sqlite.org/sqlite-wasm'],
+  },
   test: {
     environment: 'jsdom',
     globals: true,
+    // Each test that touches persistence now compiles/instantiates a real
+    // SQLite Wasm module (heavier than the previous fake-indexeddb
+    // polyfill), which can be tight against the 5s default under full-suite
+    // parallel load.
+    testTimeout: 10_000,
     setupFiles: ['./tests/unit/setup.ts'],
     include: [
       'tests/unit/**/*.test.ts',

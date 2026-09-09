@@ -1,7 +1,13 @@
-import { getResourceFullName } from '@/domain/entities';
+import {
+  getResourceFullName,
+  type Allocation,
+  type Resource,
+  type ResourceType,
+} from '@/domain/entities';
 import { openPlannerDb } from '@/persistence/db';
-import { withWriteErrorHandling } from '@/persistence/repository';
+import { runTransaction } from '@/persistence/transaction';
 import { validateStoreValue } from '@/persistence/schemaRegistry';
+import type { SqliteWriteOp } from '@/persistence/sqlite/types';
 
 import type { ResourceImportAnalysis, ResourceImportCommitResult } from './types';
 
@@ -34,11 +40,11 @@ export async function commitResourceImportAnalysis(options: {
   ensureCommitReady(analysis);
 
   const db = await openPlannerDb();
-  const [existingResourceTypes, existingResources, existingAllocations] = await Promise.all([
+  const [existingResourceTypes, existingResources, existingAllocations] = (await Promise.all([
     db.getAll('resourceTypes'),
     db.getAll('resources'),
     db.getAll('allocations'),
-  ]);
+  ])) as [ResourceType[], Resource[], Allocation[]];
 
   const resourceTypeByLabel = new Map(
     existingResourceTypes.map((resourceType) => [resourceType.label.trim(), resourceType] as const),
@@ -149,29 +155,21 @@ export async function commitResourceImportAnalysis(options: {
     updatedAt: timestamp,
   });
 
-  await withWriteErrorHandling('importBatches', 'commit resource import batch', async () => {
-    const transaction = db.transaction(
-      ['resourceTypes', 'resources', 'importBatches'],
-      'readwrite',
-    );
+  const ops: SqliteWriteOp[] = [
+    ...resourceTypesToUpsert.map((resourceType): SqliteWriteOp => ({
+      store: 'resourceTypes',
+      op: 'put',
+      value: resourceType,
+    })),
+    ...[...resourcesToCreate, ...resourcesToUpdate].map((resource): SqliteWriteOp => ({
+      store: 'resources',
+      op: 'put',
+      value: resource,
+    })),
+    { store: 'importBatches', op: 'put', value: importBatch },
+  ];
 
-    try {
-      for (const resourceType of resourceTypesToUpsert) {
-        await transaction.objectStore('resourceTypes').put(resourceType);
-      }
-
-      for (const resource of [...resourcesToCreate, ...resourcesToUpdate]) {
-        await transaction.objectStore('resources').put(resource);
-      }
-
-      await transaction.objectStore('importBatches').put(importBatch);
-
-      await transaction.done;
-    } catch (error) {
-      transaction.abort();
-      throw error;
-    }
-  });
+  await runTransaction('importBatches', 'commit resource import batch', ops);
 
   return {
     importBatch,

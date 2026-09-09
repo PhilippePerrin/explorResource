@@ -54,7 +54,7 @@ last_updated: 2026-09-09
 
 - **Given** a backup file that fails schema validation partway through
 - **When** the Domain Manager attempts to restore it
-- **Then** no data in IndexedDB is modified (all-or-nothing), and a clear error is shown.
+- **Then** no data in the local database is modified (all-or-nothing), and a clear error is shown.
 
 ### AC-6 — Resource import unblocks the demand import
 
@@ -70,6 +70,6 @@ last_updated: 2026-09-09
 
 ## E2E scenarios (Playwright, `tests/e2e/`)
 
-1. First launch. 2. Settings initialization. 3. Resource creation. 4. Project creation. 5. Release creation. 6. Import of the provided real Excel file. 7. Resolving an import anomaly. 8. Partial allocation of a resource. 9. Voluntary overload. 10. Editing an allocation. 11. Save. 12. Page reload + persistence check. 13. Second import. 14. Comparison with the previous import. 15. Backup export. 16. Controlled data wipe. 17. Backup restore. 18. Offline behavior. 19. Deployment under a GitHub Pages sub-path. 20. Keyboard navigation without drag-and-drop. 21. Bulk resource import from the "Availability list" export, followed by the demand import, with zero blocking anomalies (Lot 17).
+1. First launch. 2. Settings initialization. 3. Resource creation. 4. Project creation. 5. Release creation. 6. Import of the provided real Excel file. 7. Resolving an import anomaly. 8. Partial allocation of a resource. 9. Voluntary overload. 10. Editing an allocation. 11. Save. 12. Page reload + persistence check. 13. Second import. 14. Comparison with the previous import. 15. Backup export. 16. Controlled data wipe. 17. Backup restore. 18. Offline behavior. 19. Deployment as static files under the root path (Rebex Tiny Web Server or an equivalent static host). 20. Keyboard navigation without drag-and-drop. 21. Bulk resource import from the "Availability list" export, followed by the demand import, with zero blocking anomalies (Lot 17).
 
 Each scenario is added to `tests/e2e/` as its owning lot lands; see `traceability-matrix.md` for current status.

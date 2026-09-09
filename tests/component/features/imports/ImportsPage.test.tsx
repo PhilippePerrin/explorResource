@@ -208,7 +208,9 @@ describe('ImportsPage', () => {
 
     await user.click(screen.getByRole('button', { name: /Commit atomic import/i }));
 
-    expect(await screen.findByText(/Import committed successfully/i)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Import committed successfully/i)).length).toBeGreaterThan(
+      0,
+    );
     expect(await screen.findByRole('button', { name: /Download report/i })).toBeInTheDocument();
 
     await waitFor(async () => {

@@ -11,9 +11,9 @@ This repository implements **Resource Capacity & Project Demand Planner**, a loc
 
 ## Architecture
 
-- React 18 + TypeScript strict + Vite, PWA (`vite-plugin-pwa`), deployed to GitHub Pages under `base: '/explorResource/'` with `HashRouter`.
+- React 18 + TypeScript strict + Vite, PWA (`vite-plugin-pwa`), built as static files served locally by Rebex Tiny Web Server (or any plain static host) with `base: '/'` and `HashRouter`. No GitHub Pages.
 - Tailwind CSS v4 consuming `src/index.css` (verbatim copy of provided branding — never rewrite it).
-- IndexedDB (`idb`) as source of truth via a validated repository layer (`src/persistence/`); JSON export/import for backup (critical feature, not optional).
+- SQLite (WebAssembly, `@sqlite.org/sqlite-wasm`, OPFS SyncAccessHandle Pool VFS) as source of truth, running inside a dedicated Worker (`src/workers/sqlite.worker.ts`) via a validated repository layer (`src/persistence/`); JSON export/import for backup (critical feature, not optional). Still 100% client-side — no backend was introduced.
 - Excel import (`xlsx`, Web Worker) must read **cell comments** for real monthly demand/supply — the raw cell numeric value in demand rows is a gap (`demand − supply`), not raw demand.
 - State via Context/hooks/`useReducer`, no Redux. Validation via `zod`. Forms via `react-hook-form`.
 
@@ -45,11 +45,12 @@ Overload is always allowed, never blocks saving, always visually flagged (label 
 
 WCAG 2.2 AA. Keyboard navigation, visible focus, ARIA labels, `prefers-reduced-motion`, never color-only signals.
 
-## Persistence & GitHub Pages
+## Persistence & hosting
 
-- Migrations in `src/persistence/db.ts` are versioned and additive.
-- Backup restore is atomic and schema-validated; never partially apply a corrupt backup.
-- Never break the `/explorResource/` base path or `HashRouter` GitHub Pages compatibility.
+- Migrations (`src/persistence/sqlite/migrations.ts`) are versioned (`PRAGMA user_version`) and additive.
+- Backup restore is atomic (`src/persistence/transaction.ts`) and schema-validated; never partially apply a corrupt backup.
+- The database lives behind one Worker-held OPFS connection — only one tab/window can have it open at a time (see `src/app/DatabaseLockGuard.tsx`). Don't build multi-tab sync; this app is single-user, single-machine by design.
+- Never break the `base: '/'` build path or `HashRouter` static-hosting compatibility (Rebex Tiny Web Server has no server-side rewrite for deep links).
 
 ## Hard rules
 

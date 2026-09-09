@@ -23,7 +23,7 @@ A fast, accessible, local-first PWA that:
 - keeps every import as an immutable, comparable version;
 - turns static numbers into an interactive capacity/demand cockpit (dashboard, heatmap, coverage board, allocation studio);
 - never loses data (local persistence + mandatory backup/restore);
-- works fully offline after first load, deployed for free on GitHub Pages.
+- works fully offline after first load, self-hosted locally via Rebex Tiny Web Server (no cloud hosting, no GitHub Pages).
 
 ## Non-goals
 
@@ -31,4 +31,4 @@ No multi-user support, no authentication, no server, no approval workflow, no ex
 
 ## Definition of "done"
 
-See the acceptance criteria in `functional-specification.md` and the final checklist in `traceability-matrix.md`. In short: the real Excel file imports cleanly, all CRUD screens work, capacity/overload calculations are correct and visible, backup/restore round-trips losslessly, the app works offline and deploys correctly under `/explorResource/` on GitHub Pages, and the full test suite (unit + component + E2E) passes.
+See the acceptance criteria in `functional-specification.md` and the final checklist in `traceability-matrix.md`. In short: the real Excel file imports cleanly, all CRUD screens work, capacity/overload calculations are correct and visible, backup/restore round-trips losslessly, the app works offline and deploys correctly as static files served locally by Rebex Tiny Web Server, and the full test suite (unit + component + E2E) passes.

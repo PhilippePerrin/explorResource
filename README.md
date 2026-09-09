@@ -8,7 +8,7 @@ Under incremental construction, lot by lot. See [`ai.memory`](./ai.memory) for t
 
 ## Tech stack
 
-React 18 · TypeScript (strict) · Vite · Tailwind CSS v4 · React Router (Hash) · IndexedDB (`idb`) · Zod · React Hook Form · TanStack Table/Virtual · Recharts · `@dnd-kit` · Vitest · React Testing Library · Playwright · ESLint · Prettier · GitHub Actions.
+React 18 · TypeScript (strict) · Vite · Tailwind CSS v4 · React Router (Hash) · SQLite (`@sqlite.org/sqlite-wasm`, WebAssembly/OPFS) · Zod · React Hook Form · TanStack Table/Virtual · Recharts · `@dnd-kit` · Vitest · React Testing Library · Playwright · ESLint · Prettier · GitHub Actions.
 
 ## Getting started
 
@@ -30,11 +30,15 @@ npm run build
 
 ## Documentation
 
-Start at [`docs/index.md`](./docs/index.md) for the full documentation map (product vision, business rules, data model, architecture, import format, persistence & backup, PWA/GitHub Pages, testing strategy, accessibility, security & privacy, deployment, troubleshooting, traceability matrix, ADRs).
+Start at [`docs/index.md`](./docs/index.md) for the full documentation map (product vision, business rules, data model, architecture, import format, persistence & backup, PWA & hosting, testing strategy, accessibility, security & privacy, deployment, troubleshooting, traceability matrix, ADRs).
 
 ## Data & privacy
 
-All business data is stored **locally in the browser** (IndexedDB). No data is ever sent to a server. Backups are plain JSON files exported/imported manually by the Domain Manager. See [`docs/security-and-privacy.md`](./docs/security-and-privacy.md).
+All business data is stored **locally in the browser** (SQLite, WebAssembly, persisted via OPFS). No data is ever sent to a server. Backups are plain JSON files exported/imported manually by the Domain Manager. See [`docs/security-and-privacy.md`](./docs/security-and-privacy.md).
+
+## Hosting
+
+Served as static files by a local server — no GitHub Pages, no cloud hosting. See [`docs/deployment.md`](./docs/deployment.md).
 
 ## License
 
