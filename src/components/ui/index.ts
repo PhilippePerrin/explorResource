@@ -1,5 +1,6 @@
 export { Button, type ButtonProps } from './Button';
 export { Card, type CardProps } from './Card';
+export { Drawer, type DrawerProps } from './Drawer';
 export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { IconButton, type IconButtonProps } from './IconButton';
 export { IconChip, type IconChipProps, type IconChipSize, type IconChipTone } from './IconChip';

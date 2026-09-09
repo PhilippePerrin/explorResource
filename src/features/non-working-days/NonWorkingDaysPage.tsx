@@ -145,10 +145,7 @@ export function NonWorkingDaysPage() {
   const totals = useMemo(() => calculateNonWorkingDayTotals(rows), [rows]);
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-[96rem] flex-col gap-6 p-6"
-      id="non-working-days-page"
-    >
+    <div className="flex w-full flex-col gap-6 p-6" id="non-working-days-page">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
           <div

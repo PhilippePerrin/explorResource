@@ -60,11 +60,13 @@ describe('ResourcesPage', () => {
 
     const user = userEvent.setup();
     renderPage();
-    const detailsSection = getSectionForHeading(/Create resource/i);
+
+    await user.click(screen.getByRole('button', { name: /New resource/i }));
+    const detailsSection = await screen.findByRole('dialog', { name: /Create resource/i });
     await within(detailsSection).findByRole('option', { name: 'Developer' });
 
-    await user.type(screen.getByLabelText(/First name/i), 'Alice');
-    await user.type(screen.getByLabelText(/Last name/i), 'Martin');
+    await user.type(within(detailsSection).getByLabelText(/First name/i), 'Alice');
+    await user.type(within(detailsSection).getByLabelText(/Last name/i), 'Martin');
     await user.selectOptions(
       within(detailsSection).getByLabelText(/^Resource type$/i, {
         selector: 'select#resource-resource-type',
@@ -83,7 +85,7 @@ describe('ResourcesPage', () => {
       }),
       '36aa0d16-1ac7-41d6-b4c1-83e0efb9800a',
     );
-    await user.click(screen.getByRole('button', { name: /Create resource/i }));
+    await user.click(within(detailsSection).getByRole('button', { name: /Create resource/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Resource created\./i);
     expect(await screen.findByText('Alice Martin')).toBeInTheDocument();

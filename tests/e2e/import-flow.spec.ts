@@ -88,11 +88,17 @@ test('surfaces an import anomaly and the same workbook succeeds once the missing
   await expect(page.getByRole('button', { name: /Commit atomic import/i })).toBeDisabled();
 
   await openPrimaryPage(page, /^Resources$/i, /^Resources$/i);
-  await page.getByLabel(/First name/i).fill('Missing');
-  await page.getByLabel(/Last name/i).fill('PERSON');
-  await page.locator('#resource-resource-type').selectOption(E2E_RESOURCE_TYPE.id);
-  await page.getByRole('button', { name: /^Create resource$/i }).click();
+  await page.getByRole('button', { name: /^New resource$/i }).click();
+  const resourceDrawer = page.getByRole('dialog', { name: /Create resource/i });
+  await resourceDrawer.getByLabel(/First name/i).fill('Missing');
+  await resourceDrawer.getByLabel(/Last name/i).fill('PERSON');
+  await resourceDrawer.locator('#resource-resource-type').selectOption(E2E_RESOURCE_TYPE.id);
+  await resourceDrawer.getByRole('button', { name: /^Create resource$/i }).click();
   await expect(page.getByRole('status')).toContainText(/Resource created\./i);
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Close panel/i })
+    .click();
 
   await openPrimaryPage(page, /^Imports$/i, /^Imports$/i);
   await uploadFile(page.locator('#imports-file-input'), anomalyImport);

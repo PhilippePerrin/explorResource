@@ -15,7 +15,7 @@ import type {
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   buildProjectCodeMigrationPlan,
@@ -159,6 +159,7 @@ export function ProjectsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | undefined>();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState('');
   const loadRequestIdRef = useRef(0);
@@ -369,6 +370,7 @@ export function ProjectsPage() {
         status: nextProject.status,
         releaseIds: [...values.releaseIds],
       });
+      setIsFormOpen(false);
       setFeedback(editingProject ? 'Project updated.' : 'Project created.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save project.');
@@ -436,7 +438,7 @@ export function ProjectsPage() {
     .filter((release): release is Release => Boolean(release));
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="projects-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="projects-page">
       <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
         <div
           aria-hidden="true"
@@ -458,349 +460,343 @@ export function ProjectsPage() {
 
       <FeedbackMessage message={feedback} />
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <section>
-          <Card>
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">Project list</h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  Filter and open a project to review details or edit it.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setEditingProjectId(undefined);
-                  form.reset(createProjectDefaultValues());
-                }}
-              >
-                <Plus aria-hidden="true" size={16} strokeWidth={2.25} />
-                New project
-              </Button>
+      <section>
+        <Card>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold">Project list</h2>
+              <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                Filter and open a project to review details or edit it.
+              </p>
             </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setEditingProjectId(undefined);
+                form.reset(createProjectDefaultValues());
+                setIsFormOpen(true);
+              }}
+            >
+              <Plus aria-hidden="true" size={16} strokeWidth={2.25} />
+              New project
+            </Button>
+          </div>
 
-            <div className="mb-4">
-              <FilterBar
-                favorites={favorites}
-                fields={filterFields}
-                onApplyFavorite={applyFavorite}
-                onDeleteFavorite={removeFavorite}
-                onReset={resetFilters}
-                onSaveFavorite={saveFavorite}
-                resultsSummary={`${projectRows.length} project(s)`}
-              />
-            </div>
+          <div className="mb-4">
+            <FilterBar
+              favorites={favorites}
+              fields={filterFields}
+              onApplyFavorite={applyFavorite}
+              onDeleteFavorite={removeFavorite}
+              onReset={resetFilters}
+              onSaveFavorite={saveFavorite}
+              resultsSummary={`${projectRows.length} project(s)`}
+            />
+          </div>
 
-            {loading ? (
-              <Skeleton label="Loading projects…" lines={4} />
-            ) : (
-              <TableShell caption="Projects with linked releases, references, and actions." zebra>
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Code
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Name
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Status
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Releases
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      References
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Actions
-                    </th>
+          {loading ? (
+            <Skeleton label="Loading projects…" lines={4} />
+          ) : (
+            <TableShell caption="Projects with linked releases, references, and actions." zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Code
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Releases
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    References
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectRows.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-4" colSpan={6}>
+                      <EmptyState
+                        icon={FolderKanban}
+                        title="No projects match the current filters."
+                      />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {projectRows.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-4" colSpan={6}>
-                        <EmptyState
-                          icon={FolderKanban}
-                          title="No projects match the current filters."
-                        />
+                ) : null}
+
+                {projectRows.map((project) => {
+                  const referenceCount = countProjectReferences(
+                    {
+                      demandSnapshots: data.demandSnapshots,
+                      allocations: data.allocations,
+                    },
+                    project.code,
+                  );
+                  const releaseCount = getProjectReleaseIds(
+                    data.projectReleases,
+                    project.id,
+                  ).length;
+                  const canDelete = referenceCount === 0;
+
+                  return (
+                    <tr
+                      className="border-b border-[var(--surf-divider)] align-top"
+                      key={project.id}
+                    >
+                      <td className="px-3 py-3 font-medium">{project.code}</td>
+                      <td className="px-3 py-3">{project.name}</td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
+                            project.status === 'active'
+                              ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                              : 'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
+                          }`}
+                        >
+                          {project.status}
+                        </span>
                       </td>
-                    </tr>
-                  ) : null}
-
-                  {projectRows.map((project) => {
-                    const referenceCount = countProjectReferences(
-                      {
-                        demandSnapshots: data.demandSnapshots,
-                        allocations: data.allocations,
-                      },
-                      project.code,
-                    );
-                    const releaseCount = getProjectReleaseIds(
-                      data.projectReleases,
-                      project.id,
-                    ).length;
-                    const canDelete = referenceCount === 0;
-
-                    return (
-                      <tr
-                        className="border-b border-[var(--surf-divider)] align-top"
-                        key={project.id}
-                      >
-                        <td className="px-3 py-3 font-medium">{project.code}</td>
-                        <td className="px-3 py-3">{project.name}</td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
-                              project.status === 'active'
-                                ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-                                : 'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
-                            }`}
+                      <td className="px-3 py-3">{releaseCount}</td>
+                      <td className="px-3 py-3">{referenceCount}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setEditingProjectId(project.id);
+                              form.reset(createProjectDefaultValues(project, data.projectReleases));
+                              setIsFormOpen(true);
+                            }}
                           >
-                            {project.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">{releaseCount}</td>
-                        <td className="px-3 py-3">{referenceCount}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-2">
+                            <Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
+                            Edit details
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              setPendingAction({
+                                type: project.status === 'active' ? 'archive' : 'restore',
+                                project,
+                                referenceCount,
+                                releaseCount,
+                              })
+                            }
+                          >
+                            <RotateCcw aria-hidden="true" size={14} strokeWidth={2.25} />
+                            {project.status === 'active' ? 'Archive' : 'Restore'}
+                          </Button>
+                          {canDelete ? (
                             <Button
                               size="sm"
-                              variant="secondary"
-                              onClick={() => {
-                                setEditingProjectId(project.id);
-                                form.reset(
-                                  createProjectDefaultValues(project, data.projectReleases),
-                                );
-                              }}
-                            >
-                              <Pencil aria-hidden="true" size={14} strokeWidth={2.25} />
-                              Edit details
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
+                              variant="danger"
                               onClick={() =>
                                 setPendingAction({
-                                  type: project.status === 'active' ? 'archive' : 'restore',
+                                  type: 'delete',
                                   project,
                                   referenceCount,
                                   releaseCount,
                                 })
                               }
                             >
-                              <RotateCcw aria-hidden="true" size={14} strokeWidth={2.25} />
-                              {project.status === 'active' ? 'Archive' : 'Restore'}
+                              <Trash2 aria-hidden="true" size={14} strokeWidth={2.25} />
+                              Delete permanently
                             </Button>
-                            {canDelete ? (
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                onClick={() =>
-                                  setPendingAction({
-                                    type: 'delete',
-                                    project,
-                                    referenceCount,
-                                    releaseCount,
-                                  })
-                                }
-                              >
-                                <Trash2 aria-hidden="true" size={14} strokeWidth={2.25} />
-                                Delete permanently
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                Archive only: project still has demand/allocation references.
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </TableShell>
-            )}
-          </Card>
-        </section>
+                          ) : (
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Archive only: project still has demand/allocation references.
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </TableShell>
+          )}
+        </Card>
+      </section>
 
-        <section>
-          <Card>
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-xl font-semibold">
-                  {editingProject ? 'Project details' : 'Create project'}
-                </h2>
-                <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {editingProject
-                    ? 'Update code, name, status, and release links. Code changes cascade to stored project references.'
-                    : 'Create a project using a valid functional code such as E0100, P1234, or R0016.'}
-                </p>
-              </div>
-              {editingProject ? (
-                <Button
-                  className="underline"
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setEditingProjectId(undefined);
-                    form.reset(createProjectDefaultValues());
-                  }}
-                >
-                  Clear
-                </Button>
-              ) : null}
+      <Drawer
+        description={
+          editingProject
+            ? 'Update code, name, status, and release links. Code changes cascade to stored project references.'
+            : 'Create a project using a valid functional code such as E0100, P1234, or R0016.'
+        }
+        headerActions={
+          editingProject ? (
+            <Button
+              className="underline"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditingProjectId(undefined);
+                form.reset(createProjectDefaultValues());
+              }}
+            >
+              Clear
+            </Button>
+          ) : null
+        }
+        onClose={() => setIsFormOpen(false)}
+        open={isFormOpen}
+        title={editingProject ? 'Project details' : 'Create project'}
+      >
+        {editingProject ? (
+          <dl className="mb-5 grid gap-3 rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="font-medium text-[var(--text-secondary)]">
+                Demand/allocation references
+              </dt>
+              <dd className="mt-1 text-lg font-semibold">{currentReferenceCount}</dd>
             </div>
+            <div>
+              <dt className="font-medium text-[var(--text-secondary)]">Linked releases</dt>
+              <dd className="mt-1 text-lg font-semibold">{linkedReleases.length}</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-[var(--text-secondary)]">Last updated</dt>
+              <dd className="mt-1">{editingProject.updatedAt}</dd>
+            </div>
+          </dl>
+        ) : null}
 
-            {editingProject ? (
-              <dl className="mb-5 grid gap-3 rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="font-medium text-[var(--text-secondary)]">
-                    Demand/allocation references
-                  </dt>
-                  <dd className="mt-1 text-lg font-semibold">{currentReferenceCount}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-[var(--text-secondary)]">Linked releases</dt>
-                  <dd className="mt-1 text-lg font-semibold">{linkedReleases.length}</dd>
-                </div>
-                <div>
-                  <dt className="font-medium text-[var(--text-secondary)]">Last updated</dt>
-                  <dd className="mt-1">{editingProject.updatedAt}</dd>
-                </div>
-              </dl>
+        {errorSummary.length > 0 ? (
+          <div
+            className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+            role="alert"
+          >
+            <p className="font-semibold">Please correct the following:</p>
+            <ul className="mt-2 list-disc pl-5">
+              {errorSummary.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((values) => {
+            void handleSubmit(values);
+          })}
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="project-code">
+              Project code
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2 uppercase"
+              id="project-code"
+              type="text"
+              {...form.register('code')}
+            />
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              Must match ^[EPR]\d{4}$ and is compared case-insensitively.
+            </p>
+            {form.formState.errors.code ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.code.message}
+              </p>
             ) : null}
+          </div>
 
-            {errorSummary.length > 0 ? (
-              <div
-                className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
-                role="alert"
-              >
-                <p className="font-semibold">Please correct the following:</p>
-                <ul className="mt-2 list-disc pl-5">
-                  {errorSummary.map((message) => (
-                    <li key={message}>{message}</li>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="project-name">
+              Project name
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="project-name"
+              type="text"
+              {...form.register('name')}
+            />
+            {form.formState.errors.name ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.name.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="project-status">
+              Status
+            </label>
+            <select
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="project-status"
+              {...form.register('status')}
+            >
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+
+          <fieldset className="rounded-lg border border-[var(--surf-divider)] p-4">
+            <legend className="px-1 text-sm font-medium">Associated releases</legend>
+            {releaseOptions.length === 0 ? (
+              <p className="text-sm text-[var(--text-secondary)]">
+                No releases available yet. Create releases in the Releases feature, then link them
+                here.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {releaseOptions.map((release) => (
+                  <label
+                    className="flex items-start gap-3 rounded-md border border-[var(--surf-divider)] p-3"
+                    key={release.id}
+                  >
+                    <input
+                      className="mt-1"
+                      type="checkbox"
+                      value={release.id}
+                      {...form.register('releaseIds')}
+                    />
+                    <span className="space-y-1 text-sm">
+                      <span className="block font-medium">{release.name}</span>
+                      <span className="block text-[var(--text-secondary)]">
+                        Go-live {release.goLiveDate} · {release.status}
+                      </span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </fieldset>
+
+          {editingProject ? (
+            <section className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4">
+              <h3 className="text-sm font-semibold">Linked release summary</h3>
+              {linkedReleases.length === 0 ? (
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">No releases linked.</p>
+              ) : (
+                <ul className="mt-2 space-y-2 text-sm">
+                  {linkedReleases.map((release) => (
+                    <li key={release.id}>
+                      <span className="font-medium">{release.name}</span> — {release.goLiveDate}
+                    </li>
                   ))}
                 </ul>
-              </div>
-            ) : null}
+              )}
+            </section>
+          ) : null}
 
-            <form
-              className="space-y-4"
-              onSubmit={form.handleSubmit((values) => {
-                void handleSubmit(values);
-              })}
-            >
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="project-code">
-                  Project code
-                </label>
-                <input
-                  className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2 uppercase"
-                  id="project-code"
-                  type="text"
-                  {...form.register('code')}
-                />
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                  Must match ^[EPR]\d{4}$ and is compared case-insensitively.
-                </p>
-                {form.formState.errors.code ? (
-                  <p className="mt-1 text-sm text-red-400" role="alert">
-                    {form.formState.errors.code.message}
-                  </p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="project-name">
-                  Project name
-                </label>
-                <input
-                  className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                  id="project-name"
-                  type="text"
-                  {...form.register('name')}
-                />
-                {form.formState.errors.name ? (
-                  <p className="mt-1 text-sm text-red-400" role="alert">
-                    {form.formState.errors.name.message}
-                  </p>
-                ) : null}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="project-status">
-                  Status
-                </label>
-                <select
-                  className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                  id="project-status"
-                  {...form.register('status')}
-                >
-                  <option value="active">Active</option>
-                  <option value="archived">Archived</option>
-                </select>
-              </div>
-
-              <fieldset className="rounded-lg border border-[var(--surf-divider)] p-4">
-                <legend className="px-1 text-sm font-medium">Associated releases</legend>
-                {releaseOptions.length === 0 ? (
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    No releases available yet. Create releases in the Releases feature, then link
-                    them here.
-                  </p>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {releaseOptions.map((release) => (
-                      <label
-                        className="flex items-start gap-3 rounded-md border border-[var(--surf-divider)] p-3"
-                        key={release.id}
-                      >
-                        <input
-                          className="mt-1"
-                          type="checkbox"
-                          value={release.id}
-                          {...form.register('releaseIds')}
-                        />
-                        <span className="space-y-1 text-sm">
-                          <span className="block font-medium">{release.name}</span>
-                          <span className="block text-[var(--text-secondary)]">
-                            Go-live {release.goLiveDate} · {release.status}
-                          </span>
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </fieldset>
-
-              {editingProject ? (
-                <section className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4">
-                  <h3 className="text-sm font-semibold">Linked release summary</h3>
-                  {linkedReleases.length === 0 ? (
-                    <p className="mt-2 text-sm text-[var(--text-secondary)]">No releases linked.</p>
-                  ) : (
-                    <ul className="mt-2 space-y-2 text-sm">
-                      {linkedReleases.map((release) => (
-                        <li key={release.id}>
-                          <span className="font-medium">{release.name}</span> — {release.goLiveDate}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </section>
-              ) : null}
-
-              <Button disabled={submitting} type="submit">
-                {submitting ? 'Saving…' : editingProject ? 'Save changes' : 'Create project'}
-              </Button>
-            </form>
-          </Card>
-        </section>
-      </section>
+          <Button disabled={submitting} type="submit">
+            {submitting ? 'Saving…' : editingProject ? 'Save changes' : 'Create project'}
+          </Button>
+        </form>
+      </Drawer>
 
       <section>
         <Card>

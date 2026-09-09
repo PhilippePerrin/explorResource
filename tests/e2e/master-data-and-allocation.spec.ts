@@ -23,29 +23,39 @@ test('resource, project, and release creation flows persist linked master data',
   });
 
   await openPrimaryPage(page, /^Resources$/i, /^Resources$/i);
-  await page.getByLabel(/First name/i).fill('Alice');
-  await page.getByLabel(/Last name/i).fill('Martin');
-  await page.locator('#resource-resource-type').selectOption(E2E_RESOURCE_TYPE.id);
-  await page.locator('#resource-collaboration-type').selectOption('external');
-  await page.locator('#resource-company').selectOption(E2E_COMPANY.id);
-  await page.getByRole('button', { name: /^Create resource$/i }).click();
+  await page.getByRole('button', { name: /^New resource$/i }).click();
+  const resourceDrawer = page.getByRole('dialog', { name: /Create resource/i });
+  await resourceDrawer.getByLabel(/First name/i).fill('Alice');
+  await resourceDrawer.getByLabel(/Last name/i).fill('Martin');
+  await resourceDrawer.locator('#resource-resource-type').selectOption(E2E_RESOURCE_TYPE.id);
+  await resourceDrawer.locator('#resource-collaboration-type').selectOption('external');
+  await resourceDrawer.locator('#resource-company').selectOption(E2E_COMPANY.id);
+  await resourceDrawer.getByRole('button', { name: /^Create resource$/i }).click();
 
   await expect(page.getByRole('status')).toContainText(/Resource created\./i);
   await expect(page.getByRole('table').getByText('Alice Martin')).toBeVisible();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Close panel/i })
+    .click();
 
   await openPrimaryPage(page, /^Projects$/i, /^Projects$/i);
-  await page.getByLabel(/Project code/i).fill('e1234');
-  await page.getByLabel(/Project name/i).fill('Lot 13 Automation');
-  await page.getByRole('button', { name: /^Create project$/i }).click();
+  await page.getByRole('button', { name: /^New project$/i }).click();
+  const projectDrawer = page.getByRole('dialog', { name: /Create project/i });
+  await projectDrawer.getByLabel(/Project code/i).fill('e1234');
+  await projectDrawer.getByLabel(/Project name/i).fill('Lot 13 Automation');
+  await projectDrawer.getByRole('button', { name: /^Create project$/i }).click();
 
   await expect(page.getByRole('status')).toContainText(/Project created\./i);
   await expect(page.getByRole('table').getByText('E1234')).toBeVisible();
 
   await openPrimaryPage(page, /^Releases$/i, /^Releases$/i);
-  await page.getByLabel(/Release name/i).fill('Wave 13');
-  await page.getByLabel(/Go-live date/i).fill('2026-10-15');
-  await page.getByLabel(/E1234/i).check();
-  await page.getByRole('button', { name: /^Create release$/i }).click();
+  await page.getByRole('button', { name: /^New release$/i }).click();
+  const releaseDrawer = page.getByRole('dialog', { name: /Create release/i });
+  await releaseDrawer.getByLabel(/Release name/i).fill('Wave 13');
+  await releaseDrawer.getByLabel(/Go-live date/i).fill('2026-10-15');
+  await releaseDrawer.getByLabel(/E1234/i).check();
+  await releaseDrawer.getByRole('button', { name: /^Create release$/i }).click();
 
   await expect(page.getByRole('status')).toContainText(/Release created\./i);
   const releaseList = page.locator('section').filter({

@@ -10,6 +10,14 @@ const REPO_BASE = '/explorResource/';
 
 export default defineConfig({
   base: REPO_BASE,
+  server: {
+    watch: {
+      // The Salesforce CLI extension rewrites this metadata cache continuously
+      // while VS Code is open, which otherwise triggers a full dev-server page
+      // reload on every write (wiping in-memory state, e.g. mid-import wizards).
+      ignored: ['**/.sf/**'],
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

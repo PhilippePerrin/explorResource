@@ -6,7 +6,7 @@ import { Layers3 } from '@/components/icons';
 import type { Allocation, DemandSnapshot, Resource, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countResourceTypeReferences,
@@ -102,6 +102,7 @@ export function ResourceTypesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
   const [editingResourceTypeId, setEditingResourceTypeId] = useState<string | undefined>();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState('');
 
@@ -185,6 +186,7 @@ export function ResourceTypesPage() {
       form.reset(
         createResourceTypeDefaultValues(undefined, getNextDisplayOrder(data.resourceTypes)),
       );
+      setIsFormOpen(false);
       setFeedback(editingResourceType ? 'Resource type updated.' : 'Resource type created.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save resource type.');
@@ -234,7 +236,7 @@ export function ResourceTypesPage() {
   const errorSummary = getErrorSummary(form.formState.errors);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resource-types-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="resource-types-page">
       <header className="space-y-2">
         <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
           <div
@@ -256,135 +258,141 @@ export function ResourceTypesPage() {
 
       <FeedbackMessage message={feedback} />
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">
-              {editingResourceType ? 'Edit resource type' : 'Create resource type'}
-            </h2>
-            {editingResourceType ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setEditingResourceTypeId(undefined);
-                  form.reset(createResourceTypeDefaultValues(undefined, nextDisplayOrder));
-                }}
-              >
-                Clear
-              </Button>
+      <Drawer
+        headerActions={
+          editingResourceType ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditingResourceTypeId(undefined);
+                form.reset(createResourceTypeDefaultValues(undefined, nextDisplayOrder));
+              }}
+            >
+              Clear
+            </Button>
+          ) : null
+        }
+        onClose={() => setIsFormOpen(false)}
+        open={isFormOpen}
+        title={editingResourceType ? 'Edit resource type' : 'Create resource type'}
+      >
+        {errorSummary.length > 0 ? (
+          <div
+            className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+            role="alert"
+          >
+            <p className="font-semibold">Please correct the following:</p>
+            <ul className="mt-2 list-disc pl-5">
+              {errorSummary.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((values) => {
+            void handleSubmit(values);
+          })}
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-label">
+              Label
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="resource-type-label"
+              type="text"
+              {...form.register('label')}
+            />
+            {form.formState.errors.label ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.label.message}
+              </p>
             ) : null}
           </div>
 
-          {errorSummary.length > 0 ? (
-            <div
-              className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
-              role="alert"
-            >
-              <p className="font-semibold">Please correct the following:</p>
-              <ul className="mt-2 list-disc pl-5">
-                {errorSummary.map((message) => (
-                  <li key={message}>{message}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-short-code">
+              Short code
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="resource-type-short-code"
+              type="text"
+              {...form.register('shortCode')}
+            />
+          </div>
 
-          <form
-            className="space-y-4"
-            onSubmit={form.handleSubmit((values) => {
-              void handleSubmit(values);
-            })}
-          >
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-label">
-                Label
-              </label>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-color">
+              Color
+            </label>
+            <div className="flex items-center gap-3">
               <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="resource-type-label"
-                type="text"
-                {...form.register('label')}
+                className="h-10 w-14 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)]"
+                id="resource-type-color"
+                type="color"
+                {...form.register('color')}
               />
-              {form.formState.errors.label ? (
-                <p className="mt-1 text-sm text-red-400" role="alert">
-                  {form.formState.errors.label.message}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-short-code">
-                Short code
-              </label>
-              <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="resource-type-short-code"
-                type="text"
-                {...form.register('shortCode')}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-color">
-                Color
-              </label>
-              <div className="flex items-center gap-3">
-                <input
-                  className="h-10 w-14 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)]"
-                  id="resource-type-color"
-                  type="color"
-                  {...form.register('color')}
-                />
-                <span
-                  aria-label="Color hex value"
-                  className="rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                >
-                  {form.watch('color')}
-                </span>
-              </div>
-              {form.formState.errors.color ? (
-                <p className="mt-1 text-sm text-red-400" role="alert">
-                  {form.formState.errors.color.message}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <label
-                className="mb-1 block text-sm font-medium"
-                htmlFor="resource-type-display-order"
+              <span
+                aria-label="Color hex value"
+                className="rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
               >
-                Display order
-              </label>
-              <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="resource-type-display-order"
-                inputMode="numeric"
-                type="text"
-                {...form.register('displayOrder', {
-                  setValueAs: parseIntegerInput,
-                })}
-              />
-              {form.formState.errors.displayOrder ? (
-                <p className="mt-1 text-sm text-red-400" role="alert">
-                  {form.formState.errors.displayOrder.message}
-                </p>
-              ) : null}
+                {form.watch('color')}
+              </span>
             </div>
+            {form.formState.errors.color ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.color.message}
+              </p>
+            ) : null}
+          </div>
 
-            <Button busy={submitting} type="submit">
-              {submitting
-                ? 'Saving…'
-                : editingResourceType
-                  ? 'Save changes'
-                  : 'Create resource type'}
-            </Button>
-          </form>
-        </Card>
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="resource-type-display-order">
+              Display order
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="resource-type-display-order"
+              inputMode="numeric"
+              type="text"
+              {...form.register('displayOrder', {
+                setValueAs: parseIntegerInput,
+              })}
+            />
+            {form.formState.errors.displayOrder ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.displayOrder.message}
+              </p>
+            ) : null}
+          </div>
 
+          <Button busy={submitting} type="submit">
+            {submitting ? 'Saving…' : editingResourceType ? 'Save changes' : 'Create resource type'}
+          </Button>
+        </form>
+      </Drawer>
+
+      <section>
         <Card>
-          <h2 className="mb-4 text-xl font-semibold">Resource type list</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold">Resource type list</h2>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setEditingResourceTypeId(undefined);
+                form.reset(createResourceTypeDefaultValues(undefined, nextDisplayOrder));
+                setIsFormOpen(true);
+              }}
+            >
+              New resource type
+            </Button>
+          </div>
 
           {loading ? (
             <Skeleton label="Loading resource types…" />
@@ -468,7 +476,10 @@ export function ResourceTypesPage() {
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => setEditingResourceTypeId(resourceType.id)}
+                            onClick={() => {
+                              setEditingResourceTypeId(resourceType.id);
+                              setIsFormOpen(true);
+                            }}
                           >
                             Edit
                           </Button>
@@ -506,7 +517,7 @@ export function ResourceTypesPage() {
             </TableShell>
           )}
         </Card>
-      </div>
+      </section>
 
       <ConfirmDialog
         busy={busyAction}

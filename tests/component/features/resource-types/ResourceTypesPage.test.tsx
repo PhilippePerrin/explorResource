@@ -18,9 +18,12 @@ describe('ResourceTypesPage', () => {
     const user = userEvent.setup();
     render(<ResourceTypesPage />);
 
-    await user.type(screen.getByLabelText(/^Label$/i), 'Developer');
-    await user.type(screen.getByLabelText(/Display order/i), '1');
-    await user.click(screen.getByRole('button', { name: /Create resource type/i }));
+    await user.click(screen.getByRole('button', { name: /New resource type/i }));
+    const drawer = await screen.findByRole('dialog', { name: /Create resource type/i });
+
+    await user.type(within(drawer).getByLabelText(/^Label$/i), 'Developer');
+    await user.type(within(drawer).getByLabelText(/Display order/i), '1');
+    await user.click(within(drawer).getByRole('button', { name: /Create resource type/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Resource type created\./i);
     expect(await screen.findByText('Developer')).toBeInTheDocument();

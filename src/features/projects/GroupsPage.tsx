@@ -53,7 +53,7 @@ export function GroupsPage() {
     filteredGroups.find((group) => group.id === selectedGroupId) ?? filteredGroups[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="groups-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="groups-page">
       <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
         <div
           aria-hidden="true"

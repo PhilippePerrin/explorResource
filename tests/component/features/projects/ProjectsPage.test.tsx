@@ -39,14 +39,14 @@ describe('ProjectsPage', () => {
 
     const user = userEvent.setup();
     renderPage();
-    const detailsSection = screen
-      .getByRole('heading', { name: /Create project/i })
-      .closest('section') as HTMLElement;
 
-    await user.type(screen.getByLabelText(/Project code/i), 'e0100');
-    await user.type(screen.getByLabelText(/Project name/i), 'Commercial Analytics');
-    await user.click(within(detailsSection).getByLabelText(/Wave 1/i));
-    await user.click(screen.getByRole('button', { name: /Create project/i }));
+    await user.click(screen.getByRole('button', { name: /New project/i }));
+    const drawer = await screen.findByRole('dialog', { name: /Create project/i });
+
+    await user.type(within(drawer).getByLabelText(/Project code/i), 'e0100');
+    await user.type(within(drawer).getByLabelText(/Project name/i), 'Commercial Analytics');
+    await user.click(within(drawer).getByLabelText(/Wave 1/i));
+    await user.click(within(drawer).getByRole('button', { name: /Create project/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Project created\./i);
     expect(await screen.findByText('E0100')).toBeInTheDocument();

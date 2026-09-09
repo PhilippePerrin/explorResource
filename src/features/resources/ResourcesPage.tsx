@@ -8,7 +8,7 @@ import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { Users } from '@/components/icons';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
-import { Button, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import {
   getResourceFullName,
   type Allocation,
@@ -218,6 +218,7 @@ export function ResourcesPage() {
   const [busyResourceAction, setBusyResourceAction] = useState(false);
   const [busyAllocationAction, setBusyAllocationAction] = useState(false);
   const [editingResourceId, setEditingResourceId] = useState<string | undefined>();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingAllocationId, setEditingAllocationId] = useState<string | undefined>();
   const [summaryYear, setSummaryYear] = useState(initialDate.getFullYear());
   const [summaryMonth, setSummaryMonth] = useState(initialDate.getMonth() + 1);
@@ -752,7 +753,7 @@ export function ResourcesPage() {
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resources-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="resources-page">
       <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
         <div
           aria-hidden="true"
@@ -775,886 +776,871 @@ export function ResourcesPage() {
 
       <FeedbackMessage message={feedback} />
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold">Resource list</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Open a resource to edit its details and manage its monthly allocations.
-              </p>
-            </div>
-            <Button variant="secondary" onClick={() => openResourceEditor(undefined)}>
-              New resource
-            </Button>
+      <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold">Resource list</h2>
+            <p className="mt-1 text-sm text-[var(--text-secondary)]">
+              Open a resource to edit its details and manage its monthly allocations.
+            </p>
           </div>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              openResourceEditor(undefined);
+              setIsFormOpen(true);
+            }}
+          >
+            New resource
+          </Button>
+        </div>
 
-          <div className="mb-4">
-            <FilterBar
-              favorites={favorites}
-              fields={filterFields}
-              onApplyFavorite={applyFavorite}
-              onDeleteFavorite={removeFavorite}
-              onReset={resetFilters}
-              onSaveFavorite={saveFavorite}
-              resultsSummary={`${resourceRows.length} resource(s)`}
-            />
-          </div>
+        <div className="mb-4">
+          <FilterBar
+            favorites={favorites}
+            fields={filterFields}
+            onApplyFavorite={applyFavorite}
+            onDeleteFavorite={removeFavorite}
+            onReset={resetFilters}
+            onSaveFavorite={saveFavorite}
+            resultsSummary={`${resourceRows.length} resource(s)`}
+          />
+        </div>
 
-          {loading ? (
-            <Skeleton label="Loading resources…" lines={4} />
-          ) : (
-            <TableShell
-              caption="Resources with type, collaboration mode, history references, and actions."
-              zebra
-            >
-              <thead>
-                <tr className="border-b border-[var(--surf-divider)]">
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Name
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Type
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Collaboration
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Company
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Status
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    References
-                  </th>
-                  <th className="px-3 py-2 font-semibold" scope="col">
-                    Actions
-                  </th>
+        {loading ? (
+          <Skeleton label="Loading resources…" lines={4} />
+        ) : (
+          <TableShell
+            caption="Resources with type, collaboration mode, history references, and actions."
+            zebra
+          >
+            <thead>
+              <tr className="border-b border-[var(--surf-divider)]">
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Name
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Type
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Collaboration
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Company
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Status
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  References
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {resourceRows.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-4" colSpan={7}>
+                    <EmptyState icon={Users} title="No resources match the current filters." />
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {resourceRows.length === 0 ? (
-                  <tr>
-                    <td className="px-3 py-4" colSpan={7}>
-                      <EmptyState icon={Users} title="No resources match the current filters." />
+              ) : null}
+
+              {resourceRows.map((resource) => {
+                const referenceCount = countResourceReferences(
+                  {
+                    allocations: data.allocations,
+                    nonWorkingDays: data.resourceNonWorkingDays,
+                  },
+                  resource.id,
+                );
+                const canDelete = referenceCount === 0;
+
+                return (
+                  <tr className="border-b border-[var(--surf-divider)] align-top" key={resource.id}>
+                    <td className="px-3 py-3">
+                      <div className="font-medium">{getResourceFullName(resource)}</div>
+                      <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                        {resource.startDate ? `Start ${resource.startDate}` : 'Start not set'}
+                        {resource.endDate ? ` · End ${resource.endDate}` : ''}
+                      </div>
                     </td>
-                  </tr>
-                ) : null}
-
-                {resourceRows.map((resource) => {
-                  const referenceCount = countResourceReferences(
-                    {
-                      allocations: data.allocations,
-                      nonWorkingDays: data.resourceNonWorkingDays,
-                    },
-                    resource.id,
-                  );
-                  const canDelete = referenceCount === 0;
-
-                  return (
-                    <tr
-                      className="border-b border-[var(--surf-divider)] align-top"
-                      key={resource.id}
-                    >
-                      <td className="px-3 py-3">
-                        <div className="font-medium">{getResourceFullName(resource)}</div>
-                        <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                          {resource.startDate ? `Start ${resource.startDate}` : 'Start not set'}
-                          {resource.endDate ? ` · End ${resource.endDate}` : ''}
-                        </div>
-                      </td>
-                      <td className="px-3 py-3">
-                        {resourceTypeLookup.get(resource.resourceTypeId)?.label ?? 'Unknown type'}
-                      </td>
-                      <td className="px-3 py-3">{resource.collaborationType}</td>
-                      <td className="px-3 py-3">
-                        {companyLookup.get(resource.companyId ?? '')?.name ?? '—'}
-                      </td>
-                      <td className="px-3 py-3">
-                        <span
-                          className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
-                            resource.status === 'active'
-                              ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-                              : 'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
-                          }`}
+                    <td className="px-3 py-3">
+                      {resourceTypeLookup.get(resource.resourceTypeId)?.label ?? 'Unknown type'}
+                    </td>
+                    <td className="px-3 py-3">{resource.collaborationType}</td>
+                    <td className="px-3 py-3">
+                      {companyLookup.get(resource.companyId ?? '')?.name ?? '—'}
+                    </td>
+                    <td className="px-3 py-3">
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
+                          resource.status === 'active'
+                            ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                            : 'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
+                        }`}
+                      >
+                        {resource.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3">{referenceCount}</td>
+                    <td className="px-3 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setSummaryYear(initialDate.getFullYear());
+                            setSummaryMonth(initialDate.getMonth() + 1);
+                            openResourceEditor(resource);
+                            setIsFormOpen(true);
+                          }}
                         >
-                          {resource.status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-3">{referenceCount}</td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap gap-2">
+                          Edit details
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() =>
+                            setPendingResourceAction({
+                              type: resource.status === 'active' ? 'archive' : 'restore',
+                              resource,
+                              referenceCount,
+                            })
+                          }
+                        >
+                          {resource.status === 'active' ? 'Archive' : 'Restore'}
+                        </Button>
+                        {canDelete ? (
                           <Button
                             size="sm"
-                            variant="secondary"
-                            onClick={() => {
-                              setSummaryYear(initialDate.getFullYear());
-                              setSummaryMonth(initialDate.getMonth() + 1);
-                              openResourceEditor(resource);
-                            }}
-                          >
-                            Edit details
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
+                            variant="danger"
                             onClick={() =>
                               setPendingResourceAction({
-                                type: resource.status === 'active' ? 'archive' : 'restore',
+                                type: 'delete',
                                 resource,
                                 referenceCount,
                               })
                             }
                           >
-                            {resource.status === 'active' ? 'Archive' : 'Restore'}
+                            Delete permanently
                           </Button>
-                          {canDelete ? (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() =>
-                                setPendingResourceAction({
-                                  type: 'delete',
-                                  resource,
-                                  referenceCount,
-                                })
-                              }
-                            >
-                              Delete permanently
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-[var(--text-secondary)]">
-                              Archive only: resource has allocation or absence history.
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </TableShell>
-          )}
-        </section>
+                        ) : (
+                          <span className="text-xs text-[var(--text-secondary)]">
+                            Archive only: resource has allocation or absence history.
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </TableShell>
+        )}
+      </section>
 
-        <section className="space-y-6">
+      <Drawer
+        description={
+          editingResource
+            ? `Editing ${getResourceFullName(editingResource)}.`
+            : 'Create a resource and then manage its allocations from the same panel.'
+        }
+        headerActions={
+          editingResource ? (
+            <Button
+              className="underline"
+              size="sm"
+              variant="ghost"
+              onClick={() => openResourceEditor(undefined)}
+            >
+              Clear
+            </Button>
+          ) : null
+        }
+        onClose={() => setIsFormOpen(false)}
+        open={isFormOpen}
+        title={editingResource ? 'Resource details' : 'Create resource'}
+        widthClassName="sm:max-w-4xl"
+      >
+        {resourceErrorSummary.length > 0 ? (
+          <div
+            className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
+            role="alert"
+          >
+            <p className="font-semibold">Please correct the following:</p>
+            <ul className="mt-2 list-disc pl-5">
+              {resourceErrorSummary.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <form
+          className="space-y-4"
+          onSubmit={resourceForm.handleSubmit((values: ResourceFormValues) => {
+            void handleResourceSubmit(values);
+          })}
+        >
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-first-name">
+                First name
+              </label>
+              <input
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-first-name"
+                type="text"
+                {...resourceForm.register('firstName')}
+              />
+              {resourceForm.formState.errors.firstName ? (
+                <p className="mt-1 text-sm text-red-400" role="alert">
+                  {resourceForm.formState.errors.firstName.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-last-name">
+                Last name
+              </label>
+              <input
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-last-name"
+                type="text"
+                {...resourceForm.register('lastName')}
+              />
+              {resourceForm.formState.errors.lastName ? (
+                <p className="mt-1 text-sm text-red-400" role="alert">
+                  {resourceForm.formState.errors.lastName.message}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-resource-type">
+                Resource type
+              </label>
+              <select
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-resource-type"
+                {...resourceForm.register('resourceTypeId')}
+              >
+                <option value="">Select a resource type</option>
+                {resourceTypeOptions.map((resourceType) => (
+                  <option key={resourceType.id} value={resourceType.id}>
+                    {resourceType.label}
+                    {resourceType.status === 'archived' ? ' (archived)' : ''}
+                  </option>
+                ))}
+              </select>
+              {resourceForm.formState.errors.resourceTypeId ? (
+                <p className="mt-1 text-sm text-red-400" role="alert">
+                  {resourceForm.formState.errors.resourceTypeId.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label
+                className="mb-1 block text-sm font-medium"
+                htmlFor="resource-collaboration-type"
+              >
+                Collaboration type
+              </label>
+              <select
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-collaboration-type"
+                {...resourceForm.register('collaborationType')}
+              >
+                <option value="internal">internal</option>
+                <option value="external">external</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="resource-company">
+              Company
+            </label>
+            <select
+              aria-describedby="resource-company-help"
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="resource-company"
+              {...resourceForm.register('companyId')}
+            >
+              <option value="">
+                {collaborationType === 'external' ? 'Select a company' : 'No company selected'}
+              </option>
+              {companyOptions.map((company) => (
+                <option key={company.id} value={company.id}>
+                  {company.name}
+                  {company.status === 'archived' ? ' (archived)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]" id="resource-company-help">
+              {collaborationType === 'external'
+                ? 'Required because the resource is external.'
+                : 'Optional for internal resources.'}
+            </p>
+            {resourceForm.formState.errors.companyId ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {resourceForm.formState.errors.companyId.message}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-start-date">
+                Start date
+              </label>
+              <input
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-start-date"
+                type="date"
+                {...resourceForm.register('startDate')}
+              />
+              {resourceForm.formState.errors.startDate ? (
+                <p className="mt-1 text-sm text-red-400" role="alert">
+                  {resourceForm.formState.errors.startDate.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-end-date">
+                End date
+              </label>
+              <input
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-end-date"
+                type="date"
+                {...resourceForm.register('endDate')}
+              />
+              {resourceForm.formState.errors.endDate ? (
+                <p className="mt-1 text-sm text-red-400" role="alert">
+                  {resourceForm.formState.errors.endDate.message}
+                </p>
+              ) : null}
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium" htmlFor="resource-status">
+                Status
+              </label>
+              <select
+                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="resource-status"
+                {...resourceForm.register('status')}
+              >
+                <option value="active">active</option>
+                <option value="archived">archived</option>
+              </select>
+            </div>
+          </div>
+
+          {editingResource ? (
+            <p className="text-sm text-[var(--text-secondary)]">
+              This resource currently has {currentReferenceCount} historical references across
+              allocations and non-working days.
+            </p>
+          ) : null}
+
+          <Button busy={resourceSubmitting} type="submit">
+            {resourceSubmitting ? 'Saving…' : editingResource ? 'Save changes' : 'Create resource'}
+          </Button>
+        </form>
+
+        {editingResource && resourceSummary ? (
           <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold">
-                  {editingResource ? 'Resource details' : 'Create resource'}
-                </h2>
+                <h2 className="text-xl font-semibold">Monthly resource summary</h2>
                 <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                  {editingResource
-                    ? `Editing ${getResourceFullName(editingResource)}.`
-                    : 'Create a resource and then manage its allocations from the same panel.'}
+                  Capacity and utilization reuse the Lot 3 calculation engine and the working-day
+                  calendars configured in Lots 4 and 5.
                 </p>
               </div>
-              {editingResource ? (
+              <div className="flex flex-wrap gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium" htmlFor="summary-year">
+                    Year
+                  </label>
+                  <input
+                    className="w-28 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                    id="summary-year"
+                    inputMode="numeric"
+                    type="number"
+                    value={summaryYear}
+                    onChange={(event) =>
+                      setSummaryYear(Number(event.target.value) || initialDate.getFullYear())
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium" htmlFor="summary-month">
+                    Month
+                  </label>
+                  <select
+                    className="w-40 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                    id="summary-month"
+                    value={summaryMonth}
+                    onChange={(event) => setSummaryMonth(Number(event.target.value))}
+                  >
+                    {MONTH_LABELS.map((label, index) => (
+                      <option key={label} value={index + 1}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {!resourceSummary.workingDaysConfigured ? (
+              <div
+                className="mb-4 rounded-lg border border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] px-4 py-3 text-sm text-[var(--status-caution-text)]"
+                role="note"
+              >
+                Working days are not configured for {getMonthLabel(summaryMonth)} {summaryYear}.
+                Gross and net capacities are therefore shown as 0 until a calendar entry exists.
+              </div>
+            ) : null}
+
+            <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Gross capacity</dt>
+                <dd className="mt-2 text-2xl font-semibold">
+                  {formatDayAmount(resourceSummary.grossCapacityDays, displayPrecision)} d
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Non-working days</dt>
+                <dd className="mt-2 text-2xl font-semibold">
+                  {formatDayAmount(resourceSummary.nonWorkingDays, displayPrecision)} d
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Net capacity</dt>
+                <dd className="mt-2 text-2xl font-semibold">
+                  {formatDayAmount(resourceSummary.netCapacityDays, displayPrecision)} d
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Assigned load</dt>
+                <dd className="mt-2 text-2xl font-semibold">
+                  {formatDayAmount(resourceSummary.assignedLoadDays, displayPrecision)} d
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Available capacity</dt>
+                <dd className="mt-2 text-2xl font-semibold">
+                  {formatDayAmount(resourceSummary.availableCapacityDays, displayPrecision)} d
+                </dd>
+              </div>
+              <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
+                <dt className="text-sm text-[var(--text-secondary)]">Utilization</dt>
+                <dd className="mt-2 flex items-center gap-3">
+                  <UtilizationBadge
+                    displayPrecision={displayPrecision}
+                    tooltip={`${getMonthLabel(summaryMonth)} ${summaryYear}: ${formatDayAmount(resourceSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(resourceSummary.netCapacityDays, displayPrecision)} net capacity days.`}
+                    utilization={resourceSummary.utilization}
+                  />
+                </dd>
+              </div>
+            </dl>
+          </section>
+        ) : null}
+
+        {editingResource ? (
+          <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-xl font-semibold">Allocations for this resource</h2>
+                <p className="mt-1 max-w-3xl text-sm text-[var(--text-secondary)]">
+                  Basic monthly allocation CRUD is intentionally colocated here for Lot 6. The
+                  dedicated drag-and-drop Allocation Studio arrives in a later lot.
+                </p>
+              </div>
+              {editingAllocation ? (
                 <Button
                   className="underline"
                   size="sm"
                   variant="ghost"
-                  onClick={() => openResourceEditor(undefined)}
+                  onClick={() => openAllocationEditor(undefined)}
                 >
-                  Clear
+                  Clear allocation form
                 </Button>
               ) : null}
             </div>
 
-            {resourceErrorSummary.length > 0 ? (
-              <div
-                className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
-                role="alert"
-              >
-                <p className="font-semibold">Please correct the following:</p>
-                <ul className="mt-2 list-disc pl-5">
-                  {resourceErrorSummary.map((message) => (
-                    <li key={message}>{message}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            <form
-              className="space-y-4"
-              onSubmit={resourceForm.handleSubmit((values: ResourceFormValues) => {
-                void handleResourceSubmit(values);
-              })}
-            >
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-1 block text-sm font-medium" htmlFor="resource-first-name">
-                    First name
-                  </label>
-                  <input
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-first-name"
-                    type="text"
-                    {...resourceForm.register('firstName')}
-                  />
-                  {resourceForm.formState.errors.firstName ? (
-                    <p className="mt-1 text-sm text-red-400" role="alert">
-                      {resourceForm.formState.errors.firstName.message}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium" htmlFor="resource-last-name">
-                    Last name
-                  </label>
-                  <input
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-last-name"
-                    type="text"
-                    {...resourceForm.register('lastName')}
-                  />
-                  {resourceForm.formState.errors.lastName ? (
-                    <p className="mt-1 text-sm text-red-400" role="alert">
-                      {resourceForm.formState.errors.lastName.message}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label
-                    className="mb-1 block text-sm font-medium"
-                    htmlFor="resource-resource-type"
-                  >
-                    Resource type
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-resource-type"
-                    {...resourceForm.register('resourceTypeId')}
-                  >
-                    <option value="">Select a resource type</option>
-                    {resourceTypeOptions.map((resourceType) => (
-                      <option key={resourceType.id} value={resourceType.id}>
-                        {resourceType.label}
-                        {resourceType.status === 'archived' ? ' (archived)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  {resourceForm.formState.errors.resourceTypeId ? (
-                    <p className="mt-1 text-sm text-red-400" role="alert">
-                      {resourceForm.formState.errors.resourceTypeId.message}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label
-                    className="mb-1 block text-sm font-medium"
-                    htmlFor="resource-collaboration-type"
-                  >
-                    Collaboration type
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-collaboration-type"
-                    {...resourceForm.register('collaborationType')}
-                  >
-                    <option value="internal">internal</option>
-                    <option value="external">external</option>
-                  </select>
-                </div>
-              </div>
-
+            <div className="grid gap-6 xl:grid-cols-[minmax(18rem,24rem)_1fr]">
               <div>
-                <label className="mb-1 block text-sm font-medium" htmlFor="resource-company">
-                  Company
-                </label>
-                <select
-                  aria-describedby="resource-company-help"
-                  className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                  id="resource-company"
-                  {...resourceForm.register('companyId')}
-                >
-                  <option value="">
-                    {collaborationType === 'external' ? 'Select a company' : 'No company selected'}
-                  </option>
-                  {companyOptions.map((company) => (
-                    <option key={company.id} value={company.id}>
-                      {company.name}
-                      {company.status === 'archived' ? ' (archived)' : ''}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]" id="resource-company-help">
-                  {collaborationType === 'external'
-                    ? 'Required because the resource is external.'
-                    : 'Optional for internal resources.'}
-                </p>
-                {resourceForm.formState.errors.companyId ? (
-                  <p className="mt-1 text-sm text-red-400" role="alert">
-                    {resourceForm.formState.errors.companyId.message}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-sm font-medium" htmlFor="resource-start-date">
-                    Start date
-                  </label>
-                  <input
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-start-date"
-                    type="date"
-                    {...resourceForm.register('startDate')}
-                  />
-                  {resourceForm.formState.errors.startDate ? (
-                    <p className="mt-1 text-sm text-red-400" role="alert">
-                      {resourceForm.formState.errors.startDate.message}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium" htmlFor="resource-end-date">
-                    End date
-                  </label>
-                  <input
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-end-date"
-                    type="date"
-                    {...resourceForm.register('endDate')}
-                  />
-                  {resourceForm.formState.errors.endDate ? (
-                    <p className="mt-1 text-sm text-red-400" role="alert">
-                      {resourceForm.formState.errors.endDate.message}
-                    </p>
-                  ) : null}
-                </div>
-                <div>
-                  <label className="mb-1 block text-sm font-medium" htmlFor="resource-status">
-                    Status
-                  </label>
-                  <select
-                    className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                    id="resource-status"
-                    {...resourceForm.register('status')}
+                {allocationErrorSummary.length > 0 ? (
+                  <div
+                    className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
+                    role="alert"
                   >
-                    <option value="active">active</option>
-                    <option value="archived">archived</option>
-                  </select>
-                </div>
-              </div>
-
-              {editingResource ? (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  This resource currently has {currentReferenceCount} historical references across
-                  allocations and non-working days.
-                </p>
-              ) : null}
-
-              <Button busy={resourceSubmitting} type="submit">
-                {resourceSubmitting
-                  ? 'Saving…'
-                  : editingResource
-                    ? 'Save changes'
-                    : 'Create resource'}
-              </Button>
-            </form>
-          </section>
-
-          {editingResource && resourceSummary ? (
-            <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-              <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-semibold">Monthly resource summary</h2>
-                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                    Capacity and utilization reuse the Lot 3 calculation engine and the working-day
-                    calendars configured in Lots 4 and 5.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <div>
-                    <label className="mb-1 block text-sm font-medium" htmlFor="summary-year">
-                      Year
-                    </label>
-                    <input
-                      className="w-28 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                      id="summary-year"
-                      inputMode="numeric"
-                      type="number"
-                      value={summaryYear}
-                      onChange={(event) =>
-                        setSummaryYear(Number(event.target.value) || initialDate.getFullYear())
-                      }
-                    />
+                    <p className="font-semibold">Please correct the following:</p>
+                    <ul className="mt-2 list-disc pl-5">
+                      {allocationErrorSummary.map((message) => (
+                        <li key={message}>{message}</li>
+                      ))}
+                    </ul>
                   </div>
+                ) : null}
+
+                <form
+                  className="space-y-4"
+                  onSubmit={allocationForm.handleSubmit((values: AllocationFormValues) => {
+                    void handleAllocationSubmit(values);
+                  })}
+                >
                   <div>
-                    <label className="mb-1 block text-sm font-medium" htmlFor="summary-month">
-                      Month
+                    <label className="mb-1 block text-sm font-medium" htmlFor="allocation-project">
+                      Project
                     </label>
                     <select
-                      className="w-40 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                      id="summary-month"
-                      value={summaryMonth}
-                      onChange={(event) => setSummaryMonth(Number(event.target.value))}
+                      className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                      id="allocation-project"
+                      {...allocationForm.register('projectCode')}
                     >
-                      {MONTH_LABELS.map((label, index) => (
-                        <option key={label} value={index + 1}>
-                          {label}
+                      <option value="">Select a project</option>
+                      {projectOptions.map((project) => (
+                        <option key={project.id} value={project.code}>
+                          {project.code} — {project.name}
+                          {project.status === 'archived' ? ' (archived)' : ''}
                         </option>
                       ))}
                     </select>
-                  </div>
-                </div>
-              </div>
-
-              {!resourceSummary.workingDaysConfigured ? (
-                <div
-                  className="mb-4 rounded-lg border border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] px-4 py-3 text-sm text-[var(--status-caution-text)]"
-                  role="note"
-                >
-                  Working days are not configured for {getMonthLabel(summaryMonth)} {summaryYear}.
-                  Gross and net capacities are therefore shown as 0 until a calendar entry exists.
-                </div>
-              ) : null}
-
-              <dl className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Gross capacity</dt>
-                  <dd className="mt-2 text-2xl font-semibold">
-                    {formatDayAmount(resourceSummary.grossCapacityDays, displayPrecision)} d
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Non-working days</dt>
-                  <dd className="mt-2 text-2xl font-semibold">
-                    {formatDayAmount(resourceSummary.nonWorkingDays, displayPrecision)} d
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Net capacity</dt>
-                  <dd className="mt-2 text-2xl font-semibold">
-                    {formatDayAmount(resourceSummary.netCapacityDays, displayPrecision)} d
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Assigned load</dt>
-                  <dd className="mt-2 text-2xl font-semibold">
-                    {formatDayAmount(resourceSummary.assignedLoadDays, displayPrecision)} d
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Available capacity</dt>
-                  <dd className="mt-2 text-2xl font-semibold">
-                    {formatDayAmount(resourceSummary.availableCapacityDays, displayPrecision)} d
-                  </dd>
-                </div>
-                <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3">
-                  <dt className="text-sm text-[var(--text-secondary)]">Utilization</dt>
-                  <dd className="mt-2 flex items-center gap-3">
-                    <UtilizationBadge
-                      displayPrecision={displayPrecision}
-                      tooltip={`${getMonthLabel(summaryMonth)} ${summaryYear}: ${formatDayAmount(resourceSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(resourceSummary.netCapacityDays, displayPrecision)} net capacity days.`}
-                      utilization={resourceSummary.utilization}
-                    />
-                  </dd>
-                </div>
-              </dl>
-            </section>
-          ) : null}
-
-          {editingResource ? (
-            <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-semibold">Allocations for this resource</h2>
-                  <p className="mt-1 max-w-3xl text-sm text-[var(--text-secondary)]">
-                    Basic monthly allocation CRUD is intentionally colocated here for Lot 6. The
-                    dedicated drag-and-drop Allocation Studio arrives in a later lot.
-                  </p>
-                </div>
-                {editingAllocation ? (
-                  <Button
-                    className="underline"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => openAllocationEditor(undefined)}
-                  >
-                    Clear allocation form
-                  </Button>
-                ) : null}
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-[minmax(18rem,24rem)_1fr]">
-                <div>
-                  {allocationErrorSummary.length > 0 ? (
-                    <div
-                      className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
-                      role="alert"
-                    >
-                      <p className="font-semibold">Please correct the following:</p>
-                      <ul className="mt-2 list-disc pl-5">
-                        {allocationErrorSummary.map((message) => (
-                          <li key={message}>{message}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  ) : null}
-
-                  <form
-                    className="space-y-4"
-                    onSubmit={allocationForm.handleSubmit((values: AllocationFormValues) => {
-                      void handleAllocationSubmit(values);
-                    })}
-                  >
-                    <div>
-                      <label
-                        className="mb-1 block text-sm font-medium"
-                        htmlFor="allocation-project"
-                      >
-                        Project
-                      </label>
-                      <select
-                        className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                        id="allocation-project"
-                        {...allocationForm.register('projectCode')}
-                      >
-                        <option value="">Select a project</option>
-                        {projectOptions.map((project) => (
-                          <option key={project.id} value={project.code}>
-                            {project.code} — {project.name}
-                            {project.status === 'archived' ? ' (archived)' : ''}
-                          </option>
-                        ))}
-                      </select>
-                      {allocationForm.formState.errors.projectCode ? (
-                        <p className="mt-1 text-sm text-red-400" role="alert">
-                          {allocationForm.formState.errors.projectCode.message}
-                        </p>
-                      ) : null}
-                    </div>
-
-                    <div>
-                      <label
-                        className="mb-1 block text-sm font-medium"
-                        htmlFor="allocation-resource-type"
-                      >
-                        Allocation resource type
-                      </label>
-                      <select
-                        className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                        id="allocation-resource-type"
-                        {...allocationForm.register('resourceTypeId')}
-                      >
-                        <option value="">Select a resource type</option>
-                        {resourceTypeOptions.map((resourceType) => {
-                          const incompatible = resourceType.id !== editingResource.resourceTypeId;
-
-                          return (
-                            <option
-                              disabled={incompatible}
-                              key={resourceType.id}
-                              value={resourceType.id}
-                            >
-                              {resourceType.label}
-                              {incompatible ? ' (incompatible)' : ''}
-                            </option>
-                          );
-                        })}
-                      </select>
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                        Only the resource&apos;s own type is compatible in this lot.
+                    {allocationForm.formState.errors.projectCode ? (
+                      <p className="mt-1 text-sm text-red-400" role="alert">
+                        {allocationForm.formState.errors.projectCode.message}
                       </p>
-                      {allocationForm.formState.errors.resourceTypeId ? (
-                        <p className="mt-1 text-sm text-red-400" role="alert">
-                          {allocationForm.formState.errors.resourceTypeId.message}
-                        </p>
-                      ) : null}
-                    </div>
+                    ) : null}
+                  </div>
 
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="mb-1 block text-sm font-medium" htmlFor="allocation-year">
-                          Year
-                        </label>
-                        <input
-                          className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                          id="allocation-year"
-                          inputMode="numeric"
-                          type="number"
-                          {...allocationForm.register('year', { valueAsNumber: true })}
-                        />
-                        {allocationForm.formState.errors.year ? (
-                          <p className="mt-1 text-sm text-red-400" role="alert">
-                            {allocationForm.formState.errors.year.message}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div>
-                        <label
-                          className="mb-1 block text-sm font-medium"
-                          htmlFor="allocation-month"
-                        >
-                          Month
-                        </label>
-                        <select
-                          className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                          id="allocation-month"
-                          {...allocationForm.register('month', { valueAsNumber: true })}
-                        >
-                          {MONTH_LABELS.map((label, index) => (
-                            <option key={label} value={index + 1}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        {allocationForm.formState.errors.month ? (
-                          <p className="mt-1 text-sm text-red-400" role="alert">
-                            {allocationForm.formState.errors.month.message}
-                          </p>
-                        ) : null}
-                      </div>
-                    </div>
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium"
+                      htmlFor="allocation-resource-type"
+                    >
+                      Allocation resource type
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                      id="allocation-resource-type"
+                      {...allocationForm.register('resourceTypeId')}
+                    >
+                      <option value="">Select a resource type</option>
+                      {resourceTypeOptions.map((resourceType) => {
+                        const incompatible = resourceType.id !== editingResource.resourceTypeId;
 
+                        return (
+                          <option
+                            disabled={incompatible}
+                            key={resourceType.id}
+                            value={resourceType.id}
+                          >
+                            {resourceType.label}
+                            {incompatible ? ' (incompatible)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      Only the resource&apos;s own type is compatible in this lot.
+                    </p>
+                    {allocationForm.formState.errors.resourceTypeId ? (
+                      <p className="mt-1 text-sm text-red-400" role="alert">
+                        {allocationForm.formState.errors.resourceTypeId.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <label
-                        className="mb-1 block text-sm font-medium"
-                        htmlFor="allocation-allocated-days"
-                      >
-                        Allocated days
+                      <label className="mb-1 block text-sm font-medium" htmlFor="allocation-year">
+                        Year
                       </label>
                       <input
                         className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                        id="allocation-allocated-days"
-                        inputMode="decimal"
-                        type="text"
-                        {...allocationForm.register('allocatedDays', {
-                          setValueAs: parseLocaleInput,
-                        })}
+                        id="allocation-year"
+                        inputMode="numeric"
+                        type="number"
+                        {...allocationForm.register('year', { valueAsNumber: true })}
                       />
-                      <p className="mt-1 text-xs text-[var(--text-secondary)]">
-                        Decimal values are allowed. Use either a dot or a comma as the decimal
-                        separator.
-                      </p>
-                      {allocationForm.formState.errors.allocatedDays ? (
+                      {allocationForm.formState.errors.year ? (
                         <p className="mt-1 text-sm text-red-400" role="alert">
-                          {allocationForm.formState.errors.allocatedDays.message}
+                          {allocationForm.formState.errors.year.message}
                         </p>
                       ) : null}
                     </div>
-
                     <div>
-                      <label className="mb-1 block text-sm font-medium" htmlFor="allocation-origin">
-                        Origin
+                      <label className="mb-1 block text-sm font-medium" htmlFor="allocation-month">
+                        Month
                       </label>
                       <select
                         className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                        id="allocation-origin"
-                        {...allocationForm.register('origin')}
+                        id="allocation-month"
+                        {...allocationForm.register('month', { valueAsNumber: true })}
                       >
-                        <option value="manual">manual</option>
-                        <option value="import">import</option>
-                        <option value="drag-and-drop">drag-and-drop</option>
+                        {MONTH_LABELS.map((label, index) => (
+                          <option key={label} value={index + 1}>
+                            {label}
+                          </option>
+                        ))}
                       </select>
-                    </div>
-
-                    {allocationPreview && allocationPreviewSummary ? (
-                      <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3 text-sm">
-                        <p className="font-semibold">
-                          Preview for {getMonthLabel(allocationPreview.month)}{' '}
-                          {allocationPreview.year}
+                      {allocationForm.formState.errors.month ? (
+                        <p className="mt-1 text-sm text-red-400" role="alert">
+                          {allocationForm.formState.errors.month.message}
                         </p>
-                        <ul className="mt-2 space-y-1 text-[var(--text-secondary)]">
-                          <li>
-                            Assigned load after save:{' '}
-                            <span className="text-white">
-                              {formatDayAmount(
-                                allocationPreviewSummary.assignedLoadDays,
-                                displayPrecision,
-                              )}{' '}
-                              d
-                            </span>
-                          </li>
-                          <li>
-                            Available capacity after save:{' '}
-                            <span className="text-white">
-                              {formatDayAmount(
-                                allocationPreviewSummary.availableCapacityDays,
-                                displayPrecision,
-                              )}{' '}
-                              d
-                            </span>
-                          </li>
-                          <li>
-                            Utilization after save:{' '}
-                            <span className="inline-flex">
-                              <UtilizationBadge
-                                compact
-                                displayPrecision={displayPrecision}
-                                tooltip={`${getMonthLabel(allocationPreview.month)} ${allocationPreview.year}: ${formatDayAmount(allocationPreviewSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationPreviewSummary.netCapacityDays, displayPrecision)} net capacity days after save.`}
-                                utilization={allocationPreviewSummary.utilization}
-                              />
-                            </span>
-                          </li>
-                        </ul>
-                        {allocationPreviewSummary.availableCapacityDays < 0 ? (
-                          <p className="mt-3 text-amber-200" role="alert">
-                            ⚠ Overload is allowed and will be saved. This month would exceed net
-                            capacity by{' '}
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      className="mb-1 block text-sm font-medium"
+                      htmlFor="allocation-allocated-days"
+                    >
+                      Allocated days
+                    </label>
+                    <input
+                      className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                      id="allocation-allocated-days"
+                      inputMode="decimal"
+                      type="text"
+                      {...allocationForm.register('allocatedDays', {
+                        setValueAs: parseLocaleInput,
+                      })}
+                    />
+                    <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                      Decimal values are allowed. Use either a dot or a comma as the decimal
+                      separator.
+                    </p>
+                    {allocationForm.formState.errors.allocatedDays ? (
+                      <p className="mt-1 text-sm text-red-400" role="alert">
+                        {allocationForm.formState.errors.allocatedDays.message}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium" htmlFor="allocation-origin">
+                      Origin
+                    </label>
+                    <select
+                      className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                      id="allocation-origin"
+                      {...allocationForm.register('origin')}
+                    >
+                      <option value="manual">manual</option>
+                      <option value="import">import</option>
+                      <option value="drag-and-drop">drag-and-drop</option>
+                    </select>
+                  </div>
+
+                  {allocationPreview && allocationPreviewSummary ? (
+                    <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] px-4 py-3 text-sm">
+                      <p className="font-semibold">
+                        Preview for {getMonthLabel(allocationPreview.month)}{' '}
+                        {allocationPreview.year}
+                      </p>
+                      <ul className="mt-2 space-y-1 text-[var(--text-secondary)]">
+                        <li>
+                          Assigned load after save:{' '}
+                          <span className="text-white">
                             {formatDayAmount(
-                              Math.abs(allocationPreviewSummary.availableCapacityDays),
+                              allocationPreviewSummary.assignedLoadDays,
                               displayPrecision,
                             )}{' '}
-                            day(s).
-                          </p>
-                        ) : null}
-                        {allocationDemandPreview?.isOverService ? (
-                          <p className="mt-3 text-amber-200" role="alert">
-                            ⚠ Over-service: this allocation exceeds the remaining demand by{' '}
+                            d
+                          </span>
+                        </li>
+                        <li>
+                          Available capacity after save:{' '}
+                          <span className="text-white">
                             {formatDayAmount(
-                              allocationDemandPreview.overServiceDays,
+                              allocationPreviewSummary.availableCapacityDays,
                               displayPrecision,
                             )}{' '}
-                            day(s).
-                          </p>
-                        ) : allocationPreview &&
-                          !allocationDemandPreview?.matchingDemandSnapshot ? (
-                          <p className="mt-3 text-[var(--text-secondary)]">
-                            No matching demand snapshot exists yet for this project/month/type, so
-                            over-service cannot be assessed in this lot.
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    <Button busy={allocationSubmitting} type="submit">
-                      {allocationSubmitting
-                        ? 'Saving…'
-                        : editingAllocation
-                          ? 'Save allocation'
-                          : 'Create allocation'}
-                    </Button>
-                  </form>
-                </div>
-
-                <TableShell
-                  caption="Allocations linked to the selected resource with demand and utilization flags."
-                  zebra
-                >
-                  <thead>
-                    <tr className="border-b border-[var(--surf-divider)]">
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Project
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Type
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Period
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Days
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Origin
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Demand status
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Utilization
-                      </th>
-                      <th className="px-3 py-2 font-semibold" scope="col">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {resourceAllocations.length === 0 ? (
-                      <tr>
-                        <td className="px-3 py-4" colSpan={8}>
-                          <EmptyState
-                            icon={Users}
-                            title="No allocations exist for this resource yet."
-                          />
-                        </td>
-                      </tr>
-                    ) : null}
-
-                    {resourceAllocations.map((allocation) => {
-                      const demandStatus = buildAllocationDemandStatus({
-                        allocation,
-                        allAllocations: data.allocations,
-                        demandSnapshots: data.demandSnapshots,
-                      });
-                      const allocationSummary = buildResourceMonthlySummary({
-                        resource: editingResource,
-                        year: allocation.year,
-                        month: allocation.month,
-                        workingDaysCalendars: data.workingDaysCalendars,
-                        resourceNonWorkingDays: data.resourceNonWorkingDays,
-                        allocations: data.allocations,
-                        appSettings: data.appSettings,
-                      });
-                      return (
-                        <tr
-                          className="border-b border-[var(--surf-divider)] align-top"
-                          key={allocation.id}
-                        >
-                          <td className="px-3 py-3">{allocation.projectCode}</td>
-                          <td className="px-3 py-3">
-                            {resourceTypeLookup.get(allocation.resourceTypeId)?.label ??
-                              'Unknown type'}
-                          </td>
-                          <td className="px-3 py-3">
-                            {getMonthLabel(allocation.month)} {allocation.year}
-                          </td>
-                          <td className="px-3 py-3">
-                            {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
-                          </td>
-                          <td className="px-3 py-3">{allocation.origin}</td>
-                          <td className="px-3 py-3">
-                            {renderDemandStatus(demandStatus, displayPrecision)}
-                          </td>
-                          <td className="px-3 py-3">
+                            d
+                          </span>
+                        </li>
+                        <li>
+                          Utilization after save:{' '}
+                          <span className="inline-flex">
                             <UtilizationBadge
                               compact
                               displayPrecision={displayPrecision}
-                              tooltip={`${getMonthLabel(allocation.month)} ${allocation.year}: ${formatDayAmount(allocationSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationSummary.netCapacityDays, displayPrecision)} net capacity days.`}
-                              utilization={allocationSummary.utilization}
+                              tooltip={`${getMonthLabel(allocationPreview.month)} ${allocationPreview.year}: ${formatDayAmount(allocationPreviewSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationPreviewSummary.netCapacityDays, displayPrecision)} net capacity days after save.`}
+                              utilization={allocationPreviewSummary.utilization}
                             />
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={() => openAllocationEditor(allocation)}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                onClick={() =>
-                                  setPendingAllocationAction({
-                                    type: 'delete',
-                                    allocation,
-                                  })
-                                }
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </TableShell>
+                          </span>
+                        </li>
+                      </ul>
+                      {allocationPreviewSummary.availableCapacityDays < 0 ? (
+                        <p className="mt-3 text-amber-200" role="alert">
+                          ⚠ Overload is allowed and will be saved. This month would exceed net
+                          capacity by{' '}
+                          {formatDayAmount(
+                            Math.abs(allocationPreviewSummary.availableCapacityDays),
+                            displayPrecision,
+                          )}{' '}
+                          day(s).
+                        </p>
+                      ) : null}
+                      {allocationDemandPreview?.isOverService ? (
+                        <p className="mt-3 text-amber-200" role="alert">
+                          ⚠ Over-service: this allocation exceeds the remaining demand by{' '}
+                          {formatDayAmount(
+                            allocationDemandPreview.overServiceDays,
+                            displayPrecision,
+                          )}{' '}
+                          day(s).
+                        </p>
+                      ) : allocationPreview && !allocationDemandPreview?.matchingDemandSnapshot ? (
+                        <p className="mt-3 text-[var(--text-secondary)]">
+                          No matching demand snapshot exists yet for this project/month/type, so
+                          over-service cannot be assessed in this lot.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <Button busy={allocationSubmitting} type="submit">
+                    {allocationSubmitting
+                      ? 'Saving…'
+                      : editingAllocation
+                        ? 'Save allocation'
+                        : 'Create allocation'}
+                  </Button>
+                </form>
               </div>
-            </section>
-          ) : null}
-        </section>
-      </section>
+
+              <TableShell
+                caption="Allocations linked to the selected resource with demand and utilization flags."
+                zebra
+              >
+                <thead>
+                  <tr className="border-b border-[var(--surf-divider)]">
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Project
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Type
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Period
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Days
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Origin
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Demand status
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Utilization
+                    </th>
+                    <th className="px-3 py-2 font-semibold" scope="col">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {resourceAllocations.length === 0 ? (
+                    <tr>
+                      <td className="px-3 py-4" colSpan={8}>
+                        <EmptyState
+                          icon={Users}
+                          title="No allocations exist for this resource yet."
+                        />
+                      </td>
+                    </tr>
+                  ) : null}
+
+                  {resourceAllocations.map((allocation) => {
+                    const demandStatus = buildAllocationDemandStatus({
+                      allocation,
+                      allAllocations: data.allocations,
+                      demandSnapshots: data.demandSnapshots,
+                    });
+                    const allocationSummary = buildResourceMonthlySummary({
+                      resource: editingResource,
+                      year: allocation.year,
+                      month: allocation.month,
+                      workingDaysCalendars: data.workingDaysCalendars,
+                      resourceNonWorkingDays: data.resourceNonWorkingDays,
+                      allocations: data.allocations,
+                      appSettings: data.appSettings,
+                    });
+                    return (
+                      <tr
+                        className="border-b border-[var(--surf-divider)] align-top"
+                        key={allocation.id}
+                      >
+                        <td className="px-3 py-3">{allocation.projectCode}</td>
+                        <td className="px-3 py-3">
+                          {resourceTypeLookup.get(allocation.resourceTypeId)?.label ??
+                            'Unknown type'}
+                        </td>
+                        <td className="px-3 py-3">
+                          {getMonthLabel(allocation.month)} {allocation.year}
+                        </td>
+                        <td className="px-3 py-3">
+                          {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
+                        </td>
+                        <td className="px-3 py-3">{allocation.origin}</td>
+                        <td className="px-3 py-3">
+                          {renderDemandStatus(demandStatus, displayPrecision)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <UtilizationBadge
+                            compact
+                            displayPrecision={displayPrecision}
+                            tooltip={`${getMonthLabel(allocation.month)} ${allocation.year}: ${formatDayAmount(allocationSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationSummary.netCapacityDays, displayPrecision)} net capacity days.`}
+                            utilization={allocationSummary.utilization}
+                          />
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => openAllocationEditor(allocation)}
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() =>
+                                setPendingAllocationAction({
+                                  type: 'delete',
+                                  allocation,
+                                })
+                              }
+                            >
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </TableShell>
+            </div>
+          </section>
+        ) : null}
+      </Drawer>
 
       <ConfirmDialog
         busy={busyResourceAction}

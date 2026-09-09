@@ -148,7 +148,7 @@ export function WorkingDaysPage() {
   const errorMessages = getErrorMessages(form.formState.errors);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6" id="working-days-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="working-days-page">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
           <div

@@ -18,8 +18,11 @@ describe('CompaniesPage', () => {
     const user = userEvent.setup();
     render(<CompaniesPage />);
 
-    await user.type(screen.getByLabelText(/Company name/i), 'Acme Partners');
-    await user.click(screen.getByRole('button', { name: /Create company/i }));
+    await user.click(screen.getByRole('button', { name: /New company/i }));
+    const drawer = await screen.findByRole('dialog', { name: /Create company/i });
+
+    await user.type(within(drawer).getByLabelText(/Company name/i), 'Acme Partners');
+    await user.click(within(drawer).getByRole('button', { name: /Create company/i }));
 
     expect(await screen.findByRole('status')).toHaveTextContent(/Company created\./i);
     expect(await screen.findByText('Acme Partners')).toBeInTheDocument();

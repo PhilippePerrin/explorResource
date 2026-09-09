@@ -38,10 +38,13 @@ describe('ReleasesPage', () => {
     const user = userEvent.setup();
     render(<ReleasesPage />);
 
-    await user.type(screen.getByLabelText(/Release name/i), 'Wave 1');
-    await user.type(screen.getByLabelText(/Go-live date/i), '2026-10-15');
-    await user.click(screen.getByLabelText(/E0100/i));
-    await user.click(screen.getByRole('button', { name: /Create release/i }));
+    await user.click(screen.getByRole('button', { name: /New release/i }));
+    const drawer = await screen.findByRole('dialog', { name: /Create release/i });
+
+    await user.type(within(drawer).getByLabelText(/Release name/i), 'Wave 1');
+    await user.type(within(drawer).getByLabelText(/Go-live date/i), '2026-10-15');
+    await user.click(within(drawer).getByLabelText(/E0100/i));
+    await user.click(within(drawer).getByRole('button', { name: /Create release/i }));
 
     const releaseListSection = getSectionForHeading(/Release list/i);
 

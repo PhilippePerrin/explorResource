@@ -6,7 +6,7 @@ import { Building2 } from '@/components/icons';
 import type { Company, Resource } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countCompanyReferences,
@@ -80,6 +80,7 @@ export function CompaniesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
   const [editingCompanyId, setEditingCompanyId] = useState<string | undefined>();
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [feedback, setFeedback] = useState<string>('');
 
@@ -146,6 +147,7 @@ export function CompaniesPage() {
       await loadData();
       setEditingCompanyId(undefined);
       form.reset(createCompanyDefaultValues());
+      setIsFormOpen(false);
       setFeedback(editingCompany ? 'Company updated.' : 'Company created.');
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to save company.');
@@ -195,7 +197,7 @@ export function CompaniesPage() {
   const errorSummary = getErrorSummary(form.formState.errors);
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="companies-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="companies-page">
       <header className="space-y-2">
         <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
           <div
@@ -217,71 +219,84 @@ export function CompaniesPage() {
 
       <FeedbackMessage message={feedback} />
 
-      <section className="grid gap-6 lg:grid-cols-[minmax(20rem,26rem)_1fr]">
-        <Card>
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-xl font-semibold">
-              {editingCompany ? 'Edit company' : 'Create company'}
-            </h2>
-            {editingCompany ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setEditingCompanyId(undefined);
-                  form.reset(createCompanyDefaultValues());
-                }}
-              >
-                Clear
-              </Button>
+      <Drawer
+        headerActions={
+          editingCompany ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setEditingCompanyId(undefined);
+                form.reset(createCompanyDefaultValues());
+              }}
+            >
+              Clear
+            </Button>
+          ) : null
+        }
+        onClose={() => setIsFormOpen(false)}
+        open={isFormOpen}
+        title={editingCompany ? 'Edit company' : 'Create company'}
+      >
+        {errorSummary.length > 0 ? (
+          <div
+            className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+            role="alert"
+          >
+            <p className="font-semibold">Please correct the following:</p>
+            <ul className="mt-2 list-disc pl-5">
+              {errorSummary.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((values) => {
+            void handleSubmit(values);
+          })}
+        >
+          <div>
+            <label className="mb-1 block text-sm font-medium" htmlFor="company-name">
+              Company name
+            </label>
+            <input
+              className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+              id="company-name"
+              type="text"
+              {...form.register('name')}
+            />
+            {form.formState.errors.name ? (
+              <p className="mt-1 text-sm text-red-400" role="alert">
+                {form.formState.errors.name.message}
+              </p>
             ) : null}
           </div>
 
-          {errorSummary.length > 0 ? (
-            <div
-              className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
-              role="alert"
-            >
-              <p className="font-semibold">Please correct the following:</p>
-              <ul className="mt-2 list-disc pl-5">
-                {errorSummary.map((message) => (
-                  <li key={message}>{message}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <Button busy={submitting} type="submit">
+            {submitting ? 'Saving…' : editingCompany ? 'Save changes' : 'Create company'}
+          </Button>
+        </form>
+      </Drawer>
 
-          <form
-            className="space-y-4"
-            onSubmit={form.handleSubmit((values) => {
-              void handleSubmit(values);
-            })}
-          >
-            <div>
-              <label className="mb-1 block text-sm font-medium" htmlFor="company-name">
-                Company name
-              </label>
-              <input
-                className="w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                id="company-name"
-                type="text"
-                {...form.register('name')}
-              />
-              {form.formState.errors.name ? (
-                <p className="mt-1 text-sm text-red-400" role="alert">
-                  {form.formState.errors.name.message}
-                </p>
-              ) : null}
-            </div>
-
-            <Button busy={submitting} type="submit">
-              {submitting ? 'Saving…' : editingCompany ? 'Save changes' : 'Create company'}
-            </Button>
-          </form>
-        </Card>
-
+      <section>
         <Card>
-          <h2 className="mb-4 text-xl font-semibold">Company list</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-semibold">Company list</h2>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setEditingCompanyId(undefined);
+                form.reset(createCompanyDefaultValues());
+                setIsFormOpen(true);
+              }}
+            >
+              New company
+            </Button>
+          </div>
 
           {loading ? (
             <Skeleton label="Loading companies…" />
@@ -339,7 +354,10 @@ export function CompaniesPage() {
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => setEditingCompanyId(company.id)}
+                            onClick={() => {
+                              setEditingCompanyId(company.id);
+                              setIsFormOpen(true);
+                            }}
                           >
                             Edit
                           </Button>
