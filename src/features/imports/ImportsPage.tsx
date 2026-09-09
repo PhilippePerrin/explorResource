@@ -168,9 +168,9 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
   const blockingAnomalies = hasBlockingAnomalies(wizardState);
   const importHistory = useMemo(
     () =>
-      [...data.importBatches].sort((left, right) =>
-        right.importedAt.localeCompare(left.importedAt),
-      ),
+      [...data.importBatches]
+        .filter((batch) => batch.kind === 'demand')
+        .sort((left, right) => right.importedAt.localeCompare(left.importedAt)),
     [data.importBatches],
   );
   const validatedImportHistory = useMemo(
@@ -796,12 +796,26 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
           </section>
         );
 
-      case 'anomaly-review':
+      case 'anomaly-review': {
+        const hasUnknownResourceAnomalies = wizardState.analysis.anomalies.some(
+          (anomaly) =>
+            anomaly.code === 'unknown-resource' || anomaly.code === 'unknown-resource-type',
+        );
+
         return (
           <section aria-labelledby="imports-step-anomaly-review" className="space-y-4">
             <h2 className="text-lg font-semibold" id="imports-step-anomaly-review">
               6. Anomaly review
             </h2>
+            {hasUnknownResourceAnomalies || data.resources.length === 0 ? (
+              <p className="rounded-md border border-amber-500/40 bg-amber-950/20 p-3 text-sm">
+                No resources found for the names/types in this file — use{' '}
+                <a className="font-medium underline" href="#/resources/import">
+                  Import resources
+                </a>{' '}
+                to create them in bulk from the matching Excel export, then re-run this import.
+              </p>
+            ) : null}
             {wizardState.analysis.anomalies.length === 0 ? (
               <p className="rounded-md border border-emerald-500/40 bg-emerald-950/20 p-3 text-sm">
                 No anomalies detected.
@@ -834,6 +848,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
             )}
           </section>
         );
+      }
 
       case 'comparison':
         return (

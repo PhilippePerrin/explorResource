@@ -200,6 +200,7 @@ export function createExistingImportBatch(overrides: Partial<ImportBatch> = {}):
     fileSha256: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
     rowCount: 42,
     status: 'validated',
+    kind: 'demand',
     createdAt: '2026-09-07T09:00:00.000Z',
     updatedAt: '2026-09-07T09:00:00.000Z',
     ...overrides,

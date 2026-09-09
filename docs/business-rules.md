@@ -2,7 +2,7 @@
 title: Business Rules
 id: business-rules
 status: living
-last_updated: 2026-09-08
+last_updated: 2026-09-09
 ---
 
 # Business Rules
@@ -62,6 +62,17 @@ Never convey these states by color alone — always pair with a label, icon, num
 
 - One `ResourceType` at a time. `companyId` is **required** if `collaborationType = external`, optional if `internal`.
 - Soft-archive resources with history; never hard-delete them.
+- Resource type cannot change in place once the resource has allocations (archive and recreate instead) — enforced both in the manual `ResourcesPage` form and by the resource import (see below).
+
+## Resource import
+
+- Source: a PSA "Availability list" export (`Resource | Quantity | Percentage | Start date | Finish date | File` columns), a flattened tree of company/division/resource-type/person/detail rows. See `docs/resource-import-format.md` for the full row-classification algorithm.
+- Identity/matching key: exact `"Firstname LASTNAME"` (same convention and same exact-match semantics as the demand importer's `getResourceFullName`), so names line up between the two Excel exports.
+- Every resource-type header prefixed `[Inactive Res.]` — and only the single person-block immediately following it — is always skipped; it is never a persistent mode and never creates or updates a resource.
+- Unknown resource-type labels (three-segment shape, e.g. `Practice - Role - Currency`) found under a real person are staged as new active `ResourceType`s and shown in the preview before commit — never created silently.
+- An existing resource whose type differs from the file is updated automatically only if it has no allocations yet; otherwise the change is skipped and reported, never forced.
+- A resource no longer listed under any active resource type in a re-imported file is reported (`noLongerListed`) but never auto-archived — archiving remains a manual `ResourcesPage` action.
+- Newly created resources default to `collaborationType: 'internal'` with no `companyId`.
 
 ## Allocations
 

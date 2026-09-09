@@ -69,6 +69,7 @@ function buildImportBatch(): ImportBatch {
     fileSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
     rowCount: 42,
     status: 'draft',
+    kind: 'demand',
     createdAt: timestamp,
     updatedAt: timestamp,
   };

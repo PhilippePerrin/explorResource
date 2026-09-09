@@ -2,7 +2,7 @@
 title: Traceability Matrix
 id: traceability-matrix
 status: living
-last_updated: 2026-09-08
+last_updated: 2026-09-09
 ---
 
 # Traceability Matrix
@@ -32,7 +32,9 @@ Maps each major requirement to its implementing lot, key files, and validating t
 
 | 2026 visual refresh, Planning pages: Dashboard/Capacity/Demand Coverage/Allocation Studio reskin | Lot 16 | `src/features/dashboard/{DashboardPage,chartTheme}.tsx/ts`, `src/features/capacity/CapacityCommandCenterPage.tsx`, `src/features/demand-coverage/DemandCoverageBoardPage.tsx`, `src/features/allocation-studio/AllocationStudioPage.tsx`, `src/theme/usePrefersReducedMotion.ts` | `tests/unit/theme/usePrefersReducedMotion.test.tsx`, `tests/component/features/{dashboard,capacity,demand-coverage,allocation-studio}/*.test.tsx`, `tests/component/accessibility.test.tsx` (Dashboard + Allocation Studio keyboard path re-verified), full `tests/e2e/*` suite (11/11 green) |
 
-This table is updated as each lot completes; all lots (0-16) are now fully implemented, tested, and reflected here with concrete file/test references.
+| Bulk Resource import from PSA "Availability list" exports, and the demand-import discoverability fix | Lot 17 | `src/resourceImport/*`, `src/workers/resourceImport.worker.ts`, `src/features/resource-import/ResourceImportPage.tsx`, `src/domain/entities/imports.ts` (`ImportBatch.kind`), `src/features/imports/ImportsPage.tsx` (anomaly-review callout) | `tests/unit/resourceImport/{parse,commit,wizardMachine}.test.ts`, `tests/component/features/resource-import/ResourceImportPage.test.tsx`, `tests/unit/import/resourceThenDemandImport.test.ts`, real fixture in `tests/fixtures/export-resource.xlsx` |
+
+This table is updated as each lot completes; all lots (0-17) are now fully implemented, tested, and reflected here with concrete file/test references.
 
 ## Lot 13 — E2E acceptance scenario mapping
 

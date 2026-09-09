@@ -2,7 +2,7 @@
 title: Data Model
 id: data-model
 status: living
-last_updated: 2026-09-08
+last_updated: 2026-09-09
 ---
 
 # Data Model
@@ -30,24 +30,24 @@ erDiagram
 
 ## Entities
 
-| Entity                   | Functional key                                              | Notes                                                                                  |
-| ------------------------ | ----------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `AppSettings`            | singleton (`"app-settings"`)                                | display precision, visual thresholds, numeric tolerance, theme, schema/backup versions |
-| `Company`                | `name` (unique)                                             | required for external resources                                                        |
-| `ResourceType`           | `label` (unique)                                            | immutable id, color, displayOrder, archive not delete if referenced                    |
-| `Resource`               | id (immutable)                                              | fullName is computed, never persisted redundantly                                      |
-| `Release`                | `name` (unique)                                             | one `goLiveDate`                                                                       |
-| `Project`                | `code` (regex `^[EPR]\d{4}$`)                               | never merged by name                                                                   |
-| `Group`                  | `code` (non-conforming)                                     | read-only, import-created only                                                         |
-| `ProjectRelease`         | `(projectId, releaseId)`                                    | join entity                                                                            |
-| `WorkingDaysCalendar`    | `(year, month)` unique                                      |                                                                                        |
-| `ResourceNonWorkingDays` | `(resourceId, year, month)` unique                          |                                                                                        |
-| `ImportBatch`            | id + `fileSha256` (dedup)                                   | immutable once `validated`                                                             |
-| `ImportRawRow`           | `(importBatchId, rowNumber)`                                | diagnostic raw data, includes classification                                           |
-| `DemandSnapshot`         | `(projectCode, resourceTypeId, year, month, importBatchId)` |                                                                                        |
-| `Allocation`             | id                                                          | `(resourceId, projectCode, resourceTypeId, year, month)` for lookups                   |
-| `ChangeSet`              | id                                                          | structured entity diff (audit/undo foundation)                                         |
-| `AuditEntry`             | id                                                          | human-readable log line                                                                |
+| Entity                   | Functional key                                              | Notes                                                                                                                     |
+| ------------------------ | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `AppSettings`            | singleton (`"app-settings"`)                                | display precision, visual thresholds, numeric tolerance, theme, schema/backup versions                                    |
+| `Company`                | `name` (unique)                                             | required for external resources                                                                                           |
+| `ResourceType`           | `label` (unique)                                            | immutable id, color, displayOrder, archive not delete if referenced                                                       |
+| `Resource`               | id (immutable)                                              | fullName is computed, never persisted redundantly                                                                         |
+| `Release`                | `name` (unique)                                             | one `goLiveDate`                                                                                                          |
+| `Project`                | `code` (regex `^[EPR]\d{4}$`)                               | never merged by name                                                                                                      |
+| `Group`                  | `code` (non-conforming)                                     | read-only, import-created only                                                                                            |
+| `ProjectRelease`         | `(projectId, releaseId)`                                    | join entity                                                                                                               |
+| `WorkingDaysCalendar`    | `(year, month)` unique                                      |                                                                                                                           |
+| `ResourceNonWorkingDays` | `(resourceId, year, month)` unique                          |                                                                                                                           |
+| `ImportBatch`            | id + `fileSha256` (dedup)                                   | immutable once `validated`; `kind: 'demand' \| 'resource'` (default `'demand'`) keeps the two importers' history separate |
+| `ImportRawRow`           | `(importBatchId, rowNumber)`                                | diagnostic raw data, includes classification                                                                              |
+| `DemandSnapshot`         | `(projectCode, resourceTypeId, year, month, importBatchId)` |                                                                                                                           |
+| `Allocation`             | id                                                          | `(resourceId, projectCode, resourceTypeId, year, month)` for lookups                                                      |
+| `ChangeSet`              | id                                                          | structured entity diff (audit/undo foundation)                                                                            |
+| `AuditEntry`             | id                                                          | human-readable log line                                                                                                   |
 
 ## Archiving strategy
 

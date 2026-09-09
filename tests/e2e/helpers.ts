@@ -23,6 +23,13 @@ import { DATABASE_NAME } from '@/persistence/db';
 const IMPORT_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const REAL_IMPORT_FILE_NAME = 'export-philippe.perrin-151251-20260908-101608.xlsx';
 const REAL_IMPORT_FILE_PATH = path.join(process.cwd(), 'tests', 'fixtures', REAL_IMPORT_FILE_NAME);
+const REAL_RESOURCE_IMPORT_FILE_NAME = 'export-resource.xlsx';
+const REAL_RESOURCE_IMPORT_FILE_PATH = path.join(
+  process.cwd(),
+  'tests',
+  'fixtures',
+  REAL_RESOURCE_IMPORT_FILE_NAME,
+);
 const TEST_YEAR = 2026;
 const TEST_MONTH = 1;
 
@@ -497,6 +504,10 @@ export async function uploadRealImport(locator: Locator) {
   await locator.setInputFiles(REAL_IMPORT_FILE_PATH);
 }
 
+export async function uploadRealResourceImport(locator: Locator) {
+  await locator.setInputFiles(REAL_RESOURCE_IMPORT_FILE_PATH);
+}
+
 export async function analyzeSelectedImport(page: Page, note?: string) {
   if (note) {
     await page.getByLabel(/Import note/i).fill(note);
@@ -542,4 +553,12 @@ export async function downloadToBuffer(download: Download): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export { IMPORT_MIME_TYPE, REAL_IMPORT_FILE_NAME, REAL_IMPORT_FILE_PATH, TEST_MONTH, TEST_YEAR };
+export {
+  IMPORT_MIME_TYPE,
+  REAL_IMPORT_FILE_NAME,
+  REAL_IMPORT_FILE_PATH,
+  REAL_RESOURCE_IMPORT_FILE_NAME,
+  REAL_RESOURCE_IMPORT_FILE_PATH,
+  TEST_MONTH,
+  TEST_YEAR,
+};

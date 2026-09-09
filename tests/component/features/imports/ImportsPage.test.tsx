@@ -234,6 +234,7 @@ describe('ImportsPage', () => {
       fileSha256: '1'.repeat(64),
       rowCount: 10,
       status: 'validated',
+      kind: 'demand',
       createdAt: '2026-09-07T10:00:00.000Z',
       updatedAt: '2026-09-07T10:00:00.000Z',
     });
@@ -246,6 +247,7 @@ describe('ImportsPage', () => {
       fileSha256: '2'.repeat(64),
       rowCount: 12,
       status: 'validated',
+      kind: 'demand',
       createdAt: '2026-09-08T10:00:00.000Z',
       updatedAt: '2026-09-08T10:00:00.000Z',
     });

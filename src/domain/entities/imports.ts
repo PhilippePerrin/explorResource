@@ -11,6 +11,7 @@ import {
 } from './base';
 
 export const importBatchStatusSchema = z.enum(['draft', 'validated', 'cancelled']);
+export const importBatchKindSchema = z.enum(['demand', 'resource']).default('demand');
 
 const importBatchBaseSchema = z
   .object({
@@ -22,6 +23,7 @@ const importBatchBaseSchema = z
     fileSha256: hexSha256Schema,
     rowCount: z.number().int().nonnegative(),
     status: importBatchStatusSchema,
+    kind: importBatchKindSchema,
   })
   .strict();
 

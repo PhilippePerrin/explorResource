@@ -41,7 +41,10 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   },
   {
     label: 'Imports',
-    items: [{ to: '/imports', label: 'Imports' }],
+    items: [
+      { to: '/imports', label: 'Imports' },
+      { to: '/resources/import', label: 'Import resources' },
+    ],
   },
   {
     label: 'Settings',

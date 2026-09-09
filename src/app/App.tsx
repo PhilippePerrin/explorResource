@@ -44,6 +44,9 @@ const WorkingDaysPage = lazy(() =>
 const ImportsPage = lazy(() =>
   import('@/features/imports').then((module) => ({ default: module.ImportsPage })),
 );
+const ResourceImportPage = lazy(() =>
+  import('@/features/resource-import').then((module) => ({ default: module.ResourceImportPage })),
+);
 const CompaniesPage = lazy(() =>
   import('@/features/companies').then((module) => ({ default: module.CompaniesPage })),
 );
@@ -90,6 +93,7 @@ export default function App() {
             <Route path="/non-working-days" element={<NonWorkingDaysPage />} />
             <Route path="/working-days" element={<WorkingDaysPage />} />
             <Route path="/imports" element={<ImportsPage />} />
+            <Route path="/resources/import" element={<ResourceImportPage />} />
             <Route path="/companies" element={<CompaniesPage />} />
             <Route path="/resource-types" element={<ResourceTypesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
