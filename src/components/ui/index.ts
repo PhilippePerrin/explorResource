@@ -1,6 +1,9 @@
 export { Button, type ButtonProps } from './Button';
 export { Card, type CardProps } from './Card';
+export { EmptyState, type EmptyStateProps } from './EmptyState';
 export { IconButton, type IconButtonProps } from './IconButton';
+export { IconChip, type IconChipProps, type IconChipSize, type IconChipTone } from './IconChip';
+export { Skeleton, type SkeletonProps } from './Skeleton';
 export { TableShell, type TableShellProps } from './TableShell';
 export { Tabs, type TabItem, type TabsProps } from './Tabs';
 export { Tooltip, type TooltipProps } from './Tooltip';

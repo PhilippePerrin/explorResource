@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { CalendarDays } from '@/components/icons';
 import type { WorkingDaysCalendar } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button, Card, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   MONTH_LABELS,
@@ -147,26 +149,39 @@ export function WorkingDaysPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-6" id="working-days-page">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Working Days</h1>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Maintain the annual January–December working-day calendar. Use the duplicate action to
-          seed next year before adjusting month-specific values.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={CalendarDays} size="lg" tone="accent" />
+          <div className="relative space-y-2">
+            <h1 className="text-3xl font-semibold">Working Days</h1>
+            <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
+              Maintain the annual January–December working-day calendar. Use the duplicate action to
+              seed next year before adjusting month-specific values.
+            </p>
+          </div>
+        </div>
       </header>
 
       <FeedbackMessage message={feedback} />
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+      <Card>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-wrap items-end gap-3">
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-3 py-2"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => setSelectedYear((year) => year - 1)}
-              type="button"
             >
               Previous year
-            </button>
+            </Button>
             <div>
               <label className="mb-1 block text-sm font-medium" htmlFor="working-days-year">
                 Year
@@ -186,27 +201,23 @@ export function WorkingDaysPage() {
                 }}
               />
             </div>
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-3 py-2"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => setSelectedYear((year) => year + 1)}
-              type="button"
             >
               Next year
-            </button>
+            </Button>
           </div>
 
-          <button
-            className="rounded-md border border-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium"
-            onClick={() => setShowDuplicateDialog(true)}
-            type="button"
-          >
+          <Button size="sm" variant="secondary" onClick={() => setShowDuplicateDialog(true)}>
             Duplicate to next year
-          </button>
+          </Button>
         </div>
 
         {errorMessages.length > 0 ? (
           <div
-            className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+            className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
             role="alert"
           >
             <p className="font-semibold">Please correct the following:</p>
@@ -219,7 +230,7 @@ export function WorkingDaysPage() {
         ) : null}
 
         {loading ? (
-          <p>Loading calendar…</p>
+          <Skeleton label="Loading calendar…" lines={4} />
         ) : (
           <form
             className="space-y-5"
@@ -227,69 +238,62 @@ export function WorkingDaysPage() {
               void handleSave(values);
             })}
           >
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <caption className="sr-only">Working days per month for the selected year.</caption>
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Month
+            <TableShell caption="Working days per month for the selected year." zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Month
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Working days
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {MONTH_LABELS.map((monthLabel, index) => (
+                  <tr className="border-b border-[var(--surf-divider)]" key={monthLabel}>
+                    <th className="px-3 py-3 font-medium" scope="row">
+                      {monthLabel}
                     </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Working days
-                    </th>
+                    <td className="px-3 py-3">
+                      <label className="sr-only" htmlFor={`working-days-month-${index + 1}`}>
+                        {monthLabel} working days
+                      </label>
+                      <input
+                        className="w-28 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                        id={`working-days-month-${index + 1}`}
+                        inputMode="decimal"
+                        type="text"
+                        {...form.register(`months.${index}` as const, {
+                          setValueAs: parseLocaleNumber,
+                        })}
+                      />
+                      {Array.isArray(form.formState.errors.months) &&
+                      form.formState.errors.months[index] ? (
+                        <p className="mt-1 text-sm text-red-400" role="alert">
+                          {form.formState.errors.months[index]?.message}
+                        </p>
+                      ) : null}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {MONTH_LABELS.map((monthLabel, index) => (
-                    <tr className="border-b border-[var(--surf-divider)]" key={monthLabel}>
-                      <th className="px-3 py-3 font-medium" scope="row">
-                        {monthLabel}
-                      </th>
-                      <td className="px-3 py-3">
-                        <label className="sr-only" htmlFor={`working-days-month-${index + 1}`}>
-                          {monthLabel} working days
-                        </label>
-                        <input
-                          className="w-28 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
-                          id={`working-days-month-${index + 1}`}
-                          inputMode="decimal"
-                          type="text"
-                          {...form.register(`months.${index}` as const, {
-                            setValueAs: parseLocaleNumber,
-                          })}
-                        />
-                        {Array.isArray(form.formState.errors.months) &&
-                        form.formState.errors.months[index] ? (
-                          <p className="mt-1 text-sm text-red-400" role="alert">
-                            {form.formState.errors.months[index]?.message}
-                          </p>
-                        ) : null}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <th className="px-3 py-3 text-base font-semibold" scope="row">
-                      Annual total
-                    </th>
-                    <td className="px-3 py-3 text-base font-semibold">{annualTotal}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th className="px-3 py-3 text-base font-semibold" scope="row">
+                    Annual total
+                  </th>
+                  <td className="px-3 py-3 text-base font-semibold">{annualTotal}</td>
+                </tr>
+              </tfoot>
+            </TableShell>
 
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-              disabled={saving}
-              type="submit"
-            >
+            <Button busy={saving} type="submit">
               {saving ? 'Saving…' : 'Save calendar'}
-            </button>
+            </Button>
           </form>
         )}
-      </section>
+      </Card>
 
       <ConfirmDialog
         busy={duplicating}

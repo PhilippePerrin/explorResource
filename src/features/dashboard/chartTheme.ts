@@ -1,7 +1,7 @@
 export const CHART_LINE_COLORS = {
   netCapacity: 'var(--color-bmx-blue)',
   allocatedLoad: 'var(--color-bmx-gold)',
-  uncoveredDemand: '#ef4444',
+  uncoveredDemand: 'var(--status-critical-text)',
 } as const;
 
 export const CHART_GRID_COLOR = 'var(--surf-divider)';

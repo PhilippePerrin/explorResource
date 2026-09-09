@@ -45,7 +45,8 @@ There is **no multi-user support, no authentication, no authorization, no approv
 - GitHub Pages compatibility (`base: '/explorResource/'` in Vite, `HashRouter`) must never be broken.
 - The bioMérieux branding (`src/index.css`, copied verbatim from `data/index.css`) must never be rewritten/redesigned — only consumed via existing CSS variables/Tailwind theme tokens. Non-brand design tokens (elevation/shadow, etc.) live in the companion file `src/design-tokens.css` instead — see `docs/adr/0002-design-token-layering.md`.
 - The logo (`public/assets/biomerieux-logo.jpeg`) is never redrawn in CSS.
-- Shared UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell) live in `src/components/ui/`; icons go through the `src/components/icons.ts` barrel (`lucide-react`) and are always decorative (`aria-hidden`) — see `docs/adr/0003-icon-library.md`.
+- Shared UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell, IconChip, EmptyState, Skeleton) live in `src/components/ui/`; icons go through the `src/components/icons.ts` barrel (`lucide-react`) and are always decorative (`aria-hidden`) — see `docs/adr/0003-icon-library.md`.
+- Status/severity colors (success/caution/attention/critical/info) and the non-brand data-viz accent live as tokens in `src/design-tokens.css` (never `src/index.css`) — see `docs/adr/0004-2026-visual-pass-accent-and-status-tokens.md`. Never hardcode a raw Tailwind status color; consume these tokens so both themes stay correct.
 
 ## 4. Confirmed decisions from planning (Phase 1 clarifications)
 

@@ -51,3 +51,167 @@
       padding 0.2s ease-out;
   }
 }
+
+/*
+ * 2026 visual pass — status + accent tokens (non-brand).
+ * Centralizes the status colors that UtilizationBadge/DemandCoverageBadge
+ * previously hardcoded as raw Tailwind classes (emerald/amber/orange/red),
+ * so both dark and light theme get correct, AA-checked pairs instead of a
+ * dark-only palette leaking into the light theme. Semantic scale shared by
+ * both badges: success < caution < attention < critical.
+ */
+:root {
+  --status-success-bg: rgba(16, 185, 129, 0.16);
+  --status-success-text: #6ee7b7;
+  --status-success-border: rgba(16, 185, 129, 0.4);
+
+  --status-caution-bg: rgba(245, 158, 11, 0.16);
+  --status-caution-text: #fcd34d;
+  --status-caution-border: rgba(245, 158, 11, 0.4);
+
+  --status-attention-bg: rgba(249, 115, 22, 0.16);
+  --status-attention-text: #fdba74;
+  --status-attention-border: rgba(249, 115, 22, 0.4);
+
+  --status-critical-bg: rgba(239, 68, 68, 0.18);
+  --status-critical-text: #fca5a5;
+  --status-critical-border: rgba(239, 68, 68, 0.45);
+
+  --status-info-bg: rgba(78, 195, 224, 0.16);
+  --status-info-text: #7dd3e8;
+  --status-info-border: rgba(78, 195, 224, 0.4);
+
+  /* Data-viz accent — not a brand color, used only for chart/status
+     differentiation when the brand palette alone can't distinguish two
+     series (e.g. a secondary trend line). Never used for brand chrome
+     (logo, primary actions, nav). */
+  --accent-viz-text: #c4b5fd;
+  --accent-viz-bg: rgba(139, 92, 246, 0.16);
+  --accent-viz-border: rgba(139, 92, 246, 0.4);
+
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --glow-cyan: 0 0 28px rgba(78, 195, 224, 0.32);
+  --glow-green: 0 0 28px rgba(60, 152, 69, 0.32);
+  --glow-gold: 0 0 24px rgba(255, 221, 55, 0.26);
+  --glow-violet: 0 0 28px rgba(139, 92, 246, 0.32);
+}
+
+[data-theme='light'] {
+  --status-success-bg: #dcfce7;
+  --status-success-text: #15803d; /* ~5.9:1 on --status-success-bg */
+  --status-success-border: #86efac;
+
+  --status-caution-bg: #fef3c7;
+  --status-caution-text: #92400e; /* ~6.4:1 */
+  --status-caution-border: #fcd34d;
+
+  --status-attention-bg: #ffedd5;
+  --status-attention-text: #9a3412; /* ~6.8:1 */
+  --status-attention-border: #fdba74;
+
+  --status-critical-bg: #fee2e2;
+  --status-critical-text: #b91c1c; /* ~6.1:1 */
+  --status-critical-border: #fca5a5;
+
+  --status-info-bg: #e0f2fe;
+  --status-info-text: #075985; /* ~6.7:1 */
+  --status-info-border: #7dd3fc;
+
+  --accent-viz-text: #6d28d9; /* ~7.3:1 on --accent-viz-bg */
+  --accent-viz-bg: #ede9fe;
+  --accent-viz-border: #c4b5fd;
+
+  --glow-cyan: 0 0 20px rgba(78, 195, 224, 0.18);
+  --glow-green: 0 0 20px rgba(60, 152, 69, 0.18);
+  --glow-gold: 0 0 18px rgba(191, 214, 48, 0.22);
+  --glow-violet: 0 0 20px rgba(139, 92, 246, 0.18);
+}
+
+.ui-glow-cyan {
+  box-shadow: var(--glow-cyan);
+}
+.ui-glow-green {
+  box-shadow: var(--glow-green);
+}
+.ui-glow-gold {
+  box-shadow: var(--glow-gold);
+}
+.ui-glow-violet {
+  box-shadow: var(--glow-violet);
+}
+
+/* Duotone-style icon chip tones (icon + tinted rounded background),
+   reusing the tokens above and the existing --chip-* tokens for "neutral". */
+.ui-icon-chip-neutral {
+  background-color: var(--chip-bg);
+  color: var(--chip-text);
+  border-color: var(--chip-border);
+}
+.ui-icon-chip-accent {
+  background-color: var(--accent-viz-bg);
+  color: var(--accent-viz-text);
+  border-color: var(--accent-viz-border);
+}
+.ui-icon-chip-success {
+  background-color: var(--status-success-bg);
+  color: var(--status-success-text);
+  border-color: var(--status-success-border);
+}
+.ui-icon-chip-caution {
+  background-color: var(--status-caution-bg);
+  color: var(--status-caution-text);
+  border-color: var(--status-caution-border);
+}
+.ui-icon-chip-attention {
+  background-color: var(--status-attention-bg);
+  color: var(--status-attention-text);
+  border-color: var(--status-attention-border);
+}
+.ui-icon-chip-critical {
+  background-color: var(--status-critical-bg);
+  color: var(--status-critical-text);
+  border-color: var(--status-critical-border);
+}
+.ui-icon-chip-info {
+  background-color: var(--status-info-bg);
+  color: var(--status-info-text);
+  border-color: var(--status-info-border);
+}
+
+/*
+ * Dashboard hero — one orchestrated entrance sequence on mount (KPIs then
+ * chart), never a per-card hover flourish. Reduced-motion turns this into a
+ * plain, immediately-visible layout (no opacity-0 stuck state).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes hero-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .hero-rise {
+    animation: hero-rise 0.5s var(--ease-out-expo) both;
+  }
+  .hero-rise-delay-1 {
+    animation-delay: 0.06s;
+  }
+  .hero-rise-delay-2 {
+    animation-delay: 0.12s;
+  }
+  .hero-rise-delay-3 {
+    animation-delay: 0.18s;
+  }
+  .hero-rise-delay-4 {
+    animation-delay: 0.24s;
+  }
+  .hero-rise-delay-5 {
+    animation-delay: 0.3s;
+  }
+}

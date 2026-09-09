@@ -2,6 +2,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { AlertCircle, CheckCircle2, Download, RotateCcw, UploadCloud } from '@/components/icons';
+import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import type { DemandSnapshot, ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
   buildDemandComparisonSummary,
@@ -543,24 +545,22 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               />
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                disabled={!selectedFile || wizardState.status === 'analyzing'}
+              <Button
+                busy={wizardState.status === 'analyzing'}
+                disabled={!selectedFile}
                 onClick={() => {
                   void handleAnalyzeFile();
                 }}
-                type="button"
               >
                 {wizardState.status === 'analyzing' ? 'Analyzing…' : 'Start technical analysis'}
-              </button>
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
+              </Button>
+              <Button
                 disabled={!selectedFile && !wizardState.analysis}
+                variant="secondary"
                 onClick={() => setShowCancelDialog(true)}
-                type="button"
               >
                 Cancel wizard
-              </button>
+              </Button>
             </div>
           </section>
         );
@@ -619,14 +619,16 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               </div>
             </dl>
             {wizardState.analysis.duplicateOf ? (
-              <p className="rounded-md border border-red-500/50 bg-red-950/20 p-3 text-sm">
+              <p className="flex items-center gap-3 rounded-md border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] p-3 text-sm">
+                <IconChip icon={AlertCircle} size="sm" tone="critical" />
                 Blocking duplicate detected: same SHA-256 as{' '}
                 {wizardState.analysis.duplicateOf.fileName}
                 {' imported on '}
                 {formatDateTime(wizardState.analysis.duplicateOf.importedAt)}.
               </p>
             ) : (
-              <p className="rounded-md border border-emerald-500/40 bg-emerald-950/20 p-3 text-sm">
+              <p className="flex items-center gap-3 rounded-md border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm">
+                <IconChip icon={CheckCircle2} size="sm" tone="success" />
                 Comment extraction uses SheetJS cell comments (`cellComments: true`), verified on
                 the real workbook fixture.
               </p>
@@ -664,34 +666,30 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 </p>
               </div>
             </div>
-            <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-[var(--surf-700)]">
-                  <tr>
-                    <th className="px-3 py-2">Project</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2">Month</th>
-                    <th className="px-3 py-2 text-right">Demand</th>
-                    <th className="px-3 py-2 text-right">Supply</th>
-                    <th className="px-3 py-2">Source</th>
+            <TableShell caption="Demand snapshot preview (first 10 rows)" zebra>
+              <thead className="bg-[var(--surf-700)]">
+                <tr>
+                  <th className="px-3 py-2">Project</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Month</th>
+                  <th className="px-3 py-2 text-right">Demand</th>
+                  <th className="px-3 py-2 text-right">Supply</th>
+                  <th className="px-3 py-2">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wizardState.analysis.demandSnapshots.slice(0, 10).map((snapshot) => (
+                  <tr className="border-t border-[var(--surf-divider)]" key={snapshot.cellRef}>
+                    <td className="px-3 py-2">{snapshot.projectCode}</td>
+                    <td className="px-3 py-2">{snapshot.resourceTypeLabel}</td>
+                    <td className="px-3 py-2">{formatMonthLabel(snapshot.year, snapshot.month)}</td>
+                    <td className="px-3 py-2 text-right">{formatAmount(snapshot.demandDays)}</td>
+                    <td className="px-3 py-2 text-right">{formatAmount(snapshot.supplyDays)}</td>
+                    <td className="px-3 py-2">{snapshot.source}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {wizardState.analysis.demandSnapshots.slice(0, 10).map((snapshot) => (
-                    <tr className="border-t border-[var(--surf-divider)]" key={snapshot.cellRef}>
-                      <td className="px-3 py-2">{snapshot.projectCode}</td>
-                      <td className="px-3 py-2">{snapshot.resourceTypeLabel}</td>
-                      <td className="px-3 py-2">
-                        {formatMonthLabel(snapshot.year, snapshot.month)}
-                      </td>
-                      <td className="px-3 py-2 text-right">{formatAmount(snapshot.demandDays)}</td>
-                      <td className="px-3 py-2 text-right">{formatAmount(snapshot.supplyDays)}</td>
-                      <td className="px-3 py-2">{snapshot.source}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </TableShell>
           </section>
         );
 
@@ -764,32 +762,31 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               </div>
             </dl>
             {wizardState.analysis.rawRows.some((row) => row.classification === 'ambiguous') ? (
-              <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[var(--surf-700)]">
-                    <tr>
-                      <th className="px-3 py-2">Row</th>
-                      <th className="px-3 py-2">Confidence</th>
-                      <th className="px-3 py-2">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {wizardState.analysis.rawRows
-                      .filter((row) => row.classification === 'ambiguous')
-                      .map((row) => (
-                        <tr className="border-t border-[var(--surf-divider)]" key={row.rowNumber}>
-                          <td className="px-3 py-2">{row.rowNumber}</td>
-                          <td className="px-3 py-2">{row.classificationConfidence ?? 'n/a'}</td>
-                          <td className="px-3 py-2">
-                            {row.anomalyNotes.join(' | ') || 'Review required'}
-                          </td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
-              </div>
+              <TableShell caption="Ambiguous rows" zebra>
+                <thead className="bg-[var(--surf-700)]">
+                  <tr>
+                    <th className="px-3 py-2">Row</th>
+                    <th className="px-3 py-2">Confidence</th>
+                    <th className="px-3 py-2">Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wizardState.analysis.rawRows
+                    .filter((row) => row.classification === 'ambiguous')
+                    .map((row) => (
+                      <tr className="border-t border-[var(--surf-divider)]" key={row.rowNumber}>
+                        <td className="px-3 py-2">{row.rowNumber}</td>
+                        <td className="px-3 py-2">{row.classificationConfidence ?? 'n/a'}</td>
+                        <td className="px-3 py-2">
+                          {row.anomalyNotes.join(' | ') || 'Review required'}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </TableShell>
             ) : (
-              <p className="rounded-md border border-emerald-500/40 bg-emerald-950/20 p-3 text-sm">
+              <p className="flex items-center gap-3 rounded-md border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm">
+                <IconChip icon={CheckCircle2} size="sm" tone="success" />
                 No ambiguous rows detected.
               </p>
             )}
@@ -808,43 +805,45 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               6. Anomaly review
             </h2>
             {hasUnknownResourceAnomalies || data.resources.length === 0 ? (
-              <p className="rounded-md border border-amber-500/40 bg-amber-950/20 p-3 text-sm">
-                No resources found for the names/types in this file — use{' '}
-                <a className="font-medium underline" href="#/resources/import">
-                  Import resources
-                </a>{' '}
-                to create them in bulk from the matching Excel export, then re-run this import.
+              <p className="flex items-start gap-3 rounded-md border border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] p-3 text-sm">
+                <IconChip icon={AlertCircle} size="sm" tone="caution" />
+                <span>
+                  No resources found for the names/types in this file — use{' '}
+                  <a className="font-medium underline" href="#/resources/import">
+                    Import resources
+                  </a>{' '}
+                  to create them in bulk from the matching Excel export, then re-run this import.
+                </span>
               </p>
             ) : null}
             {wizardState.analysis.anomalies.length === 0 ? (
-              <p className="rounded-md border border-emerald-500/40 bg-emerald-950/20 p-3 text-sm">
+              <p className="flex items-center gap-3 rounded-md border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm">
+                <IconChip icon={CheckCircle2} size="sm" tone="success" />
                 No anomalies detected.
               </p>
             ) : (
-              <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[var(--surf-700)]">
-                    <tr>
-                      <th className="px-3 py-2">Severity</th>
-                      <th className="px-3 py-2">Row</th>
-                      <th className="px-3 py-2">Cell</th>
-                      <th className="px-3 py-2">Message</th>
+              <TableShell caption="Import anomalies" zebra>
+                <thead className="bg-[var(--surf-700)]">
+                  <tr>
+                    <th className="px-3 py-2">Severity</th>
+                    <th className="px-3 py-2">Row</th>
+                    <th className="px-3 py-2">Cell</th>
+                    <th className="px-3 py-2">Message</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {wizardState.analysis.anomalies.map((anomaly) => (
+                    <tr className="border-t border-[var(--surf-divider)]" key={anomaly.id}>
+                      <td className="px-3 py-2">
+                        {anomaly.severity === 'blocking' ? 'Blocking' : 'Warning'}
+                      </td>
+                      <td className="px-3 py-2">{anomaly.rowNumber ?? '—'}</td>
+                      <td className="px-3 py-2">{anomaly.cellRef ?? '—'}</td>
+                      <td className="px-3 py-2">{anomaly.message}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {wizardState.analysis.anomalies.map((anomaly) => (
-                      <tr className="border-t border-[var(--surf-divider)]" key={anomaly.id}>
-                        <td className="px-3 py-2">
-                          {anomaly.severity === 'blocking' ? 'Blocking' : 'Warning'}
-                        </td>
-                        <td className="px-3 py-2">{anomaly.rowNumber ?? '—'}</td>
-                        <td className="px-3 py-2">{anomaly.cellRef ?? '—'}</td>
-                        <td className="px-3 py-2">{anomaly.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </TableShell>
             )}
           </section>
         );
@@ -894,30 +893,28 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 </dd>
               </div>
             </dl>
-            <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-              <table className="min-w-full text-left text-sm">
-                <thead className="bg-[var(--surf-700)]">
-                  <tr>
-                    <th className="px-3 py-2">Project</th>
-                    <th className="px-3 py-2">Type</th>
-                    <th className="px-3 py-2">Month</th>
-                    <th className="px-3 py-2 text-right">Delta</th>
-                    <th className="px-3 py-2">State</th>
+            <TableShell caption="Comparison with previous import (first 12 rows)" zebra>
+              <thead className="bg-[var(--surf-700)]">
+                <tr>
+                  <th className="px-3 py-2">Project</th>
+                  <th className="px-3 py-2">Type</th>
+                  <th className="px-3 py-2">Month</th>
+                  <th className="px-3 py-2 text-right">Delta</th>
+                  <th className="px-3 py-2">State</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(wizardState.comparison?.items ?? []).slice(0, 12).map((item) => (
+                  <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
+                    <td className="px-3 py-2">{item.projectCode}</td>
+                    <td className="px-3 py-2">{item.resourceTypeLabel}</td>
+                    <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
+                    <td className="px-3 py-2 text-right">{formatAmount(item.deltaDays)}</td>
+                    <td className="px-3 py-2">{item.state}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {(wizardState.comparison?.items ?? []).slice(0, 12).map((item) => (
-                    <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
-                      <td className="px-3 py-2">{item.projectCode}</td>
-                      <td className="px-3 py-2">{item.resourceTypeLabel}</td>
-                      <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
-                      <td className="px-3 py-2 text-right">{formatAmount(item.deltaDays)}</td>
-                      <td className="px-3 py-2">{item.state}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </TableShell>
           </section>
         );
 
@@ -932,35 +929,35 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               blocking anomalies.
             </p>
             <p
-              className={`rounded-md border p-3 text-sm ${
+              className={`flex items-center gap-3 rounded-md border p-3 text-sm ${
                 blockingAnomalies
-                  ? 'border-red-500/50 bg-red-950/20'
-                  : 'border-emerald-500/40 bg-emerald-950/20'
+                  ? 'border-[var(--status-critical-border)] bg-[var(--status-critical-bg)]'
+                  : 'border-[var(--status-success-border)] bg-[var(--status-success-bg)]'
               }`}
               role="status"
             >
+              <IconChip
+                icon={blockingAnomalies ? AlertCircle : CheckCircle2}
+                size="sm"
+                tone={blockingAnomalies ? 'critical' : 'success'}
+              />
               {blockingAnomalies
                 ? 'Blocking anomalies detected. Resolve them before importing.'
                 : 'Validation passed. Ready for atomic import.'}
             </p>
             <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                disabled={blockingAnomalies || submitting}
+              <Button
+                busy={submitting}
+                disabled={blockingAnomalies}
                 onClick={() => {
                   void handleCommitImport();
                 }}
-                type="button"
               >
                 {submitting ? 'Importing…' : 'Commit atomic import'}
-              </button>
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
-                onClick={() => setShowCancelDialog(true)}
-                type="button"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setShowCancelDialog(true)}>
                 Cancel wizard
-              </button>
+              </Button>
             </div>
           </section>
         );
@@ -985,24 +982,18 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
             <h2 className="text-lg font-semibold" id="imports-step-final-report">
               10. Final report
             </h2>
-            <p className="rounded-md border border-emerald-500/40 bg-emerald-950/20 p-3 text-sm">
+            <p className="flex items-center gap-3 rounded-md border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-3 text-sm">
+              <IconChip icon={CheckCircle2} size="sm" tone="success" />
               Import committed successfully. Download the Markdown report for audit purposes.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
-                onClick={handleDownloadReport}
-                type="button"
-              >
+              <Button onClick={handleDownloadReport}>
+                <Download aria-hidden="true" size={16} strokeWidth={2.25} />
                 Download report
-              </button>
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
-                onClick={resetWizard}
-                type="button"
-              >
+              </Button>
+              <Button variant="secondary" onClick={resetWizard}>
                 Start another import
-              </button>
+              </Button>
             </div>
             {wizardState.commitResult ? (
               <dl className="grid gap-3 md:grid-cols-2">
@@ -1032,23 +1023,38 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Imports</h1>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Analyze PSA Excel exports off the main thread, review anomalies, compare against the
-          previous validated import, keep immutable history, and restore current demand without
-          deleting any import records.
-        </p>
+      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+          }}
+        />
+        <IconChip className="relative" icon={UploadCloud} size="lg" tone="accent" />
+        <div className="relative space-y-2">
+          <h1 className="text-3xl font-semibold">Imports</h1>
+          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
+            Analyze PSA Excel exports off the main thread, review anomalies, compare against the
+            previous validated import, keep immutable history, and restore current demand without
+            deleting any import records.
+          </p>
+        </div>
       </header>
 
       <FeedbackMessage message={feedback} />
       {wizardState.errorMessage ? (
-        <p className="rounded-md border border-red-500/50 bg-red-950/20 p-3 text-sm" role="alert">
+        <p
+          className="flex items-center gap-3 rounded-md border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] p-3 text-sm"
+          role="alert"
+        >
+          <IconChip icon={AlertCircle} size="sm" tone="critical" />
           {wizardState.errorMessage}
         </p>
       ) : null}
 
-      <section className="space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+      <Card className="space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-semibold">Import wizard</h2>
@@ -1087,7 +1093,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         </ol>
 
         {loading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Loading import reference data…</p>
+          <Skeleton label="Loading import reference data…" lines={4} />
         ) : (
           <>
             {renderStepContent()}
@@ -1095,28 +1101,21 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
             {wizardState.analysis &&
             !['validation', 'atomic-import', 'final-report'].includes(wizardState.currentStepId) ? (
               <div className="flex flex-wrap gap-3 border-t border-[var(--surf-divider)] pt-4">
-                <button
-                  className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
+                <Button
                   disabled={wizardState.currentStepId === 'technical-analysis'}
+                  variant="secondary"
                   onClick={() => dispatch({ type: 'go-back' })}
-                  type="button"
                 >
                   Previous step
-                </button>
-                <button
-                  className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
-                  onClick={() => dispatch({ type: 'go-next' })}
-                  type="button"
-                >
-                  Next step
-                </button>
+                </Button>
+                <Button onClick={() => dispatch({ type: 'go-next' })}>Next step</Button>
               </div>
             ) : null}
           </>
         )}
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+      <section className="ui-shadow-sm space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Import history</h2>
@@ -1129,83 +1128,80 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         </div>
 
         {importHistory.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">No imports yet.</p>
+          <EmptyState icon={UploadCloud} title="No imports yet." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-[var(--surf-700)]">
-                <tr>
-                  <th className="px-3 py-2">Imported at</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Reference date</th>
-                  <th className="px-3 py-2">File</th>
-                  <th className="px-3 py-2 text-right">Rows</th>
-                  <th className="px-3 py-2">Note</th>
-                  <th className="px-3 py-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {importHistory.map((batch) => (
-                  <tr className="border-t border-[var(--surf-divider)]" key={batch.id}>
-                    <td className="px-3 py-2">{formatDateTime(batch.importedAt)}</td>
-                    <td className="px-3 py-2">
-                      <StatusPill label={batch.status} />
-                    </td>
-                    <td className="px-3 py-2">{batch.referenceDate}</td>
-                    <td className="px-3 py-2">
-                      <div className="font-medium">{batch.fileName}</div>
-                      <div className="font-mono text-xs text-[var(--text-secondary)]">
-                        {batch.id}
+          <TableShell caption="Import history" zebra>
+            <thead className="bg-[var(--surf-700)]">
+              <tr>
+                <th className="px-3 py-2">Imported at</th>
+                <th className="px-3 py-2">Status</th>
+                <th className="px-3 py-2">Reference date</th>
+                <th className="px-3 py-2">File</th>
+                <th className="px-3 py-2 text-right">Rows</th>
+                <th className="px-3 py-2">Note</th>
+                <th className="px-3 py-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importHistory.map((batch) => (
+                <tr className="border-t border-[var(--surf-divider)]" key={batch.id}>
+                  <td className="px-3 py-2">{formatDateTime(batch.importedAt)}</td>
+                  <td className="px-3 py-2">
+                    <StatusPill label={batch.status} />
+                  </td>
+                  <td className="px-3 py-2">{batch.referenceDate}</td>
+                  <td className="px-3 py-2">
+                    <div className="font-medium">{batch.fileName}</div>
+                    <div className="font-mono text-xs text-[var(--text-secondary)]">{batch.id}</div>
+                  </td>
+                  <td className="px-3 py-2 text-right">{batch.rowCount}</td>
+                  <td className="px-3 py-2">{batch.note ?? '—'}</td>
+                  <td className="px-3 py-2">
+                    {batch.status === 'validated' ? (
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleSelectComparedSource(batch.id)}
+                        >
+                          Compare as source
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleSelectReferenceBatch(batch.id)}
+                        >
+                          Compare as reference
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onClick={() =>
+                            openRollbackDialog(
+                              { kind: 'all' },
+                              batch,
+                              `Restored the current department demand from ${batch.fileName}.`,
+                            )
+                          }
+                        >
+                          <RotateCcw aria-hidden="true" size={14} strokeWidth={2.25} />
+                          Restore all demand
+                        </Button>
                       </div>
-                    </td>
-                    <td className="px-3 py-2 text-right">{batch.rowCount}</td>
-                    <td className="px-3 py-2">{batch.note ?? '—'}</td>
-                    <td className="px-3 py-2">
-                      {batch.status === 'validated' ? (
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
-                            onClick={() => handleSelectComparedSource(batch.id)}
-                            type="button"
-                          >
-                            Compare as source
-                          </button>
-                          <button
-                            className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
-                            onClick={() => handleSelectReferenceBatch(batch.id)}
-                            type="button"
-                          >
-                            Compare as reference
-                          </button>
-                          <button
-                            className="rounded-md bg-[var(--color-bmx-blue)] px-3 py-1 text-xs font-medium text-white"
-                            onClick={() =>
-                              openRollbackDialog(
-                                { kind: 'all' },
-                                batch,
-                                `Restored the current department demand from ${batch.fileName}.`,
-                              )
-                            }
-                            type="button"
-                          >
-                            Restore all demand
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          Only validated batches can be compared or restored.
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    ) : (
+                      <span className="text-xs text-[var(--text-secondary)]">
+                        Only validated batches can be compared or restored.
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </TableShell>
         )}
       </section>
 
-      <section className="space-y-5 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+      <Card className="space-y-5">
         <div className="space-y-2">
           <h2 className="text-xl font-semibold">Demand comparison</h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -1270,14 +1266,19 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
         </div>
 
         {currentHasManualAdjustments ? (
-          <p className="rounded-md border border-amber-500/40 bg-amber-950/20 p-3 text-sm">
-            ℹ Current demand is derived from the latest snapshot per key. Manual rollback snapshots
+          <p className="flex items-center gap-3 rounded-md border border-[var(--status-info-border)] bg-[var(--status-info-bg)] p-3 text-sm">
+            <IconChip icon={AlertCircle} size="sm" tone="info" />
+            Current demand is derived from the latest snapshot per key. Manual rollback snapshots
             therefore override validated imports without mutating or deleting history.
           </p>
         ) : null}
 
         {comparisonSelectionError ? (
-          <p className="rounded-md border border-red-500/50 bg-red-950/20 p-3 text-sm" role="alert">
+          <p
+            className="flex items-center gap-3 rounded-md border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] p-3 text-sm"
+            role="alert"
+          >
+            <IconChip icon={AlertCircle} size="sm" tone="critical" />
             {comparisonSelectionError}
           </p>
         ) : null}
@@ -1327,8 +1328,7 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                   </p>
                 </div>
                 {referenceBatch ? (
-                  <button
-                    className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
+                  <Button
                     onClick={() =>
                       openRollbackDialog(
                         { kind: 'all' },
@@ -1336,10 +1336,10 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                         `Restored the current department demand from ${referenceBatch.fileName}.`,
                       )
                     }
-                    type="button"
                   >
+                    <RotateCcw aria-hidden="true" size={16} strokeWidth={2.25} />
                     Restore current demand from reference import
-                  </button>
+                  </Button>
                 ) : null}
               </div>
               <dl className="mt-4 grid gap-3 md:grid-cols-4">
@@ -1386,132 +1386,121 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
               </div>
 
               {comparisonSummary.projectSummaries.length === 0 ? (
-                <p className="text-sm text-[var(--text-secondary)]">
-                  No demand snapshots to compare yet.
-                </p>
+                <EmptyState icon={AlertCircle} title="No demand snapshots to compare yet." />
               ) : (
-                <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-                  <table className="min-w-full text-left text-sm">
-                    <thead className="bg-[var(--surf-700)]">
-                      <tr>
-                        <th className="px-3 py-2">Project</th>
-                        <th className="px-3 py-2">Indicators</th>
-                        <th className="px-3 py-2 text-right">Positive</th>
-                        <th className="px-3 py-2 text-right">Negative</th>
-                        <th className="px-3 py-2 text-right">Net</th>
-                        <th className="px-3 py-2 text-right">Changed keys</th>
-                        <th className="px-3 py-2">Actions</th>
+                <TableShell caption="Project aggregation" zebra>
+                  <thead className="bg-[var(--surf-700)]">
+                    <tr>
+                      <th className="px-3 py-2">Project</th>
+                      <th className="px-3 py-2">Indicators</th>
+                      <th className="px-3 py-2 text-right">Positive</th>
+                      <th className="px-3 py-2 text-right">Negative</th>
+                      <th className="px-3 py-2 text-right">Net</th>
+                      <th className="px-3 py-2 text-right">Changed keys</th>
+                      <th className="px-3 py-2">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comparisonSummary.projectSummaries.map((projectSummary) => (
+                      <tr
+                        className="border-t border-[var(--surf-divider)] align-top"
+                        key={projectSummary.projectCode}
+                      >
+                        <td className="px-3 py-2 font-medium">{projectSummary.projectCode}</td>
+                        <td className="px-3 py-2">
+                          <ul className="space-y-1">
+                            {getProjectIndicatorSummary(projectSummary).map((indicator) => (
+                              <li key={`${projectSummary.projectCode}-${indicator}`}>
+                                {indicator}
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatDeltaAmount(projectSummary.positiveDelta)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatDeltaAmount(projectSummary.negativeDelta)}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          {formatDeltaAmount(projectSummary.netDelta)}
+                        </td>
+                        <td className="px-3 py-2 text-right">{projectSummary.changedItemCount}</td>
+                        <td className="px-3 py-2">
+                          {referenceBatch ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() =>
+                                openRollbackDialog(
+                                  { kind: 'project', projectCode: projectSummary.projectCode },
+                                  referenceBatch,
+                                  `Restored project ${projectSummary.projectCode} from ${referenceBatch.fileName}.`,
+                                )
+                              }
+                            >
+                              <RotateCcw aria-hidden="true" size={14} strokeWidth={2.25} />
+                              Restore project from reference import
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Reference import required
+                            </span>
+                          )}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {comparisonSummary.projectSummaries.map((projectSummary) => (
-                        <tr
-                          className="border-t border-[var(--surf-divider)] align-top"
-                          key={projectSummary.projectCode}
-                        >
-                          <td className="px-3 py-2 font-medium">{projectSummary.projectCode}</td>
-                          <td className="px-3 py-2">
-                            <ul className="space-y-1">
-                              {getProjectIndicatorSummary(projectSummary).map((indicator) => (
-                                <li key={`${projectSummary.projectCode}-${indicator}`}>
-                                  {indicator}
-                                </li>
-                              ))}
-                            </ul>
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {formatDeltaAmount(projectSummary.positiveDelta)}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {formatDeltaAmount(projectSummary.negativeDelta)}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {formatDeltaAmount(projectSummary.netDelta)}
-                          </td>
-                          <td className="px-3 py-2 text-right">
-                            {projectSummary.changedItemCount}
-                          </td>
-                          <td className="px-3 py-2">
-                            {referenceBatch ? (
-                              <button
-                                className="rounded-md border border-[var(--surf-divider)] px-3 py-1 text-xs font-medium"
-                                onClick={() =>
-                                  openRollbackDialog(
-                                    { kind: 'project', projectCode: projectSummary.projectCode },
-                                    referenceBatch,
-                                    `Restored project ${projectSummary.projectCode} from ${referenceBatch.fileName}.`,
-                                  )
-                                }
-                                type="button"
-                              >
-                                Restore project from reference import
-                              </button>
-                            ) : (
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                Reference import required
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </TableShell>
               )}
             </div>
 
             <div className="space-y-3">
               <h3 className="text-lg font-semibold">Per-key details</h3>
-              <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-                <table className="min-w-full text-left text-sm">
-                  <thead className="bg-[var(--surf-700)]">
-                    <tr>
-                      <th className="px-3 py-2">Project</th>
-                      <th className="px-3 py-2">Resource type</th>
-                      <th className="px-3 py-2">Month</th>
-                      <th className="px-3 py-2 text-right">Reference</th>
-                      <th className="px-3 py-2 text-right">Compared</th>
-                      <th className="px-3 py-2 text-right">Delta</th>
-                      <th className="px-3 py-2">Indicators</th>
+              <TableShell caption="Per-key demand comparison details" zebra>
+                <thead className="bg-[var(--surf-700)]">
+                  <tr>
+                    <th className="px-3 py-2">Project</th>
+                    <th className="px-3 py-2">Resource type</th>
+                    <th className="px-3 py-2">Month</th>
+                    <th className="px-3 py-2 text-right">Reference</th>
+                    <th className="px-3 py-2 text-right">Compared</th>
+                    <th className="px-3 py-2 text-right">Delta</th>
+                    <th className="px-3 py-2">Indicators</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {comparisonSummary.items.slice(0, 50).map((item) => (
+                    <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
+                      <td className="px-3 py-2">{item.projectCode}</td>
+                      <td className="px-3 py-2">{item.resourceTypeLabel}</td>
+                      <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
+                      <td className="px-3 py-2 text-right">
+                        {formatAmount(item.previousDemandDays)}
+                      </td>
+                      <td className="px-3 py-2 text-right">{formatAmount(item.nextDemandDays)}</td>
+                      <td className="px-3 py-2 text-right">{formatDeltaAmount(item.deltaDays)}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-2">
+                          <StatusPill label={item.state} />
+                          {item.projectState !== 'existing-project' ? (
+                            <StatusPill label={item.projectState} />
+                          ) : null}
+                          {item.resourceTypeState !== 'unchanged-resource-type' ? (
+                            <StatusPill label={item.resourceTypeState} />
+                          ) : null}
+                        </div>
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {comparisonSummary.items.slice(0, 50).map((item) => (
-                      <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
-                        <td className="px-3 py-2">{item.projectCode}</td>
-                        <td className="px-3 py-2">{item.resourceTypeLabel}</td>
-                        <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
-                        <td className="px-3 py-2 text-right">
-                          {formatAmount(item.previousDemandDays)}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {formatAmount(item.nextDemandDays)}
-                        </td>
-                        <td className="px-3 py-2 text-right">
-                          {formatDeltaAmount(item.deltaDays)}
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="flex flex-wrap gap-2">
-                            <StatusPill label={item.state} />
-                            {item.projectState !== 'existing-project' ? (
-                              <StatusPill label={item.projectState} />
-                            ) : null}
-                            {item.resourceTypeState !== 'unchanged-resource-type' ? (
-                              <StatusPill label={item.resourceTypeState} />
-                            ) : null}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                </tbody>
+              </TableShell>
             </div>
           </>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)]">No comparison available yet.</p>
+          <EmptyState icon={AlertCircle} title="No comparison available yet." />
         )}
-      </section>
+      </Card>
 
       <ConfirmDialog
         busy={busyRollback}

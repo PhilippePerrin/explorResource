@@ -11,10 +11,18 @@ import {
 } from 'recharts';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
-import { AlertTriangle, Ban, Circle, Info } from '@/components/icons';
+import {
+  AlertTriangle,
+  Ban,
+  Circle,
+  Gauge,
+  Info,
+  TrendingDown,
+  TrendingUp,
+} from '@/components/icons';
 import { MetricCard } from '@/components/MetricCard';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
-import { Card } from '@/components/ui';
+import { Card, IconChip, Skeleton, type IconChipTone } from '@/components/ui';
 import type {
   Allocation,
   AppSettings,
@@ -40,6 +48,20 @@ const ALERT_ICONS: Record<DashboardAlert['tone'], typeof AlertTriangle> = {
   danger: Ban,
   warning: AlertTriangle,
   info: Info,
+};
+
+const ALERT_TONE_CLASSES: Record<DashboardAlert['tone'], string> = {
+  danger:
+    'border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] text-[var(--text-primary)]',
+  warning:
+    'border-[var(--status-attention-border)] bg-[var(--status-attention-bg)] text-[var(--text-primary)]',
+  info: 'border-[var(--surf-divider)] bg-[var(--surf-700)] text-[var(--text-primary)]',
+};
+
+const ALERT_ICON_CHIP_TONES: Record<DashboardAlert['tone'], IconChipTone> = {
+  danger: 'critical',
+  warning: 'attention',
+  info: 'info',
 };
 
 const resourcesRepository = createRepository('resources');
@@ -182,12 +204,23 @@ export function DashboardPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="dashboard-page">
       <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-semibold">Dashboard</h1>
-          <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-            Portfolio overview for capacity, demand coverage, utilization, and the highest-priority
-            alerts for the selected planning month.
-          </p>
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={Gauge} size="lg" tone="accent" />
+          <div className="relative space-y-2">
+            <h1 className="text-3xl font-semibold">Dashboard</h1>
+            <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
+              Portfolio overview for capacity, demand coverage, utilization, and the
+              highest-priority alerts for the selected planning month.
+            </p>
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium" htmlFor="dashboard-year">
@@ -227,15 +260,18 @@ export function DashboardPage() {
 
       {loading ? (
         <Card>
-          <p>Loading dashboard…</p>
+          <Skeleton label="Loading dashboard…" lines={5} />
         </Card>
       ) : (
         <>
           <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <MetricCard
-              title="Net capacity"
-              value={`${formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)} d`}
+              className="hero-rise hero-rise-delay-1"
               hint={`Allocated ${formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} d for ${year}.`}
+              icon={Gauge}
+              title="Net capacity"
+              tone="accent"
+              value={`${formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)} d`}
               accent={
                 <UtilizationBadge
                   compact
@@ -246,24 +282,33 @@ export function DashboardPage() {
               }
             />
             <MetricCard
-              title="Available capacity"
-              value={`${formatDayAmount(viewModel.yearTotals.availableCapacityDays, displayPrecision)} d`}
+              className="hero-rise hero-rise-delay-2"
               hint="Negative values mean planned overload."
+              icon={TrendingUp}
+              title="Available capacity"
+              tone="success"
+              value={`${formatDayAmount(viewModel.yearTotals.availableCapacityDays, displayPrecision)} d`}
             />
             <MetricCard
-              title="Uncovered demand"
-              value={`${formatDayAmount(viewModel.yearTotals.remainingDemandDays, displayPrecision)} d`}
+              className="hero-rise hero-rise-delay-3"
               hint={`${viewModel.underServedProjectsCount} project(s) still need staffing.`}
+              icon={AlertTriangle}
+              title="Uncovered demand"
+              tone="attention"
+              value={`${formatDayAmount(viewModel.yearTotals.remainingDemandDays, displayPrecision)} d`}
             />
             <MetricCard
-              title="Over-service"
-              value={`${formatDayAmount(viewModel.yearTotals.overServiceDays, displayPrecision)} d`}
+              className="hero-rise hero-rise-delay-4"
               hint="Shown separately from coverage gaps to avoid silent netting."
+              icon={TrendingDown}
+              title="Over-service"
+              tone="info"
+              value={`${formatDayAmount(viewModel.yearTotals.overServiceDays, displayPrecision)} d`}
             />
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <Card>
+            <Card className="hero-rise hero-rise-delay-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Utilization trend</h2>
@@ -326,7 +371,7 @@ export function DashboardPage() {
               </div>
             </Card>
 
-            <Card>
+            <Card className="hero-rise hero-rise-delay-5">
               <h2 className="text-xl font-semibold">Priority alerts</h2>
               <p className="mt-1 text-sm text-[var(--text-secondary)]">
                 Text, icon, and quantitative alerts for {viewModel.selectedMonthMetrics.label}{' '}
@@ -334,8 +379,8 @@ export function DashboardPage() {
               </p>
               <ul className="mt-4 space-y-3">
                 {viewModel.alerts.length === 0 ? (
-                  <li className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-950/20 p-4 text-sm">
-                    <Circle aria-hidden="true" size={14} strokeWidth={2.25} />
+                  <li className="flex items-center gap-3 rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm">
+                    <IconChip icon={Circle} size="sm" tone="success" />
                     No overload or uncovered-demand alert for the selected month.
                   </li>
                 ) : (
@@ -344,14 +389,18 @@ export function DashboardPage() {
 
                     return (
                       <li
+                        className={`flex items-start gap-3 rounded-lg border p-4 text-sm ${ALERT_TONE_CLASSES[alert.tone]}`}
                         key={alert.id}
-                        className={`rounded-lg border p-4 text-sm ${alert.tone === 'danger' ? 'border-red-500/40 bg-red-950/20' : alert.tone === 'warning' ? 'border-orange-500/40 bg-orange-950/20' : 'border-[var(--surf-divider)] bg-[var(--surf-700)]'}`}
                       >
-                        <p className="flex items-center gap-2 font-semibold">
-                          <AlertIcon aria-hidden="true" size={16} strokeWidth={2.25} />
-                          {alert.title}
-                        </p>
-                        <p className="mt-1 text-[var(--text-secondary)]">{alert.description}</p>
+                        <IconChip
+                          icon={AlertIcon}
+                          size="sm"
+                          tone={ALERT_ICON_CHIP_TONES[alert.tone]}
+                        />
+                        <div>
+                          <p className="font-semibold">{alert.title}</p>
+                          <p className="mt-1 text-[var(--text-secondary)]">{alert.description}</p>
+                        </div>
                       </li>
                     );
                   })

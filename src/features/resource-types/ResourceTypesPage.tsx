@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { Layers3 } from '@/components/icons';
 import type { Allocation, DemandSnapshot, Resource, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countResourceTypeReferences,
@@ -234,7 +236,18 @@ export function ResourceTypesPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resource-types-page">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Resource Types</h1>
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={Layers3} size="lg" tone="accent" />
+          <h1 className="relative text-3xl font-semibold">Resource Types</h1>
+        </div>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
           Manage the skill and role referential. Resource types can be permanently deleted only when
           they are unused across resources, demand snapshots, and allocations.
@@ -244,22 +257,22 @@ export function ResourceTypesPage() {
       <FeedbackMessage message={feedback} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">
               {editingResourceType ? 'Edit resource type' : 'Create resource type'}
             </h2>
             {editingResourceType ? (
-              <button
-                className="text-sm underline"
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => {
                   setEditingResourceTypeId(undefined);
                   form.reset(createResourceTypeDefaultValues(undefined, nextDisplayOrder));
                 }}
-                type="button"
               >
                 Clear
-              </button>
+              </Button>
             ) : null}
           </div>
 
@@ -360,148 +373,139 @@ export function ResourceTypesPage() {
               ) : null}
             </div>
 
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-              disabled={submitting}
-              type="submit"
-            >
+            <Button busy={submitting} type="submit">
               {submitting
                 ? 'Saving…'
                 : editingResourceType
                   ? 'Save changes'
                   : 'Create resource type'}
-            </button>
+            </Button>
           </form>
-        </section>
+        </Card>
 
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <h2 className="mb-4 text-xl font-semibold">Resource type list</h2>
 
           {loading ? (
-            <p>Loading resource types…</p>
+            <Skeleton label="Loading resource types…" />
+          ) : sortedResourceTypes.length === 0 ? (
+            <EmptyState
+              description="Create a resource type on the left to start assigning resources to it."
+              icon={Layers3}
+              title="No resource types yet."
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <caption className="sr-only">Resource types with usage counts and actions.</caption>
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Order
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Label
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Short code
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Color
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Status
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      References
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedResourceTypes.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-4 text-[var(--text-secondary)]" colSpan={7}>
-                        No resource types yet.
+            <TableShell caption="Resource types with usage counts and actions." zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Order
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Label
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Short code
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Color
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    References
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedResourceTypes.map((resourceType) => {
+                  const referenceCount = countResourceTypeReferences(
+                    {
+                      resources: data.resources,
+                      demandSnapshots: data.demandSnapshots,
+                      allocations: data.allocations,
+                    },
+                    resourceType.id,
+                  );
+                  const canDelete = referenceCount === 0;
+
+                  return (
+                    <tr
+                      className="border-b border-[var(--surf-divider)] align-top"
+                      key={resourceType.id}
+                    >
+                      <td className="px-3 py-3">{resourceType.displayOrder}</td>
+                      <td className="px-3 py-3 font-medium">{resourceType.label}</td>
+                      <td className="px-3 py-3">{resourceType.shortCode ?? '—'}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            aria-hidden="true"
+                            className="inline-block h-4 w-4 rounded-full border border-black/20"
+                            style={{ backgroundColor: resourceType.color }}
+                          />
+                          <span>{resourceType.color}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                            resourceType.status === 'active'
+                              ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                              : 'bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
+                          }`}
+                        >
+                          {resourceType.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{referenceCount}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setEditingResourceTypeId(resourceType.id)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              setPendingAction({
+                                type: resourceType.status === 'active' ? 'archive' : 'restore',
+                                resourceType,
+                              })
+                            }
+                          >
+                            {resourceType.status === 'active' ? 'Archive' : 'Restore'}
+                          </Button>
+                          {canDelete ? (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => setPendingAction({ type: 'delete', resourceType })}
+                            >
+                              Delete permanently
+                            </Button>
+                          ) : (
+                            <span className="px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+                              Archive only: resource type still has references.
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ) : null}
-
-                  {sortedResourceTypes.map((resourceType) => {
-                    const referenceCount = countResourceTypeReferences(
-                      {
-                        resources: data.resources,
-                        demandSnapshots: data.demandSnapshots,
-                        allocations: data.allocations,
-                      },
-                      resourceType.id,
-                    );
-                    const canDelete = referenceCount === 0;
-
-                    return (
-                      <tr
-                        className="border-b border-[var(--surf-divider)] align-top"
-                        key={resourceType.id}
-                      >
-                        <td className="px-3 py-3">{resourceType.displayOrder}</td>
-                        <td className="px-3 py-3 font-medium">{resourceType.label}</td>
-                        <td className="px-3 py-3">{resourceType.shortCode ?? '—'}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex items-center gap-2">
-                            <span
-                              aria-hidden="true"
-                              className="inline-block h-4 w-4 rounded-full border border-black/20"
-                              style={{ backgroundColor: resourceType.color }}
-                            />
-                            <span>{resourceType.color}</span>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                              resourceType.status === 'active'
-                                ? 'bg-green-900/40 text-green-300'
-                                : 'bg-amber-900/40 text-amber-300'
-                            }`}
-                          >
-                            {resourceType.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">{referenceCount}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() => setEditingResourceTypeId(resourceType.id)}
-                              type="button"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() =>
-                                setPendingAction({
-                                  type: resourceType.status === 'active' ? 'archive' : 'restore',
-                                  resourceType,
-                                })
-                              }
-                              type="button"
-                            >
-                              {resourceType.status === 'active' ? 'Archive' : 'Restore'}
-                            </button>
-                            {canDelete ? (
-                              <button
-                                className="rounded-md border border-red-500/50 px-3 py-1.5 text-red-300"
-                                onClick={() => setPendingAction({ type: 'delete', resourceType })}
-                                type="button"
-                              >
-                                Delete permanently
-                              </button>
-                            ) : (
-                              <span className="px-3 py-1.5 text-xs text-[var(--text-secondary)]">
-                                Archive only: resource type still has references.
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </TableShell>
           )}
-        </section>
+        </Card>
       </div>
 
       <ConfirmDialog

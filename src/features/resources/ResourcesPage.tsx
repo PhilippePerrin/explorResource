@@ -6,7 +6,9 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { Users } from '@/components/icons';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
+import { Button, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import {
   getResourceFullName,
   type Allocation,
@@ -751,19 +753,30 @@ export function ResourcesPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="resources-page">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Resources</h1>
-        <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Manage resource records, activity dates, and monthly allocations. In Lot 6, the basic
-          allocation CRUD surface lives inside the resource detail panel until the dedicated
-          Allocation Studio lot lands.
-        </p>
+      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+          }}
+        />
+        <IconChip className="relative" icon={Users} size="lg" tone="accent" />
+        <div className="relative space-y-2">
+          <h1 className="text-3xl font-semibold">Resources</h1>
+          <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
+            Manage resource records, activity dates, and monthly allocations. In Lot 6, the basic
+            allocation CRUD surface lives inside the resource detail panel until the dedicated
+            Allocation Studio lot lands.
+          </p>
+        </div>
       </header>
 
       <FeedbackMessage message={feedback} />
 
       <section className="grid gap-6 xl:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-semibold">Resource list</h2>
@@ -771,13 +784,9 @@ export function ResourcesPage() {
                 Open a resource to edit its details and manage its monthly allocations.
               </p>
             </div>
-            <button
-              className="rounded-md border border-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium"
-              onClick={() => openResourceEditor(undefined)}
-              type="button"
-            >
+            <Button variant="secondary" onClick={() => openResourceEditor(undefined)}>
               New resource
-            </button>
+            </Button>
           </div>
 
           <div className="mb-4">
@@ -793,146 +802,144 @@ export function ResourcesPage() {
           </div>
 
           {loading ? (
-            <p>Loading resources…</p>
+            <Skeleton label="Loading resources…" lines={4} />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <caption className="sr-only">
-                  Resources with type, collaboration mode, history references, and actions.
-                </caption>
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Name
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Type
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Collaboration
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Company
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Status
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      References
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Actions
-                    </th>
+            <TableShell
+              caption="Resources with type, collaboration mode, history references, and actions."
+              zebra
+            >
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Type
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Collaboration
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Company
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    References
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {resourceRows.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-4" colSpan={7}>
+                      <EmptyState icon={Users} title="No resources match the current filters." />
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {resourceRows.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-4 text-[var(--text-secondary)]" colSpan={7}>
-                        No resources match the current filters.
+                ) : null}
+
+                {resourceRows.map((resource) => {
+                  const referenceCount = countResourceReferences(
+                    {
+                      allocations: data.allocations,
+                      nonWorkingDays: data.resourceNonWorkingDays,
+                    },
+                    resource.id,
+                  );
+                  const canDelete = referenceCount === 0;
+
+                  return (
+                    <tr
+                      className="border-b border-[var(--surf-divider)] align-top"
+                      key={resource.id}
+                    >
+                      <td className="px-3 py-3">
+                        <div className="font-medium">{getResourceFullName(resource)}</div>
+                        <div className="mt-1 text-xs text-[var(--text-secondary)]">
+                          {resource.startDate ? `Start ${resource.startDate}` : 'Start not set'}
+                          {resource.endDate ? ` · End ${resource.endDate}` : ''}
+                        </div>
                       </td>
-                    </tr>
-                  ) : null}
-
-                  {resourceRows.map((resource) => {
-                    const referenceCount = countResourceReferences(
-                      {
-                        allocations: data.allocations,
-                        nonWorkingDays: data.resourceNonWorkingDays,
-                      },
-                      resource.id,
-                    );
-                    const canDelete = referenceCount === 0;
-
-                    return (
-                      <tr
-                        className="border-b border-[var(--surf-divider)] align-top"
-                        key={resource.id}
-                      >
-                        <td className="px-3 py-3">
-                          <div className="font-medium">{getResourceFullName(resource)}</div>
-                          <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                            {resource.startDate ? `Start ${resource.startDate}` : 'Start not set'}
-                            {resource.endDate ? ` · End ${resource.endDate}` : ''}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          {resourceTypeLookup.get(resource.resourceTypeId)?.label ?? 'Unknown type'}
-                        </td>
-                        <td className="px-3 py-3">{resource.collaborationType}</td>
-                        <td className="px-3 py-3">
-                          {companyLookup.get(resource.companyId ?? '')?.name ?? '—'}
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                              resource.status === 'active'
-                                ? 'bg-green-900/40 text-green-300'
-                                : 'bg-amber-900/40 text-amber-300'
-                            }`}
+                      <td className="px-3 py-3">
+                        {resourceTypeLookup.get(resource.resourceTypeId)?.label ?? 'Unknown type'}
+                      </td>
+                      <td className="px-3 py-3">{resource.collaborationType}</td>
+                      <td className="px-3 py-3">
+                        {companyLookup.get(resource.companyId ?? '')?.name ?? '—'}
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full border px-2 py-1 text-xs font-medium ${
+                            resource.status === 'active'
+                              ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                              : 'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
+                          }`}
+                        >
+                          {resource.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{referenceCount}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => {
+                              setSummaryYear(initialDate.getFullYear());
+                              setSummaryMonth(initialDate.getMonth() + 1);
+                              openResourceEditor(resource);
+                            }}
                           >
-                            {resource.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">{referenceCount}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() => {
-                                setSummaryYear(initialDate.getFullYear());
-                                setSummaryMonth(initialDate.getMonth() + 1);
-                                openResourceEditor(resource);
-                              }}
-                              type="button"
-                            >
-                              Edit details
-                            </button>
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
+                            Edit details
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              setPendingResourceAction({
+                                type: resource.status === 'active' ? 'archive' : 'restore',
+                                resource,
+                                referenceCount,
+                              })
+                            }
+                          >
+                            {resource.status === 'active' ? 'Archive' : 'Restore'}
+                          </Button>
+                          {canDelete ? (
+                            <Button
+                              size="sm"
+                              variant="danger"
                               onClick={() =>
                                 setPendingResourceAction({
-                                  type: resource.status === 'active' ? 'archive' : 'restore',
+                                  type: 'delete',
                                   resource,
                                   referenceCount,
                                 })
                               }
-                              type="button"
                             >
-                              {resource.status === 'active' ? 'Archive' : 'Restore'}
-                            </button>
-                            {canDelete ? (
-                              <button
-                                className="rounded-md border border-red-500 px-3 py-1.5 text-red-300"
-                                onClick={() =>
-                                  setPendingResourceAction({
-                                    type: 'delete',
-                                    resource,
-                                    referenceCount,
-                                  })
-                                }
-                                type="button"
-                              >
-                                Delete permanently
-                              </button>
-                            ) : (
-                              <span className="text-xs text-[var(--text-secondary)]">
-                                Archive only: resource has allocation or absence history.
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                              Delete permanently
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              Archive only: resource has allocation or absence history.
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </TableShell>
           )}
         </section>
 
         <section className="space-y-6">
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-xl font-semibold">
@@ -945,19 +952,20 @@ export function ResourcesPage() {
                 </p>
               </div>
               {editingResource ? (
-                <button
-                  className="text-sm underline"
+                <Button
+                  className="underline"
+                  size="sm"
+                  variant="ghost"
                   onClick={() => openResourceEditor(undefined)}
-                  type="button"
                 >
                   Clear
-                </button>
+                </Button>
               ) : null}
             </div>
 
             {resourceErrorSummary.length > 0 ? (
               <div
-                className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+                className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
                 role="alert"
               >
                 <p className="font-semibold">Please correct the following:</p>
@@ -1142,22 +1150,18 @@ export function ResourcesPage() {
                 </p>
               ) : null}
 
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-                disabled={resourceSubmitting}
-                type="submit"
-              >
+              <Button busy={resourceSubmitting} type="submit">
                 {resourceSubmitting
                   ? 'Saving…'
                   : editingResource
                     ? 'Save changes'
                     : 'Create resource'}
-              </button>
+              </Button>
             </form>
           </section>
 
           {editingResource && resourceSummary ? (
-            <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
               <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-semibold">Monthly resource summary</h2>
@@ -1204,7 +1208,7 @@ export function ResourcesPage() {
 
               {!resourceSummary.workingDaysConfigured ? (
                 <div
-                  className="mb-4 rounded-lg border border-amber-500/40 bg-amber-950/20 px-4 py-3 text-sm text-amber-100"
+                  className="mb-4 rounded-lg border border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] px-4 py-3 text-sm text-[var(--status-caution-text)]"
                   role="note"
                 >
                   Working days are not configured for {getMonthLabel(summaryMonth)} {summaryYear}.
@@ -1258,7 +1262,7 @@ export function ResourcesPage() {
           ) : null}
 
           {editingResource ? (
-            <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+            <section className="ui-shadow-sm rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Allocations for this resource</h2>
@@ -1268,13 +1272,14 @@ export function ResourcesPage() {
                   </p>
                 </div>
                 {editingAllocation ? (
-                  <button
-                    className="text-sm underline"
+                  <Button
+                    className="underline"
+                    size="sm"
+                    variant="ghost"
                     onClick={() => openAllocationEditor(undefined)}
-                    type="button"
                   >
                     Clear allocation form
-                  </button>
+                  </Button>
                 ) : null}
               </div>
 
@@ -1282,7 +1287,7 @@ export function ResourcesPage() {
                 <div>
                   {allocationErrorSummary.length > 0 ? (
                     <div
-                      className="mb-4 rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+                      className="mb-4 rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
                       role="alert"
                     >
                       <p className="font-semibold">Please correct the following:</p>
@@ -1520,134 +1525,131 @@ export function ResourcesPage() {
                       </div>
                     ) : null}
 
-                    <button
-                      className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-                      disabled={allocationSubmitting}
-                      type="submit"
-                    >
+                    <Button busy={allocationSubmitting} type="submit">
                       {allocationSubmitting
                         ? 'Saving…'
                         : editingAllocation
                           ? 'Save allocation'
                           : 'Create allocation'}
-                    </button>
+                    </Button>
                   </form>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-collapse text-left text-sm">
-                    <caption className="sr-only">
-                      Allocations linked to the selected resource with demand and utilization flags.
-                    </caption>
-                    <thead>
-                      <tr className="border-b border-[var(--surf-divider)]">
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Project
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Type
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Period
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Days
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Origin
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Demand status
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Utilization
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Actions
-                        </th>
+                <TableShell
+                  caption="Allocations linked to the selected resource with demand and utilization flags."
+                  zebra
+                >
+                  <thead>
+                    <tr className="border-b border-[var(--surf-divider)]">
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Project
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Type
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Period
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Days
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Origin
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Demand status
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Utilization
+                      </th>
+                      <th className="px-3 py-2 font-semibold" scope="col">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {resourceAllocations.length === 0 ? (
+                      <tr>
+                        <td className="px-3 py-4" colSpan={8}>
+                          <EmptyState
+                            icon={Users}
+                            title="No allocations exist for this resource yet."
+                          />
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {resourceAllocations.length === 0 ? (
-                        <tr>
-                          <td className="px-3 py-4 text-[var(--text-secondary)]" colSpan={8}>
-                            No allocations exist for this resource yet.
+                    ) : null}
+
+                    {resourceAllocations.map((allocation) => {
+                      const demandStatus = buildAllocationDemandStatus({
+                        allocation,
+                        allAllocations: data.allocations,
+                        demandSnapshots: data.demandSnapshots,
+                      });
+                      const allocationSummary = buildResourceMonthlySummary({
+                        resource: editingResource,
+                        year: allocation.year,
+                        month: allocation.month,
+                        workingDaysCalendars: data.workingDaysCalendars,
+                        resourceNonWorkingDays: data.resourceNonWorkingDays,
+                        allocations: data.allocations,
+                        appSettings: data.appSettings,
+                      });
+                      return (
+                        <tr
+                          className="border-b border-[var(--surf-divider)] align-top"
+                          key={allocation.id}
+                        >
+                          <td className="px-3 py-3">{allocation.projectCode}</td>
+                          <td className="px-3 py-3">
+                            {resourceTypeLookup.get(allocation.resourceTypeId)?.label ??
+                              'Unknown type'}
+                          </td>
+                          <td className="px-3 py-3">
+                            {getMonthLabel(allocation.month)} {allocation.year}
+                          </td>
+                          <td className="px-3 py-3">
+                            {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
+                          </td>
+                          <td className="px-3 py-3">{allocation.origin}</td>
+                          <td className="px-3 py-3">
+                            {renderDemandStatus(demandStatus, displayPrecision)}
+                          </td>
+                          <td className="px-3 py-3">
+                            <UtilizationBadge
+                              compact
+                              displayPrecision={displayPrecision}
+                              tooltip={`${getMonthLabel(allocation.month)} ${allocation.year}: ${formatDayAmount(allocationSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationSummary.netCapacityDays, displayPrecision)} net capacity days.`}
+                              utilization={allocationSummary.utilization}
+                            />
+                          </td>
+                          <td className="px-3 py-3">
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openAllocationEditor(allocation)}
+                              >
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() =>
+                                  setPendingAllocationAction({
+                                    type: 'delete',
+                                    allocation,
+                                  })
+                                }
+                              >
+                                Delete
+                              </Button>
+                            </div>
                           </td>
                         </tr>
-                      ) : null}
-
-                      {resourceAllocations.map((allocation) => {
-                        const demandStatus = buildAllocationDemandStatus({
-                          allocation,
-                          allAllocations: data.allocations,
-                          demandSnapshots: data.demandSnapshots,
-                        });
-                        const allocationSummary = buildResourceMonthlySummary({
-                          resource: editingResource,
-                          year: allocation.year,
-                          month: allocation.month,
-                          workingDaysCalendars: data.workingDaysCalendars,
-                          resourceNonWorkingDays: data.resourceNonWorkingDays,
-                          allocations: data.allocations,
-                          appSettings: data.appSettings,
-                        });
-                        return (
-                          <tr
-                            className="border-b border-[var(--surf-divider)] align-top"
-                            key={allocation.id}
-                          >
-                            <td className="px-3 py-3">{allocation.projectCode}</td>
-                            <td className="px-3 py-3">
-                              {resourceTypeLookup.get(allocation.resourceTypeId)?.label ??
-                                'Unknown type'}
-                            </td>
-                            <td className="px-3 py-3">
-                              {getMonthLabel(allocation.month)} {allocation.year}
-                            </td>
-                            <td className="px-3 py-3">
-                              {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
-                            </td>
-                            <td className="px-3 py-3">{allocation.origin}</td>
-                            <td className="px-3 py-3">
-                              {renderDemandStatus(demandStatus, displayPrecision)}
-                            </td>
-                            <td className="px-3 py-3">
-                              <UtilizationBadge
-                                compact
-                                displayPrecision={displayPrecision}
-                                tooltip={`${getMonthLabel(allocation.month)} ${allocation.year}: ${formatDayAmount(allocationSummary.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(allocationSummary.netCapacityDays, displayPrecision)} net capacity days.`}
-                                utilization={allocationSummary.utilization}
-                              />
-                            </td>
-                            <td className="px-3 py-3">
-                              <div className="flex flex-wrap gap-2">
-                                <button
-                                  className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                                  onClick={() => openAllocationEditor(allocation)}
-                                  type="button"
-                                >
-                                  Edit
-                                </button>
-                                <button
-                                  className="rounded-md border border-red-500 px-3 py-1.5 text-red-300"
-                                  onClick={() =>
-                                    setPendingAllocationAction({
-                                      type: 'delete',
-                                      allocation,
-                                    })
-                                  }
-                                  type="button"
-                                >
-                                  Delete
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                      );
+                    })}
+                  </tbody>
+                </TableShell>
               </div>
             </section>
           ) : null}

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { Building2 } from '@/components/icons';
 import type { Company, Resource } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countCompanyReferences,
@@ -195,7 +197,18 @@ export function CompaniesPage() {
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="companies-page">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Companies</h1>
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={Building2} size="lg" tone="accent" />
+          <h1 className="relative text-3xl font-semibold">Companies</h1>
+        </div>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
           Manage referential companies used by external resources. Companies are archived by
           default; permanent deletion is only available when no resource references the company.
@@ -205,22 +218,22 @@ export function CompaniesPage() {
       <FeedbackMessage message={feedback} />
 
       <section className="grid gap-6 lg:grid-cols-[minmax(20rem,26rem)_1fr]">
-        <div className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-xl font-semibold">
               {editingCompany ? 'Edit company' : 'Create company'}
             </h2>
             {editingCompany ? (
-              <button
-                className="text-sm underline"
+              <Button
+                size="sm"
+                variant="ghost"
                 onClick={() => {
                   setEditingCompanyId(undefined);
                   form.reset(createCompanyDefaultValues());
                 }}
-                type="button"
               >
                 Clear
-              </button>
+              </Button>
             ) : null}
           </div>
 
@@ -261,120 +274,109 @@ export function CompaniesPage() {
               ) : null}
             </div>
 
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-              disabled={submitting}
-              type="submit"
-            >
+            <Button busy={submitting} type="submit">
               {submitting ? 'Saving…' : editingCompany ? 'Save changes' : 'Create company'}
-            </button>
+            </Button>
           </form>
-        </div>
+        </Card>
 
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <h2 className="mb-4 text-xl font-semibold">Company list</h2>
 
           {loading ? (
-            <p>Loading companies…</p>
+            <Skeleton label="Loading companies…" />
+          ) : sortedCompanies.length === 0 ? (
+            <EmptyState
+              description="Create a company on the left to reference it from external resources."
+              icon={Building2}
+              title="No companies yet."
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <caption className="sr-only">
-                  Companies with usage counts and available actions.
-                </caption>
-                <thead>
-                  <tr className="border-b border-[var(--surf-divider)]">
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Name
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Status
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Resource references
-                    </th>
-                    <th className="px-3 py-2 font-semibold" scope="col">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedCompanies.length === 0 ? (
-                    <tr>
-                      <td className="px-3 py-4 text-[var(--text-secondary)]" colSpan={4}>
-                        No companies yet.
+            <TableShell caption="Companies with usage counts and available actions." zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Name
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Status
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Resource references
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedCompanies.map((company) => {
+                  const referenceCount = countCompanyReferences(data.resources, company.id);
+                  const canDelete = referenceCount === 0;
+
+                  return (
+                    <tr
+                      className="border-b border-[var(--surf-divider)] align-top"
+                      key={company.id}
+                    >
+                      <td className="px-3 py-3">
+                        <div className="font-medium">{company.name}</div>
+                      </td>
+                      <td className="px-3 py-3">
+                        <span
+                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                            company.status === 'active'
+                              ? 'bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                              : 'bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]'
+                          }`}
+                        >
+                          {company.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-3">{referenceCount}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setEditingCompanyId(company.id)}
+                          >
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() =>
+                              setPendingAction({
+                                type: company.status === 'active' ? 'archive' : 'restore',
+                                company,
+                              })
+                            }
+                          >
+                            {company.status === 'active' ? 'Archive' : 'Restore'}
+                          </Button>
+                          {canDelete ? (
+                            <Button
+                              size="sm"
+                              variant="danger"
+                              onClick={() => setPendingAction({ type: 'delete', company })}
+                            >
+                              Delete permanently
+                            </Button>
+                          ) : (
+                            <span className="px-3 py-1.5 text-xs text-[var(--text-secondary)]">
+                              Archive only: company is still referenced.
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
-                  ) : null}
-
-                  {sortedCompanies.map((company) => {
-                    const referenceCount = countCompanyReferences(data.resources, company.id);
-                    const canDelete = referenceCount === 0;
-
-                    return (
-                      <tr
-                        className="border-b border-[var(--surf-divider)] align-top"
-                        key={company.id}
-                      >
-                        <td className="px-3 py-3">
-                          <div className="font-medium">{company.name}</div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                              company.status === 'active'
-                                ? 'bg-green-900/40 text-green-300'
-                                : 'bg-amber-900/40 text-amber-300'
-                            }`}
-                          >
-                            {company.status}
-                          </span>
-                        </td>
-                        <td className="px-3 py-3">{referenceCount}</td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() => setEditingCompanyId(company.id)}
-                              type="button"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
-                              onClick={() =>
-                                setPendingAction({
-                                  type: company.status === 'active' ? 'archive' : 'restore',
-                                  company,
-                                })
-                              }
-                              type="button"
-                            >
-                              {company.status === 'active' ? 'Archive' : 'Restore'}
-                            </button>
-                            {canDelete ? (
-                              <button
-                                className="rounded-md border border-red-500/50 px-3 py-1.5 text-red-300"
-                                onClick={() => setPendingAction({ type: 'delete', company })}
-                                type="button"
-                              >
-                                Delete permanently
-                              </button>
-                            ) : (
-                              <span className="px-3 py-1.5 text-xs text-[var(--text-secondary)]">
-                                Archive only: company is still referenced.
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                  );
+                })}
+              </tbody>
+            </TableShell>
           )}
-        </section>
+        </Card>
       </section>
 
       <ConfirmDialog

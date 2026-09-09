@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { Button } from '@/components/ui';
 import type { FilterFavorite } from '@/features/filters/filterState';
 
 interface FilterOption {
@@ -199,16 +200,15 @@ export function FilterBar<TState extends object>({
                 value={favoriteName}
                 onChange={(event) => setFavoriteName(event.target.value)}
               />
-              <button
-                className="rounded-md border border-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium"
-                type="button"
+              <Button
+                variant="secondary"
                 onClick={() => {
                   onSaveFavorite(favoriteName);
                   setFavoriteName('');
                 }}
               >
                 Save favorite
-              </button>
+              </Button>
             </div>
           </label>
 
@@ -230,32 +230,28 @@ export function FilterBar<TState extends object>({
           </label>
 
           <div className={`${fieldContainerClasses('flex flex-wrap items-center gap-2')}`}>
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm"
+            <Button
               disabled={selectedFavoriteId.length === 0}
-              type="button"
+              size="sm"
+              variant="secondary"
               onClick={() => onApplyFavorite(selectedFavoriteId)}
             >
               Apply favorite
-            </button>
-            <button
-              className="rounded-md border border-red-500 px-4 py-2 text-sm text-red-300"
+            </Button>
+            <Button
               disabled={selectedFavoriteId.length === 0}
-              type="button"
+              size="sm"
+              variant="danger"
               onClick={() => {
                 onDeleteFavorite(selectedFavoriteId);
                 setSelectedFavoriteId('');
               }}
             >
               Delete favorite
-            </button>
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm"
-              type="button"
-              onClick={onReset}
-            >
+            </Button>
+            <Button size="sm" variant="secondary" onClick={onReset}>
               Reset filters
-            </button>
+            </Button>
           </div>
         </div>
 

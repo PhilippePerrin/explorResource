@@ -2,8 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
-import { AlertTriangle, Ban, Circle, CircleDot, FileText } from '@/components/icons';
-import { Tabs } from '@/components/ui';
+import {
+  AlertTriangle,
+  Ban,
+  Circle,
+  CircleDot,
+  Download,
+  FileText,
+  Settings2,
+  Trash2,
+  UploadCloud,
+} from '@/components/icons';
+import { Button, Card, IconChip, Tabs } from '@/components/ui';
 import type { AppSettings } from '@/domain/entities';
 import { exportBackup, restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
 import { deletePlannerDb } from '@/persistence/db';
@@ -310,12 +320,23 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="settings-page">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Settings</h1>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Configure utilization thresholds, review precision rules, and safeguard the local-first
-          planner with validated backup, restore, and reset actions.
-        </p>
+      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+          }}
+        />
+        <IconChip className="relative" icon={Settings2} size="lg" tone="accent" />
+        <div className="relative space-y-2">
+          <h1 className="text-3xl font-semibold">Settings</h1>
+          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
+            Configure utilization thresholds, review precision rules, and safeguard the local-first
+            planner with validated backup, restore, and reset actions.
+          </p>
+        </div>
       </header>
 
       <FeedbackMessage message={feedback} />
@@ -331,19 +352,20 @@ export function SettingsPage() {
       ) : null}
 
       <div className="grid gap-6 xl:grid-cols-[minmax(24rem,34rem)_1fr]">
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-xl font-semibold">Utilization thresholds</h2>
-            <button
-              className="text-sm underline"
+            <Button
+              className="underline"
               disabled={loading || submitting}
+              size="sm"
+              variant="ghost"
               onClick={() => {
                 form.reset(currentThresholds);
               }}
-              type="button"
             >
               Reset form
-            </button>
+            </Button>
           </div>
 
           <p className="mb-4 text-sm text-[var(--text-secondary)]">
@@ -474,18 +496,14 @@ export function SettingsPage() {
               ) : null}
             </div>
 
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-              disabled={loading || submitting}
-              type="submit"
-            >
+            <Button busy={submitting} disabled={loading || submitting} type="submit">
               {submitting ? 'Saving…' : 'Save threshold settings'}
-            </button>
+            </Button>
           </form>
-        </section>
+        </Card>
 
         <div className="grid gap-6">
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Appearance</h2>
             <p className="mt-3 text-sm text-[var(--text-secondary)]">
               Choose a theme, or follow the operating system setting.
@@ -500,9 +518,9 @@ export function SettingsPage() {
                 }}
               />
             </div>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Precision and tolerance</h2>
             <dl className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4">
@@ -522,17 +540,17 @@ export function SettingsPage() {
                 </dd>
               </div>
             </dl>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Related settings</h2>
             <p className="mt-3 text-sm text-[var(--text-secondary)]">
               Resource-type management stays on the dedicated Resource Types page from Lot 4. This
               screen focuses on cross-cutting thresholds and data-safety actions.
             </p>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+          <Card>
             <h2 className="text-xl font-semibold">Backup and restore</h2>
             <p className="mt-3 text-sm text-[var(--text-secondary)]">
               Export writes the validated IndexedDB contents to a JSON file. Restore validates the
@@ -540,16 +558,15 @@ export function SettingsPage() {
             </p>
 
             <div className="mt-4 flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-                disabled={exporting}
+              <Button
+                busy={exporting}
                 onClick={() => {
                   void handleExportBackup();
                 }}
-                type="button"
               >
+                <Download aria-hidden="true" size={16} strokeWidth={2.25} />
                 {exporting ? 'Exporting…' : 'Export backup as JSON'}
-              </button>
+              </Button>
             </div>
 
             <div className="mt-5 space-y-3 rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-4">
@@ -579,44 +596,49 @@ export function SettingsPage() {
                   </span>
                 </p>
               ) : (
-                <p className="text-sm text-[var(--text-secondary)]">No backup file selected yet.</p>
+                <p className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+                  <IconChip icon={UploadCloud} size="sm" tone="neutral" />
+                  No backup file selected yet.
+                </p>
               )}
 
-              <p className="text-sm text-[var(--text-secondary)]">
-                ⚠ Restore replaces the current IndexedDB contents, including imports and manual
+              <p className="flex items-center gap-1.5 text-sm text-[var(--text-secondary)]">
+                <AlertTriangle aria-hidden="true" size={14} strokeWidth={2.25} />
+                Restore replaces the current IndexedDB contents, including imports and manual
                 adjustments.
               </p>
 
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium disabled:opacity-70"
+              <Button
                 disabled={!selectedBackupFile}
+                variant="secondary"
                 onClick={() => {
                   void handlePrepareRestore();
                 }}
-                type="button"
               >
                 Validate and restore backup
-              </button>
+              </Button>
             </div>
-          </section>
+          </Card>
 
-          <section className="rounded-xl border border-red-500/40 bg-[var(--surf-800)] p-5">
+          <Card className="border-[var(--status-critical-border)]">
             <h2 className="text-xl font-semibold">Reset application data</h2>
             <p className="mt-3 text-sm text-[var(--text-secondary)]">
               Use this only when you intentionally want to wipe the local application database.
               Reset requires two confirmations and cannot be undone.
             </p>
-            <button
-              className="mt-4 rounded-md bg-red-700 px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
+            <Button
+              busy={busyReset}
+              className="mt-4"
               disabled={busyReset}
+              variant="danger"
               onClick={() => {
                 setResetStage('confirm-reset');
               }}
-              type="button"
             >
+              <Trash2 aria-hidden="true" size={16} strokeWidth={2.25} />
               Reset app data
-            </button>
-          </section>
+            </Button>
+          </Card>
         </div>
       </div>
 
@@ -639,7 +661,10 @@ export function SettingsPage() {
               {' · '}
               Schema: <strong>{pendingRestore?.backup.schemaVersion ?? 'Unknown'}</strong>
             </p>
-            <p>⚠ Existing data will be replaced atomically.</p>
+            <p className="flex items-center gap-1.5">
+              <AlertTriangle aria-hidden="true" size={14} strokeWidth={2.25} />
+              Existing data will be replaced atomically.
+            </p>
           </div>
         }
         onCancel={() => {
@@ -657,7 +682,10 @@ export function SettingsPage() {
         confirmLabel="Continue reset"
         description={
           <div className="space-y-2">
-            <p>⚠ This will delete all local planner data from IndexedDB on this device.</p>
+            <p className="flex items-center gap-1.5">
+              <AlertTriangle aria-hidden="true" size={14} strokeWidth={2.25} />
+              This will delete all local planner data from IndexedDB on this device.
+            </p>
             <p>Use Export backup first if you may need the current state later.</p>
           </div>
         }
@@ -677,7 +705,10 @@ export function SettingsPage() {
         description={
           <div className="space-y-2">
             <p>Final confirmation: this action permanently wipes the planner database.</p>
-            <p>⚠ There is no undo after this second confirmation.</p>
+            <p className="flex items-center gap-1.5">
+              <AlertTriangle aria-hidden="true" size={14} strokeWidth={2.25} />
+              There is no undo after this second confirmation.
+            </p>
           </div>
         }
         onCancel={() => {

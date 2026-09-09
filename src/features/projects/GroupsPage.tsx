@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { Eye, FolderTree } from '@/components/icons';
+import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import type { Group } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 
@@ -52,17 +54,28 @@ export function GroupsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="groups-page">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Groups</h1>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Read-only imported grouping rows for non-conforming codes such as GIS#### or RUN####. They
-          are displayed under the Projects area because they are project-adjacent but are never
-          editable business projects.
-        </p>
+      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+          }}
+        />
+        <IconChip className="relative" icon={FolderTree} size="lg" tone="accent" />
+        <div className="relative space-y-2">
+          <h1 className="text-3xl font-semibold">Groups</h1>
+          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
+            Read-only imported grouping rows for non-conforming codes such as GIS#### or RUN####.
+            They are displayed under the Projects area because they are project-adjacent but are
+            never editable business projects.
+          </p>
+        </div>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <h2 className="text-xl font-semibold">Imported group list</h2>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_12rem]">
@@ -97,11 +110,10 @@ export function GroupsPage() {
           </div>
 
           {loading ? (
-            <p className="mt-4">Loading groups…</p>
+            <Skeleton className="mt-4" label="Loading groups…" lines={3} />
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full border-collapse text-left text-sm">
-                <caption className="sr-only">Imported groups, read-only.</caption>
+            <div className="mt-4">
+              <TableShell caption="Imported groups, read-only." zebra>
                 <thead>
                   <tr className="border-b border-[var(--surf-divider)]">
                     <th className="px-3 py-2 font-semibold" scope="col">
@@ -121,8 +133,11 @@ export function GroupsPage() {
                 <tbody>
                   {filteredGroups.length === 0 ? (
                     <tr>
-                      <td className="px-3 py-4 text-[var(--text-secondary)]" colSpan={4}>
-                        No groups match the current filters.
+                      <td className="px-3 py-4" colSpan={4}>
+                        <EmptyState
+                          icon={FolderTree}
+                          title="No groups match the current filters."
+                        />
                       </td>
                     </tr>
                   ) : null}
@@ -133,23 +148,24 @@ export function GroupsPage() {
                       <td className="px-3 py-3">{group.label}</td>
                       <td className="px-3 py-3">{group.status}</td>
                       <td className="px-3 py-3">
-                        <button
-                          className="rounded-md border border-[var(--surf-divider)] px-3 py-1.5"
+                        <Button
+                          size="sm"
+                          variant="secondary"
                           onClick={() => setSelectedGroupId(group.id)}
-                          type="button"
                         >
+                          <Eye aria-hidden="true" size={14} strokeWidth={2.25} />
                           View details
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </TableShell>
             </div>
           )}
-        </section>
+        </Card>
 
-        <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+        <Card>
           <h2 className="text-xl font-semibold">Group details</h2>
           {selectedGroup ? (
             <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-2">
@@ -184,7 +200,7 @@ export function GroupsPage() {
             This page is intentionally read-only: group codes come from imports and do not match the
             project code rule ^[EPR]\d{4}$.
           </div>
-        </section>
+        </Card>
       </section>
     </div>
   );

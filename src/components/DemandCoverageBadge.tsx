@@ -20,25 +20,29 @@ function getDescriptor(state: DemandCoverageState) {
       return {
         Icon: Check,
         label: 'Covered',
-        classes: 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100',
+        classes:
+          'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
       };
     case 'uncovered':
       return {
         Icon: AlertTriangle,
         label: 'Uncovered',
-        classes: 'border-amber-500/40 bg-amber-950/30 text-amber-100',
+        classes:
+          'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]',
       };
     case 'over-served':
       return {
         Icon: ArrowUpRight,
         label: 'Over-served',
-        classes: 'border-orange-500/40 bg-orange-950/30 text-orange-100',
+        classes:
+          'border-[var(--status-attention-border)] bg-[var(--status-attention-bg)] text-[var(--status-attention-text)]',
       };
     case 'mixed':
       return {
         Icon: Shuffle,
         label: 'Mixed',
-        classes: 'border-red-500/40 bg-red-950/30 text-red-100',
+        classes:
+          'border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] text-[var(--status-critical-text)]',
       };
   }
 }

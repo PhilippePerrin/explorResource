@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useRef } from 'react';
 
+import { Button } from '@/components/ui';
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -95,11 +97,6 @@ export function ConfirmDialog({
     return null;
   }
 
-  const confirmButtonClasses =
-    tone === 'danger'
-      ? 'bg-red-700 text-white hover:bg-red-600'
-      : 'bg-[var(--color-bmx-blue)] text-white hover:opacity-90';
-
   return (
     <div
       aria-describedby={descriptionId}
@@ -110,7 +107,7 @@ export function ConfirmDialog({
     >
       <div
         ref={dialogRef}
-        className="w-full max-w-lg rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6 shadow-2xl"
+        className="ui-shadow-lg w-full max-w-lg rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6"
         tabIndex={-1}
       >
         <h2 className="text-xl font-semibold" id={titleId}>
@@ -120,25 +117,19 @@ export function ConfirmDialog({
           {description}
         </div>
         <div className="mt-6 flex flex-wrap justify-end gap-3">
-          <button
-            className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
-            ref={cancelButtonRef}
-            onClick={onCancel}
-            type="button"
-          >
+          <Button ref={cancelButtonRef} variant="secondary" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
-            className={`rounded-md px-4 py-2 text-sm font-medium ${confirmButtonClasses}`}
-            disabled={busy}
+          </Button>
+          <Button
+            busy={busy}
             ref={confirmButtonRef}
+            variant={tone === 'danger' ? 'danger' : 'primary'}
             onClick={() => {
               void onConfirm();
             }}
-            type="button"
           >
             {busy ? 'Working…' : confirmLabel}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

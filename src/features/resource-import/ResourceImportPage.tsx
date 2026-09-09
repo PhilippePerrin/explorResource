@@ -2,6 +2,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { UploadCloud } from '@/components/icons';
+import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import type { ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
   commitResourceImportAnalysis,
@@ -252,24 +254,22 @@ export function ResourceImportPage({
             />
           </div>
           <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-              disabled={!selectedFile || wizardState.status === 'analyzing'}
+            <Button
+              busy={wizardState.status === 'analyzing'}
+              disabled={!selectedFile}
               onClick={() => {
                 void handleAnalyzeFile();
               }}
-              type="button"
             >
               {wizardState.status === 'analyzing' ? 'Analyzing…' : 'Start technical analysis'}
-            </button>
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
+            </Button>
+            <Button
               disabled={!selectedFile && !wizardState.analysis}
+              variant="secondary"
               onClick={() => setShowCancelDialog(true)}
-              type="button"
             >
               Cancel wizard
-            </button>
+            </Button>
           </div>
         </section>
       );
@@ -460,23 +460,18 @@ export function ResourceImportPage({
                 : 'Validation passed. Ready for atomic import.'}
             </p>
             <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-                disabled={blockingAnomalies || submitting}
+              <Button
+                busy={submitting}
+                disabled={blockingAnomalies}
                 onClick={() => {
                   void handleCommitImport();
                 }}
-                type="button"
               >
                 {submitting ? 'Importing…' : 'Commit resource import'}
-              </button>
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
-                onClick={() => setShowCancelDialog(true)}
-                type="button"
-              >
+              </Button>
+              <Button variant="secondary" onClick={() => setShowCancelDialog(true)}>
                 Cancel wizard
-              </button>
+              </Button>
             </div>
           </section>
         );
@@ -493,20 +488,10 @@ export function ResourceImportPage({
               resource names now line up.
             </p>
             <div className="flex flex-wrap gap-3">
-              <button
-                className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
-                onClick={handleDownloadReport}
-                type="button"
-              >
-                Download report
-              </button>
-              <button
-                className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
-                onClick={resetWizard}
-                type="button"
-              >
+              <Button onClick={handleDownloadReport}>Download report</Button>
+              <Button variant="secondary" onClick={resetWizard}>
                 Start another import
-              </button>
+              </Button>
             </div>
             {wizardState.commitResult ? (
               <dl className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -562,7 +547,18 @@ export function ResourceImportPage({
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Import resources</h1>
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={UploadCloud} size="lg" tone="accent" />
+          <h1 className="relative text-3xl font-semibold">Import resources</h1>
+        </div>
         <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
           Bulk-create Resources and Resource Types from a PSA "Availability list" export, using the
           same "Firstname LASTNAME" naming convention as the demand workbook so names line up.
@@ -577,7 +573,7 @@ export function ResourceImportPage({
         </p>
       ) : null}
 
-      <section className="space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+      <Card className="space-y-4">
         <div>
           <h2 className="text-xl font-semibold">Resource import wizard</h2>
           <p className="text-sm text-[var(--text-secondary)]">
@@ -614,7 +610,7 @@ export function ResourceImportPage({
         </ol>
 
         {loading ? (
-          <p className="text-sm text-[var(--text-secondary)]">Loading reference data…</p>
+          <Skeleton label="Loading reference data…" />
         ) : (
           <>
             {renderStepContent()}
@@ -622,54 +618,57 @@ export function ResourceImportPage({
             {wizardState.analysis &&
             !['commit', 'final-report'].includes(wizardState.currentStepId) ? (
               <div className="flex flex-wrap gap-3 border-t border-[var(--surf-divider)] pt-4">
-                <button
-                  className="rounded-md border border-[var(--surf-divider)] px-4 py-2 text-sm font-medium"
+                <Button
                   disabled={wizardState.currentStepId === 'preview'}
+                  variant="secondary"
                   onClick={() => dispatch({ type: 'go-back' })}
-                  type="button"
                 >
                   Previous step
-                </button>
-                <button
-                  className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white"
-                  onClick={() => dispatch({ type: 'go-next' })}
-                  type="button"
-                >
-                  Next step
-                </button>
+                </Button>
+                <Button onClick={() => dispatch({ type: 'go-next' })}>Next step</Button>
               </div>
             ) : null}
           </>
         )}
-      </section>
+      </Card>
 
-      <section className="space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-6">
+      <section className="ui-shadow-sm space-y-4 rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
         <h2 className="text-xl font-semibold">Resource import history</h2>
         {resourceImportHistory.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">No resource imports yet.</p>
+          <EmptyState
+            description="Committed resource imports will appear here with their row counts."
+            icon={UploadCloud}
+            title="No resource imports yet."
+          />
         ) : (
-          <div className="overflow-x-auto rounded-lg border border-[var(--surf-divider)]">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-[var(--surf-700)]">
-                <tr>
-                  <th className="px-3 py-2">Imported at</th>
-                  <th className="px-3 py-2">File</th>
-                  <th className="px-3 py-2 text-right">Rows</th>
-                  <th className="px-3 py-2">Note</th>
+          <TableShell caption="Resource import history" zebra>
+            <thead>
+              <tr className="border-b border-[var(--surf-divider)]">
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Imported at
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  File
+                </th>
+                <th className="px-3 py-2 text-right font-semibold" scope="col">
+                  Rows
+                </th>
+                <th className="px-3 py-2 font-semibold" scope="col">
+                  Note
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {resourceImportHistory.map((batch) => (
+                <tr className="border-b border-[var(--surf-divider)]" key={batch.id}>
+                  <td className="px-3 py-2">{formatDateTime(batch.importedAt)}</td>
+                  <td className="px-3 py-2">{batch.fileName}</td>
+                  <td className="px-3 py-2 text-right">{batch.rowCount}</td>
+                  <td className="px-3 py-2">{batch.note ?? '—'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {resourceImportHistory.map((batch) => (
-                  <tr className="border-t border-[var(--surf-divider)]" key={batch.id}>
-                    <td className="px-3 py-2">{formatDateTime(batch.importedAt)}</td>
-                    <td className="px-3 py-2">{batch.fileName}</td>
-                    <td className="px-3 py-2 text-right">{batch.rowCount}</td>
-                    <td className="px-3 py-2">{batch.note ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </TableShell>
         )}
       </section>
 

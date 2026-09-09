@@ -50,8 +50,10 @@ src/
   import/             # Excel parsing, classification, worker
   features/            # one folder per page (dashboard, capacity, demand-coverage, ...)
   components/          # shared UI (KPI cards, status badges, filter bar, icons barrel)
-    ui/                # base UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell)
-  theme/               # theme resolution + persistence (applyTheme, useThemePreference)
+    ui/                # base UI primitives (Button, Card, Tabs, Tooltip, IconButton, TableShell,
+                        # IconChip, EmptyState, Skeleton)
+  theme/               # theme resolution + persistence (applyTheme, useThemePreference,
+                        # usePrefersReducedMotion)
   workers/
   index.css            # branding, verbatim copy of data/index.css — never rewritten
   design-tokens.css    # companion token layer (elevation/shadow) — see docs/adr/0002

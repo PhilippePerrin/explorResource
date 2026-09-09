@@ -16,25 +16,29 @@ function getUtilizationDescriptor(status: UtilizationStatus) {
       return {
         Icon: Circle,
         label: 'Available',
-        classes: 'border-emerald-500/40 bg-emerald-950/30 text-emerald-100',
+        classes:
+          'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
       };
     case 'used':
       return {
         Icon: CircleDot,
         label: 'Used',
-        classes: 'border-amber-500/40 bg-amber-950/30 text-amber-100',
+        classes:
+          'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]',
       };
     case 'overload':
       return {
         Icon: AlertTriangle,
         label: 'Overload',
-        classes: 'border-orange-500/40 bg-orange-950/30 text-orange-100',
+        classes:
+          'border-[var(--status-attention-border)] bg-[var(--status-attention-bg)] text-[var(--status-attention-text)]',
       };
     case 'critical-overload':
       return {
         Icon: Ban,
         label: 'Critical overload',
-        classes: 'border-red-500/40 bg-red-950/30 text-red-100',
+        classes:
+          'border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] text-[var(--status-critical-text)]',
       };
   }
 }

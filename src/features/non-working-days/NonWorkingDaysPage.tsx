@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { CalendarOff, Inbox } from '@/components/icons';
 import type { Resource, ResourceNonWorkingDays } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { Button, Card, EmptyState, IconChip, Skeleton } from '@/components/ui';
 
 import {
   MONTH_LABELS,
@@ -147,13 +149,26 @@ export function NonWorkingDaysPage() {
       className="mx-auto flex w-full max-w-[96rem] flex-col gap-6 p-6"
       id="non-working-days-page"
     >
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Non-working Days</h1>
-        <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Maintain resource absences for a full year. Decimal days are allowed. Paste tab/newline
-          ranges directly from Excel into any cell to populate multiple months and resources at
-          once.
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
+            style={{
+              background:
+                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
+            }}
+          />
+          <IconChip className="relative" icon={CalendarOff} size="lg" tone="accent" />
+          <div className="relative space-y-2">
+            <h1 className="text-3xl font-semibold">Non-working Days</h1>
+            <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
+              Maintain resource absences for a full year. Decimal days are allowed. Paste
+              tab/newline ranges directly from Excel into any cell to populate multiple months and
+              resources at once.
+            </p>
+          </div>
+        </div>
       </header>
 
       <div aria-live="polite" className="sr-only">
@@ -164,23 +179,23 @@ export function NonWorkingDaysPage() {
 
       {validationMessage ? (
         <div
-          className="rounded-lg border border-red-500/50 bg-red-950/20 px-4 py-3 text-sm"
+          className="rounded-lg border border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] px-4 py-3 text-sm"
           role="alert"
         >
           {validationMessage}
         </div>
       ) : null}
 
-      <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
+      <Card>
         <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-wrap items-end gap-3">
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-3 py-2"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => setSelectedYear((year) => year - 1)}
-              type="button"
             >
               Previous year
-            </button>
+            </Button>
             <div>
               <label className="mb-1 block text-sm font-medium" htmlFor="non-working-days-year">
                 Year
@@ -200,43 +215,37 @@ export function NonWorkingDaysPage() {
                 }}
               />
             </div>
-            <button
-              className="rounded-md border border-[var(--surf-divider)] px-3 py-2"
+            <Button
+              size="sm"
+              variant="secondary"
               onClick={() => setSelectedYear((year) => year + 1)}
-              type="button"
             >
               Next year
-            </button>
+            </Button>
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <button
-              className="rounded-md border border-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium"
-              onClick={() => setShowDuplicateDialog(true)}
-              type="button"
-            >
+            <Button size="sm" variant="secondary" onClick={() => setShowDuplicateDialog(true)}>
               Duplicate year
-            </button>
-            <button
-              className="rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white disabled:opacity-70"
-              disabled={saving}
+            </Button>
+            <Button
+              busy={saving}
               onClick={() => {
                 void handleSave();
               }}
-              type="button"
             >
               {saving ? 'Saving…' : 'Save grid'}
-            </button>
+            </Button>
           </div>
         </div>
 
         {loading ? (
-          <p>Loading non-working days…</p>
+          <Skeleton label="Loading non-working days…" lines={5} />
         ) : rows.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
-            No resources exist yet. Create resources in the dedicated lot, then return here to
-            manage per-resource non-working days.
-          </p>
+          <EmptyState
+            icon={Inbox}
+            title="No resources exist yet. Create resources in the dedicated lot, then return here to manage per-resource non-working days."
+          />
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[74rem] border-collapse text-left text-sm">
@@ -343,7 +352,7 @@ export function NonWorkingDaysPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       <ConfirmDialog
         busy={duplicating}
