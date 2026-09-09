@@ -48,6 +48,7 @@ interface UtilizationBadgeProps {
   displayPrecision?: number;
   tooltip: string;
   compact?: boolean;
+  className?: string;
 }
 
 function UtilizationBadgeComponent({
@@ -55,6 +56,7 @@ function UtilizationBadgeComponent({
   displayPrecision = 1,
   tooltip,
   compact = false,
+  className = '',
 }: UtilizationBadgeProps) {
   const descriptor = getUtilizationDescriptor(utilization.status);
   const valueText =
@@ -65,7 +67,7 @@ function UtilizationBadgeComponent({
   return (
     <span
       aria-label={`${descriptor.label}. ${tooltip}`}
-      className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium ${descriptor.classes} ${compact ? 'whitespace-nowrap' : ''}`}
+      className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-xs font-medium ${descriptor.classes} ${compact ? 'whitespace-nowrap' : ''} ${className}`}
       title={tooltip}
     >
       <descriptor.Icon aria-hidden="true" size={14} strokeWidth={2.25} />

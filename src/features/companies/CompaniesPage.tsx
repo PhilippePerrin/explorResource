@@ -3,10 +3,11 @@ import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { Building2 } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import type { Company, Resource } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countCompanyReferences,
@@ -198,24 +199,11 @@ export function CompaniesPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="companies-page">
-      <header className="space-y-2">
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-            }}
-          />
-          <IconChip className="relative" icon={Building2} size="lg" tone="accent" />
-          <h1 className="relative text-3xl font-semibold">Companies</h1>
-        </div>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Manage referential companies used by external resources. Companies are archived by
-          default; permanent deletion is only available when no resource references the company.
-        </p>
-      </header>
+      <PageHeader
+        description="Manage referential companies used by external resources. Companies are archived by default; permanent deletion is only available when no resource references the company."
+        icon={Building2}
+        title="Companies"
+      />
 
       <FeedbackMessage message={feedback} />
 

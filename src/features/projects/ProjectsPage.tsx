@@ -4,6 +4,7 @@ import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { FolderKanban, FolderTree, Pencil, Plus, RotateCcw, Trash2 } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import type {
   Allocation,
   DemandSnapshot,
@@ -15,7 +16,7 @@ import type {
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, Skeleton, TableShell } from '@/components/ui';
 
 import {
   buildProjectCodeMigrationPlan,
@@ -439,24 +440,11 @@ export function ProjectsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="projects-page">
-      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-          }}
-        />
-        <IconChip className="relative" icon={FolderKanban} size="lg" tone="accent" />
-        <div className="relative space-y-2">
-          <h1 className="text-3xl font-semibold">Projects</h1>
-          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-            Maintain project codes, statuses, and release links. Projects are matched by normalized
-            uppercase code only; linked demand snapshots and allocations prevent permanent deletion.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        description="Maintain project codes, statuses, and release links. Projects are matched by normalized uppercase code only; linked demand snapshots and allocations prevent permanent deletion."
+        icon={FolderKanban}
+        title="Projects"
+      />
 
       <FeedbackMessage message={feedback} />
 

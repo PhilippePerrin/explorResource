@@ -3,10 +3,11 @@ import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { Layers3 } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import type { Allocation, DemandSnapshot, Resource, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Drawer, EmptyState, Skeleton, TableShell } from '@/components/ui';
 
 import {
   countResourceTypeReferences,
@@ -237,24 +238,11 @@ export function ResourceTypesPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="resource-types-page">
-      <header className="space-y-2">
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-            }}
-          />
-          <IconChip className="relative" icon={Layers3} size="lg" tone="accent" />
-          <h1 className="relative text-3xl font-semibold">Resource Types</h1>
-        </div>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Manage the skill and role referential. Resource types can be permanently deleted only when
-          they are unused across resources, demand snapshots, and allocations.
-        </p>
-      </header>
+      <PageHeader
+        description="Manage the skill and role referential. Resource types can be permanently deleted only when they are unused across resources, demand snapshots, and allocations."
+        icon={Layers3}
+        title="Resource Types"
+      />
 
       <FeedbackMessage message={feedback} />
 

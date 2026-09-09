@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { Eye, FolderTree } from '@/components/icons';
-import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
+import { Button, Card, EmptyState, Skeleton, TableShell } from '@/components/ui';
 import type { Group } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 
@@ -54,25 +55,11 @@ export function GroupsPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="groups-page">
-      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-          }}
-        />
-        <IconChip className="relative" icon={FolderTree} size="lg" tone="accent" />
-        <div className="relative space-y-2">
-          <h1 className="text-3xl font-semibold">Groups</h1>
-          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-            Read-only imported grouping rows for non-conforming codes such as GIS#### or RUN####.
-            They are displayed under the Projects area because they are project-adjacent but are
-            never editable business projects.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        description="Read-only imported grouping rows for non-conforming codes such as GIS#### or RUN####. They are displayed under the Projects area because they are project-adjacent but are never editable business projects."
+        icon={FolderTree}
+        title="Groups"
+      />
 
       <section className="grid gap-6 lg:grid-cols-[minmax(22rem,30rem)_1fr]">
         <Card>

@@ -38,6 +38,7 @@ export {
   Sparkles,
   Sun,
   SunMoon,
+  Target,
   Trash2,
   TrendingDown,
   TrendingUp,

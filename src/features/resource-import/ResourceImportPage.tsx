@@ -3,7 +3,8 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { UploadCloud } from '@/components/icons';
-import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { PageHeader } from '@/components/PageHeader';
+import { Button, Card, EmptyState, Skeleton, TableShell } from '@/components/ui';
 import type { ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
   commitResourceImportAnalysis,
@@ -546,25 +547,18 @@ export function ResourceImportPage({
 
   return (
     <div className="space-y-8">
-      <header className="space-y-2">
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-            }}
-          />
-          <IconChip className="relative" icon={UploadCloud} size="lg" tone="accent" />
-          <h1 className="relative text-3xl font-semibold">Import resources</h1>
-        </div>
-        <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-          Bulk-create Resources and Resource Types from a PSA "Availability list" export, using the
-          same "Firstname LASTNAME" naming convention as the demand workbook so names line up.
-          Entries under any resource-type header prefixed "[Inactive Res.]" are always skipped.
-        </p>
-      </header>
+      <PageHeader
+        description={
+          <>
+            Bulk-create Resources and Resource Types from a PSA &quot;Availability list&quot;
+            export, using the same &quot;Firstname LASTNAME&quot; naming convention as the demand
+            workbook so names line up. Entries under any resource-type header prefixed
+            &quot;[Inactive Res.]&quot; are always skipped.
+          </>
+        }
+        icon={UploadCloud}
+        title="Import resources"
+      />
 
       <FeedbackMessage message={feedback} />
       {wizardState.errorMessage ? (

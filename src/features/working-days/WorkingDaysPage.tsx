@@ -3,10 +3,11 @@ import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { CalendarDays } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import type { WorkingDaysCalendar } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
-import { Button, Card, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Card, Skeleton, TableShell } from '@/components/ui';
 
 import {
   MONTH_LABELS,
@@ -149,26 +150,11 @@ export function WorkingDaysPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="working-days-page">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-            }}
-          />
-          <IconChip className="relative" icon={CalendarDays} size="lg" tone="accent" />
-          <div className="relative space-y-2">
-            <h1 className="text-3xl font-semibold">Working Days</h1>
-            <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-              Maintain the annual January–December working-day calendar. Use the duplicate action to
-              seed next year before adjusting month-specific values.
-            </p>
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        description="Maintain the annual January–December working-day calendar. Use the duplicate action to seed next year before adjusting month-specific values."
+        icon={CalendarDays}
+        title="Working Days"
+      />
 
       <FeedbackMessage message={feedback} />
 

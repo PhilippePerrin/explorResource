@@ -5,7 +5,9 @@ import { useForm, type FieldErrors, type Resolver } from 'react-hook-form';
 
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { Shuffle } from '@/components/icons';
 import { MetricCard } from '@/components/MetricCard';
+import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Button, Card, TableShell } from '@/components/ui';
 import { buildResourceMonthSummary } from '@/domain/calculations';
@@ -556,13 +558,12 @@ export function AllocationStudioPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="allocation-studio-page">
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Allocation Studio</h1>
-        <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Interactive allocation drafting with drag-and-drop, a full keyboard form alternative,
-          simulation before commit, month copy, and undo/redo.
-        </p>
-      </header>
+      <PageHeader
+        description="Interactive allocation drafting with drag-and-drop, a full keyboard form alternative, simulation before commit, month copy, and undo/redo."
+        descriptionClassName="max-w-4xl"
+        icon={Shuffle}
+        title="Allocation Studio"
+      />
 
       <FeedbackMessage message={feedback} />
 

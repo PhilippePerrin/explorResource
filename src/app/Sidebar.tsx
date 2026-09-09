@@ -24,10 +24,10 @@ function abbreviate(label: string): string {
 }
 
 function navLinkClassName({ isActive }: NavLinkRenderProps): string {
-  return `flex items-center gap-2 rounded-md px-2 py-2 text-sm font-medium transition-colors ${
+  return `flex items-center gap-2 rounded-md border-l-2 px-2 py-2 text-sm font-medium transition-colors ${
     isActive
-      ? 'bg-[var(--color-bmx-blue)] text-white'
-      : 'text-[var(--text-secondary)] hover:bg-[var(--surf-700)]'
+      ? 'border-[var(--color-bmx-cyan)] bg-[var(--status-info-bg)] text-[var(--text-primary)] shadow-[inset_0_0_0_1px_var(--status-info-border)]'
+      : 'border-transparent text-[var(--text-secondary)] hover:bg-[var(--surf-700)]'
   }`;
 }
 

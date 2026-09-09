@@ -7,8 +7,9 @@ import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { Users } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
-import { Button, Drawer, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
+import { Button, Drawer, EmptyState, Skeleton, TableShell } from '@/components/ui';
 import {
   getResourceFullName,
   type Allocation,
@@ -754,25 +755,12 @@ export function ResourcesPage() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="resources-page">
-      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-          }}
-        />
-        <IconChip className="relative" icon={Users} size="lg" tone="accent" />
-        <div className="relative space-y-2">
-          <h1 className="text-3xl font-semibold">Resources</h1>
-          <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-            Manage resource records, activity dates, and monthly allocations. In Lot 6, the basic
-            allocation CRUD surface lives inside the resource detail panel until the dedicated
-            Allocation Studio lot lands.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        description="Manage resource records, activity dates, and monthly allocations. In Lot 6, the basic allocation CRUD surface lives inside the resource detail panel until the dedicated Allocation Studio lot lands."
+        descriptionClassName="max-w-4xl"
+        icon={Users}
+        title="Resources"
+      />
 
       <FeedbackMessage message={feedback} />
 

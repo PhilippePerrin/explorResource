@@ -10,6 +10,8 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { Activity } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Card, TableShell } from '@/components/ui';
 import type {
@@ -423,13 +425,12 @@ export function CapacityCommandCenterPage() {
       className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
       id="capacity-command-center-page"
     >
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Capacity Command Center</h1>
-        <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Virtualized heatmap for utilization by resource and month. Every cell includes label,
-          icon, value, and tooltip — never color only.
-        </p>
-      </header>
+      <PageHeader
+        description="Virtualized heatmap for utilization by resource and month. Every cell includes label, icon, value, and tooltip — never color only."
+        descriptionClassName="max-w-4xl"
+        icon={Activity}
+        title="Capacity Command Center"
+      />
 
       <FeedbackMessage message={feedback} />
 

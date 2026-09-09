@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { Target } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import { Card, TableShell } from '@/components/ui';
 import type { DemandCoverageState } from '@/domain/calculations';
 import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
@@ -238,13 +240,12 @@ export function DemandCoverageBoardPage() {
       className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
       id="demand-coverage-board-page"
     >
-      <header className="space-y-2">
-        <h1 className="text-3xl font-semibold">Demand Coverage Board</h1>
-        <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-          Project × resource-type coverage, with demand, covered load, remaining demand, and
-          over-service shown side-by-side so nothing is silently netted out.
-        </p>
-      </header>
+      <PageHeader
+        description="Project × resource-type coverage, with demand, covered load, remaining demand, and over-service shown side-by-side so nothing is silently netted out."
+        descriptionClassName="max-w-4xl"
+        icon={Target}
+        title="Demand Coverage Board"
+      />
 
       <FeedbackMessage message={feedback} />
 

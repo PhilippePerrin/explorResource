@@ -13,6 +13,7 @@ import {
   Trash2,
   UploadCloud,
 } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import { Button, Card, IconChip, Tabs } from '@/components/ui';
 import type { AppSettings } from '@/domain/entities';
 import { exportBackup, restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
@@ -320,24 +321,11 @@ export function SettingsPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="settings-page">
-      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-          }}
-        />
-        <IconChip className="relative" icon={Settings2} size="lg" tone="accent" />
-        <div className="relative space-y-2">
-          <h1 className="text-3xl font-semibold">Settings</h1>
-          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-            Configure utilization thresholds, review precision rules, and safeguard the local-first
-            planner with validated backup, restore, and reset actions.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        description="Configure utilization thresholds, review precision rules, and safeguard the local-first planner with validated backup, restore, and reset actions."
+        icon={Settings2}
+        title="Settings"
+      />
 
       <FeedbackMessage message={feedback} />
 

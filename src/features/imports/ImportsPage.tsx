@@ -3,6 +3,7 @@ import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { AlertCircle, CheckCircle2, Download, RotateCcw, UploadCloud } from '@/components/icons';
+import { PageHeader } from '@/components/PageHeader';
 import { Button, Card, EmptyState, IconChip, Skeleton, TableShell } from '@/components/ui';
 import type { DemandSnapshot, ImportBatch, Resource, ResourceType } from '@/domain/entities';
 import {
@@ -1023,25 +1024,11 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
 
   return (
     <div className="space-y-8">
-      <header className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-          }}
-        />
-        <IconChip className="relative" icon={UploadCloud} size="lg" tone="accent" />
-        <div className="relative space-y-2">
-          <h1 className="text-3xl font-semibold">Imports</h1>
-          <p className="max-w-3xl text-sm text-[var(--text-secondary)]">
-            Analyze PSA Excel exports off the main thread, review anomalies, compare against the
-            previous validated import, keep immutable history, and restore current demand without
-            deleting any import records.
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        description="Analyze PSA Excel exports off the main thread, review anomalies, compare against the previous validated import, keep immutable history, and restore current demand without deleting any import records."
+        icon={UploadCloud}
+        title="Imports"
+      />
 
       <FeedbackMessage message={feedback} />
       {wizardState.errorMessage ? (

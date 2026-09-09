@@ -1,5 +1,5 @@
 export const CHART_LINE_COLORS = {
-  netCapacity: 'var(--color-bmx-blue)',
+  netCapacity: 'var(--color-bmx-cyan)',
   allocatedLoad: 'var(--color-bmx-gold)',
   uncoveredDemand: 'var(--status-critical-text)',
 } as const;

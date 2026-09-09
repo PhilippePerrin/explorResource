@@ -21,8 +21,10 @@ import {
   TrendingUp,
 } from '@/components/icons';
 import { MetricCard } from '@/components/MetricCard';
+import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Card, IconChip, Skeleton, type IconChipTone } from '@/components/ui';
+import { UtilizationRing } from '@/features/dashboard/UtilizationRing';
 import type {
   Allocation,
   AppSettings,
@@ -203,58 +205,46 @@ export function DashboardPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="dashboard-page">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-16 -left-16 h-56 w-56 rounded-full opacity-25 blur-3xl"
-            style={{
-              background:
-                'linear-gradient(135deg, var(--color-bmx-blue) 0%, var(--color-bmx-cyan) 100%)',
-            }}
-          />
-          <IconChip className="relative" icon={Gauge} size="lg" tone="accent" />
-          <div className="relative space-y-2">
-            <h1 className="text-3xl font-semibold">Dashboard</h1>
-            <p className="max-w-4xl text-sm text-[var(--text-secondary)]">
-              Portfolio overview for capacity, demand coverage, utilization, and the
-              highest-priority alerts for the selected planning month.
-            </p>
+      <PageHeader
+        actions={
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium" htmlFor="dashboard-year">
+              Year
+              <select
+                className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
+                id="dashboard-year"
+                value={year}
+                onChange={(event) => setYear(Number(event.target.value))}
+              >
+                {yearOptions.map((optionYear) => (
+                  <option key={optionYear} value={optionYear}>
+                    {optionYear}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-sm font-medium" htmlFor="dashboard-month">
+              Alert focus month
+              <select
+                className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
+                id="dashboard-month"
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(Number(event.target.value))}
+              >
+                {MONTH_LABELS.map((label, index) => (
+                  <option key={label} value={index + 1}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
           </div>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium" htmlFor="dashboard-year">
-            Year
-            <select
-              className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
-              id="dashboard-year"
-              value={year}
-              onChange={(event) => setYear(Number(event.target.value))}
-            >
-              {yearOptions.map((optionYear) => (
-                <option key={optionYear} value={optionYear}>
-                  {optionYear}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-medium" htmlFor="dashboard-month">
-            Alert focus month
-            <select
-              className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
-              id="dashboard-month"
-              value={selectedMonth}
-              onChange={(event) => setSelectedMonth(Number(event.target.value))}
-            >
-              {MONTH_LABELS.map((label, index) => (
-                <option key={label} value={index + 1}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </header>
+        }
+        description="Portfolio overview for capacity, demand coverage, utilization, and the highest-priority alerts for the selected planning month."
+        descriptionClassName="max-w-4xl"
+        icon={Gauge}
+        title="Dashboard"
+      />
 
       <FeedbackMessage message={feedback} />
 
@@ -264,23 +254,41 @@ export function DashboardPage() {
         </Card>
       ) : (
         <>
-          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              className="hero-rise hero-rise-delay-1"
-              hint={`Allocated ${formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} d for ${year}.`}
-              icon={Gauge}
-              title="Net capacity"
-              tone="accent"
-              value={`${formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)} d`}
-              accent={
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-[1.5fr_1fr_1fr_1fr]">
+            <Card className="hero-rise hero-rise-delay-1 relative flex flex-wrap items-center gap-5 overflow-hidden">
+              <div
+                aria-hidden="true"
+                className="bg-hexfield pointer-events-none absolute inset-0"
+                style={{
+                  maskImage: 'linear-gradient(135deg, black, transparent 75%)',
+                  WebkitMaskImage: 'linear-gradient(135deg, black, transparent 75%)',
+                }}
+              />
+              <UtilizationRing className="relative" utilization={viewModel.yearUtilization} />
+              <div className="relative min-w-0 flex-1">
+                <p className="font-accent text-4xl leading-none font-semibold tabular-nums">
+                  {formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)}
+                  <span className="ml-1 font-sans text-base font-normal text-[var(--text-secondary)]">
+                    d
+                  </span>
+                </p>
+                <p className="mt-2 text-xs font-medium tracking-wide text-[var(--text-muted)] uppercase">
+                  Net capacity &middot; FY {year}
+                </p>
+                <p className="mt-2 text-sm text-[var(--text-secondary)]">
+                  Allocated{' '}
+                  {formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} d for{' '}
+                  {year}.
+                </p>
                 <UtilizationBadge
                   compact
                   displayPrecision={displayPrecision}
                   tooltip={`Year utilization based on ${formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)} net capacity days.`}
                   utilization={viewModel.yearUtilization}
+                  className="mt-3"
                 />
-              }
-            />
+              </div>
+            </Card>
             <MetricCard
               className="hero-rise hero-rise-delay-2"
               hint="Negative values mean planned overload."
@@ -308,7 +316,7 @@ export function DashboardPage() {
           </section>
 
           <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <Card className="hero-rise hero-rise-delay-5">
+            <Card className="bg-hexfield hero-rise hero-rise-delay-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="text-xl font-semibold">Utilization trend</h2>
@@ -348,6 +356,7 @@ export function DashboardPage() {
                       name="Net capacity (d)"
                       stroke={CHART_LINE_COLORS.netCapacity}
                       strokeWidth={2}
+                      style={{ filter: 'drop-shadow(0 0 3px var(--color-bmx-cyan))' }}
                       type="monotone"
                     />
                     <Line
