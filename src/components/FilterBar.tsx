@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui';
 import type { FilterFavorite } from '@/features/filters/filterState';
 
+import { MultiSelectPopoverField } from './MultiSelectPopoverField';
+
 interface FilterOption {
   value: string;
   label: string;
@@ -43,7 +45,22 @@ interface BooleanField {
   onChange: (value: boolean) => void;
 }
 
-export type FilterBarField = SearchField | SingleSelectField | MultiSelectField | BooleanField;
+interface MultiSelectPopoverFilterField {
+  type: 'multi-select-popover';
+  key: string;
+  label: string;
+  values: readonly string[];
+  options: readonly FilterOption[];
+  onChange: (value: string[]) => void;
+  searchPlaceholder?: string;
+}
+
+export type FilterBarField =
+  | SearchField
+  | SingleSelectField
+  | MultiSelectField
+  | BooleanField
+  | MultiSelectPopoverFilterField;
 
 interface FilterBarProps<TState extends object> {
   fields: readonly FilterBarField[];
@@ -152,6 +169,20 @@ export function FilterBar<TState extends object>({
                   onChange={(event) => field.onChange(event.target.checked)}
                 />
               </label>
+            );
+          }
+
+          if (field.type === 'multi-select-popover') {
+            return (
+              <MultiSelectPopoverField
+                fieldKey={field.key}
+                key={field.key}
+                label={field.label}
+                options={field.options}
+                searchPlaceholder={field.searchPlaceholder}
+                values={field.values}
+                onChange={field.onChange}
+              />
             );
           }
 

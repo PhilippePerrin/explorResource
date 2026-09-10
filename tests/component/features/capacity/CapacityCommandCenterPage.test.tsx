@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -104,8 +104,15 @@ describe('CapacityCommandCenterPage', () => {
     expect(body).toBeInTheDocument();
     expect(await screen.findByText('Alice Martin')).toBeInTheDocument();
     expect(await screen.findByText('Bob Durand')).toBeInTheDocument();
-    expect(await screen.findByText(/Critical overload/i)).toBeInTheDocument();
-    expect(await screen.findByText(/125%/i)).toBeInTheDocument();
+
+    const legend = screen.getByRole('note');
+    expect(within(legend).getByText(/Critical overload/i)).toBeInTheDocument();
+    const januaryCellButton = screen.getByRole('button', { name: /Alice Martin, January 2026\./i });
+    // The heatmap cell itself is compact (icon + value only, no status word)
+    // to keep month columns aligned; the full status stays on aria-label
+    // and in the legend above.
+    expect(within(januaryCellButton).queryByText(/Critical overload/i)).not.toBeInTheDocument();
+    expect(within(januaryCellButton).getByText(/125%/i)).toBeInTheDocument();
     expect(screen.getAllByLabelText(/^Critical overload\./i).length).toBeGreaterThan(0);
 
     const januaryCell = screen.getByRole('button', { name: /Alice Martin, January 2026\./i });
@@ -141,8 +148,9 @@ describe('CapacityCommandCenterPage', () => {
     await user.click(screen.getByRole('button', { name: /Alice Martin, January 2026\./i }));
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: /Drill-down/i })).toBeInTheDocument();
-      expect(screen.getByText(/Assigned load: 25 d/i)).toBeInTheDocument();
+      const dialog = screen.getByRole('dialog', { name: /Alice Martin — January 2026/i });
+      expect(dialog).toBeInTheDocument();
+      expect(within(dialog).getByText(/Assigned load: 25 d/i)).toBeInTheDocument();
     });
   });
 
@@ -202,7 +210,7 @@ describe('CapacityCommandCenterPage', () => {
 
     const body = await screen.findByTestId('capacity-virtualized-body');
     await screen.findByText('Resource 001');
-    expect((body.firstElementChild as HTMLElement | null)?.style.height).toBe(`${200 * 58}px`);
+    expect(body.querySelector('tbody')?.style.height).toBe(`${200 * 58}px`);
 
     Object.defineProperty(body, 'scrollTop', {
       configurable: true,

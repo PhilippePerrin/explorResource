@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -138,6 +138,84 @@ describe('DemandCoverageBoardPage', () => {
       screen.getByRole('option', { name: 'Supply gap' }),
     );
     await user.click(screen.getByRole('button', { name: /Apply favorite/i }));
+    await waitFor(() => {
+      expect(screen.getByText('E0200')).toBeInTheDocument();
+      expect(screen.queryByText('E0100')).not.toBeInTheDocument();
+    });
+  });
+
+  it('filters board rows through the compact Projects popover instead of an always-expanded list', async () => {
+    await projectsRepository.put({
+      id: '11111111-1111-1111-1111-111111111111',
+      code: 'E0100',
+      name: 'Commercial Analytics',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await projectsRepository.put({
+      id: '55555555-5555-5555-5555-555555555555',
+      code: 'E0200',
+      name: 'Supply Chain',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourceTypesRepository.put({
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await demandSnapshotsRepository.put({
+      id: '22222222-2222-2222-2222-222222222222',
+      importBatchId: 'manual',
+      projectCode: 'E0100',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      demandDays: 5,
+      supplyDays: 0,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await demandSnapshotsRepository.put({
+      id: '55555555-2222-2222-2222-222222222222',
+      importBatchId: 'manual',
+      projectCode: 'E0200',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      demandDays: 4,
+      supplyDays: 0,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Demand Coverage Board$/i });
+    await waitFor(() => {
+      expect(screen.getByText('E0100')).toBeInTheDocument();
+      expect(screen.getByText('E0200')).toBeInTheDocument();
+    });
+
+    const trigger = screen.getByRole('button', { name: /Projects: All projects/i });
+    await user.click(trigger);
+    const panel = screen.getByRole('group', { name: 'Projects' });
+    await user.click(within(panel).getByLabelText(/E0200 — Supply Chain/i));
+    await user.keyboard('{Escape}');
+
+    expect(
+      await screen.findByRole('button', { name: /Projects: 1 projects selected/i }),
+    ).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText('E0200')).toBeInTheDocument();
       expect(screen.queryByText('E0100')).not.toBeInTheDocument();

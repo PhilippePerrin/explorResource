@@ -1,7 +1,7 @@
 import { memo } from 'react';
 
-import { AlertTriangle, Ban, Circle, CircleDot } from '@/components/icons';
-import type { UtilizationResult, UtilizationStatus } from '@/domain/calculations';
+import { getUtilizationDescriptor } from '@/components/utilizationDescriptor';
+import type { UtilizationResult } from '@/domain/calculations';
 
 function formatValue(value: number, displayPrecision: number): string {
   return new Intl.NumberFormat('en-US', {
@@ -10,45 +10,18 @@ function formatValue(value: number, displayPrecision: number): string {
   }).format(value);
 }
 
-function getUtilizationDescriptor(status: UtilizationStatus) {
-  switch (status) {
-    case 'available':
-      return {
-        Icon: Circle,
-        label: 'Available',
-        classes:
-          'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]',
-      };
-    case 'used':
-      return {
-        Icon: CircleDot,
-        label: 'Used',
-        classes:
-          'border-[var(--status-caution-border)] bg-[var(--status-caution-bg)] text-[var(--status-caution-text)]',
-      };
-    case 'overload':
-      return {
-        Icon: AlertTriangle,
-        label: 'Overload',
-        classes:
-          'border-[var(--status-attention-border)] bg-[var(--status-attention-bg)] text-[var(--status-attention-text)]',
-      };
-    case 'critical-overload':
-      return {
-        Icon: Ban,
-        label: 'Critical overload',
-        classes:
-          'border-[var(--status-critical-border)] bg-[var(--status-critical-bg)] text-[var(--status-critical-text)]',
-      };
-  }
-}
-
 interface UtilizationBadgeProps {
   utilization: UtilizationResult;
   displayPrecision?: number;
   tooltip: string;
   compact?: boolean;
   className?: string;
+  // Hides the visible status word, leaving only the icon + value — used in
+  // dense grids (the capacity heatmap) where the full label per cell drifts
+  // column widths. aria-label/title always keep the full status name, so
+  // this is never the sole carrier of meaning (never-color-alone stays
+  // satisfied by the icon shape, which still differs per status).
+  showLabel?: boolean;
 }
 
 function UtilizationBadgeComponent({
@@ -57,6 +30,7 @@ function UtilizationBadgeComponent({
   tooltip,
   compact = false,
   className = '',
+  showLabel = true,
 }: UtilizationBadgeProps) {
   const descriptor = getUtilizationDescriptor(utilization.status);
   const valueText =
@@ -71,7 +45,7 @@ function UtilizationBadgeComponent({
       title={tooltip}
     >
       <descriptor.Icon aria-hidden="true" size={14} strokeWidth={2.25} />
-      <span>{descriptor.label}</span>
+      {showLabel ? <span>{descriptor.label}</span> : null}
       <span>{valueText}</span>
     </span>
   );

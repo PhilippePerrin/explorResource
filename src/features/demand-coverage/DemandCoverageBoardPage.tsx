@@ -215,11 +215,12 @@ export function DemandCoverageBoardPage() {
           ),
       },
       {
-        type: 'multi-select',
+        type: 'multi-select-popover',
         key: 'projectCodesFilter',
         label: 'Projects',
         values: filters.projectCodesFilter,
         options: projectFilterOptions,
+        searchPlaceholder: 'Search projects',
         onChange: (value) => updateFilter('projectCodesFilter', value),
       },
     ],

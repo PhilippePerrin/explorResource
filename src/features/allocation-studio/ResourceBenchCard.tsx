@@ -48,29 +48,31 @@ export function ResourceBenchCard({
       {...listeners}
       aria-pressed={isArmed}
     >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <GripVertical
-            aria-hidden="true"
-            className="shrink-0 text-[var(--text-secondary)]"
-            size={14}
-          />
-          <div>
-            <p className="font-medium">{resourceName}</p>
-            <p className="text-[var(--text-secondary)]" title={row.resourceTypeFullLabel}>
-              {row.resourceTypeLabel}
-            </p>
-          </div>
-        </div>
-        <UtilizationBadge
-          compact
-          displayPrecision={displayPrecision}
-          tooltip={`${resourceName}: ${formatDayAmount(
-            row.summary.assignedLoadDays,
-            displayPrecision,
-          )} allocated days over ${formatDayAmount(row.summary.netCapacityDays, displayPrecision)} net capacity days.`}
-          utilization={row.summary.utilization}
+      <div className="flex items-start gap-2">
+        <GripVertical
+          aria-hidden="true"
+          className="mt-0.5 shrink-0 text-[var(--text-secondary)]"
+          size={14}
         />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate font-medium" title={resourceName}>
+              {resourceName}
+            </p>
+            <UtilizationBadge
+              compact
+              displayPrecision={displayPrecision}
+              tooltip={`${resourceName}: ${formatDayAmount(
+                row.summary.assignedLoadDays,
+                displayPrecision,
+              )} allocated days over ${formatDayAmount(row.summary.netCapacityDays, displayPrecision)} net capacity days.`}
+              utilization={row.summary.utilization}
+            />
+          </div>
+          <p className="truncate text-[var(--text-secondary)]" title={row.resourceTypeFullLabel}>
+            {row.resourceTypeLabel}
+          </p>
+        </div>
       </div>
       {isArmed ? (
         <p className="mt-2 font-medium text-[var(--status-info-text)]">

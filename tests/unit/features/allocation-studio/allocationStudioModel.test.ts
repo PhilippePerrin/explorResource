@@ -11,6 +11,8 @@ import {
   commitAllocationStudioHistory,
   copyMonthAllocations,
   createAllocationStudioHistory,
+  filterOutFullyCoveredProjects,
+  isProjectFullyCoveredForVisibleMonths,
   redoAllocationStudioHistory,
   resolveAllocationStudioRowStatus,
   resolveDefaultDropDays,
@@ -669,6 +671,102 @@ describe('allocationStudioModel', () => {
       expect(entries[0]?.afterDemandSummary.remainingDemandDays).toBe(2);
       expect(entries[1]?.beforeDemandSummary.demandDays).toBe(0);
       expect(entries[1]?.afterDemandSummary.allocatedDays).toBe(2);
+    });
+  });
+
+  describe('isProjectFullyCoveredForVisibleMonths / filterOutFullyCoveredProjects', () => {
+    const coveredProject = {
+      id: '77777777-7777-7777-7777-777777777777',
+      code: 'E0100',
+      name: 'Covered Project',
+      status: 'active' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+    const gappedProject = {
+      id: '88888888-8888-8888-8888-888888888888',
+      code: 'E0200',
+      name: 'Gapped Project',
+      status: 'active' as const,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    function buildDemandSnapshot(projectCode: string, month: number, demandDays: number) {
+      return {
+        id: `snapshot-${projectCode}-${month}`,
+        importBatchId: 'manual',
+        projectCode,
+        resourceTypeId: baseAllocation.resourceTypeId,
+        year: 2026,
+        month,
+        demandDays,
+        supplyDays: 0,
+        origin: 'manual-adjustment' as const,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      };
+    }
+
+    function buildAllocation(projectCode: string, month: number, allocatedDays: number) {
+      return {
+        ...baseAllocation,
+        id: `allocation-${projectCode}-${month}`,
+        projectCode,
+        month,
+        allocatedDays,
+      };
+    }
+
+    it('reports fully covered only when every visible month has zero remaining demand', () => {
+      const blocks = buildAllocationStudioBoardRows({
+        projects: [coveredProject],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots: [buildDemandSnapshot('E0100', 1, 4)],
+        importBatches: [],
+        allocations: [buildAllocation('E0100', 1, 4)],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+      });
+
+      expect(isProjectFullyCoveredForVisibleMonths(blocks, [1])).toBe(true);
+      // Month 2 has demand (0) minus allocation (0) = 0 remaining too, so the
+      // whole year still reads as covered here — flip month 2's demand up to
+      // prove a real gap is detected once it's in the visible-months scope.
+      const gappedBlocks = buildAllocationStudioBoardRows({
+        projects: [coveredProject],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots: [buildDemandSnapshot('E0100', 1, 4), buildDemandSnapshot('E0100', 2, 3)],
+        importBatches: [],
+        allocations: [buildAllocation('E0100', 1, 4)],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+      });
+
+      expect(isProjectFullyCoveredForVisibleMonths(gappedBlocks, [1])).toBe(true);
+      expect(isProjectFullyCoveredForVisibleMonths(gappedBlocks, [1, 2])).toBe(false);
+    });
+
+    it('filters out only the projects that are fully covered for the given visible months', () => {
+      const blocks = buildAllocationStudioBoardRows({
+        projects: [coveredProject, gappedProject],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots: [buildDemandSnapshot('E0100', 1, 4), buildDemandSnapshot('E0200', 1, 4)],
+        importBatches: [],
+        allocations: [buildAllocation('E0100', 1, 4), buildAllocation('E0200', 1, 2)],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+      });
+
+      const filtered = filterOutFullyCoveredProjects(blocks, [1]);
+
+      expect(filtered.map((block) => block.demandLine.projectCode)).toEqual(['E0200']);
     });
   });
 });

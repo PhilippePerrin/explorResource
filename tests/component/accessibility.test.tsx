@@ -23,7 +23,9 @@ vi.mock('@dnd-kit/core', () => ({
 }));
 
 import { AllocationStudioPage } from '@/features/allocation-studio';
+import { CapacityCommandCenterPage } from '@/features/capacity';
 import { DashboardPage } from '@/features/dashboard';
+import { DemandCoverageBoardPage } from '@/features/demand-coverage';
 import { ResourcesPage } from '@/features/resources';
 import { deletePlannerDb } from '@/persistence/db';
 import { createRepository } from '@/persistence/repository';
@@ -282,6 +284,101 @@ describe('accessibility smoke tests', () => {
     await user.click(screen.getByRole('button', { name: /Alice Martin/i, pressed: false }));
     await user.click(screen.getByRole('button', { name: /Add across all visible months/i }));
     await screen.findByRole('dialog', { name: /Add across all visible months/i });
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no obvious axe violations on the demand coverage board with the Projects popover open', async () => {
+    await projectsRepository.put({
+      id: '99999999-9999-4999-8999-999999999999',
+      code: 'E0100',
+      name: 'Commercial Analytics',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourceTypesRepository.put({
+      id: '77777777-7777-4777-8777-777777777777',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { container } = render(
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <DemandCoverageBoardPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: /^Demand Coverage Board$/i });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Projects: All projects/i }));
+    await screen.findByRole('group', { name: 'Projects' });
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no obvious axe violations on the capacity command center with the drill-down drawer open', async () => {
+    await resourceTypesRepository.put({
+      id: '77777777-7777-4777-8777-777777777777',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourcesRepository.put({
+      id: '88888888-8888-4888-8888-888888888888',
+      firstName: 'Alice',
+      lastName: 'Martin',
+      resourceTypeId: '77777777-7777-4777-8777-777777777777',
+      collaborationType: 'internal',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await workingDaysRepository.put({
+      id: 'aaaaaaaa-1111-4aaa-8aaa-aaaaaaaabbbb',
+      year: 2026,
+      month: 1,
+      workingDaysCount: 10,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await allocationsRepository.put({
+      id: 'cccccccc-1111-4ccc-8ccc-cccccccccccc',
+      resourceId: '88888888-8888-4888-8888-888888888888',
+      projectCode: 'E0100',
+      resourceTypeId: '77777777-7777-4777-8777-777777777777',
+      year: 2026,
+      month: 1,
+      allocatedDays: 5,
+      origin: 'manual',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { container } = render(
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <CapacityCommandCenterPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: /^Capacity Command Center$/i });
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading capacity heatmap/i)).not.toBeInTheDocument();
+    });
+
+    await expectNoAxeViolations(container);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Alice Martin, January 2026\./i }));
+    await screen.findByRole('dialog');
 
     await expectNoAxeViolations(container);
   });

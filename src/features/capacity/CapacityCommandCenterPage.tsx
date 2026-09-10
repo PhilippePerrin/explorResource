@@ -14,7 +14,8 @@ import { formatDayAmount } from '@/components/formatDayAmount';
 import { Activity } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
-import { Card, TableShell } from '@/components/ui';
+import { getUtilizationDescriptor, UTILIZATION_STATUSES } from '@/components/utilizationDescriptor';
+import { Card, Drawer, TableShell } from '@/components/ui';
 import type {
   Allocation,
   AppSettings,
@@ -61,6 +62,22 @@ interface CapacityFilters {
   resourceTypeFilter: string;
   companyFilter: string;
   statusFilter: 'all' | Resource['status'];
+}
+
+const RESOURCE_TYPE_COL_WIDTH = '10rem';
+const RESOURCE_COL_WIDTH = '12rem';
+const MONTH_COL_WIDTH = '5.5rem';
+
+function getHeatmapColumnWidth(columnIndex: number): string {
+  if (columnIndex === 0) {
+    return RESOURCE_TYPE_COL_WIDTH;
+  }
+
+  if (columnIndex === 1) {
+    return RESOURCE_COL_WIDTH;
+  }
+
+  return MONTH_COL_WIDTH;
 }
 
 export function CapacityCommandCenterPage() {
@@ -374,6 +391,7 @@ export function CapacityCommandCenterPage() {
                 <UtilizationBadge
                   compact
                   displayPrecision={displayPrecision}
+                  showLabel={false}
                   tooltip={buildCapacityDrilldownTooltip(summary, displayPrecision)}
                   utilization={summary.utilization}
                 />
@@ -466,11 +484,32 @@ export function CapacityCommandCenterPage() {
               Use Tab to enter the heatmap buttons, then use arrow keys to move between months and
               resources. Press Enter or Space to open the drill-down for the focused month.
             </p>
-            <div className="overflow-x-auto">
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-xs" role="note">
+              <span className="font-medium text-[var(--text-secondary)]">Legend:</span>
+              {UTILIZATION_STATUSES.map((status) => {
+                const descriptor = getUtilizationDescriptor(status);
+
+                return (
+                  <span
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 font-medium ${descriptor.classes}`}
+                    key={status}
+                  >
+                    <descriptor.Icon aria-hidden="true" size={14} strokeWidth={2.25} />
+                    <span>{descriptor.label}</span>
+                  </span>
+                );
+              })}
+            </div>
+            <div
+              className="max-h-[28rem] overflow-auto rounded-xl border border-[var(--surf-divider)]"
+              data-testid="capacity-virtualized-body"
+              ref={tableContainerRef}
+            >
               <table
                 aria-colcount={visibleMonths.length + 2}
                 aria-rowcount={rows.length + 1}
-                className="min-w-full border-collapse text-left text-sm"
+                className="ui-table-sticky-header border-collapse text-left text-sm"
+                style={{ tableLayout: 'fixed' }}
               >
                 <caption className="sr-only">
                   Capacity utilization heatmap by resource and month.
@@ -478,8 +517,13 @@ export function CapacityCommandCenterPage() {
                 <thead>
                   {table.getHeaderGroups().map((headerGroup) => (
                     <tr key={headerGroup.id} className="border-b border-[var(--surf-divider)]">
-                      {headerGroup.headers.map((header) => (
-                        <th key={header.id} className="px-3 py-2 font-semibold" scope="col">
+                      {headerGroup.headers.map((header, columnIndex) => (
+                        <th
+                          className="px-3 py-2 font-semibold"
+                          key={header.id}
+                          scope="col"
+                          style={{ width: getHeatmapColumnWidth(columnIndex) }}
+                        >
                           {header.isPlaceholder
                             ? null
                             : flexRender(header.column.columnDef.header, header.getContext())}
@@ -488,73 +532,73 @@ export function CapacityCommandCenterPage() {
                     </tr>
                   ))}
                 </thead>
-              </table>
-            </div>
-            <div
-              ref={tableContainerRef}
-              className="max-h-[28rem] overflow-auto"
-              data-testid="capacity-virtualized-body"
-            >
-              <div style={{ height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
                 {/*
-                  Not wrapped in TableShell: the header/body split into two
-                  separate <table> elements is what lets the body scroll
-                  independently while the header stays fixed, and the
-                  virtualizer measures this exact scrolling container
-                  (tableContainerRef) — TableShell's single table/caption
-                  wrapper doesn't fit that shape without risking the
-                  measurement. Zebra striping is applied per-row below,
-                  keyed off the absolute row index rather than DOM position
-                  (nth-child), since virtualization only renders a sliding
-                  window of rows and nth-child would shift during scroll.
+                  tbody uses display:block so the virtualized rows can be
+                  absolutely positioned inside it (their offsets come from
+                  virtualizer.getVirtualItems()), and each row uses
+                  display:flex so its cells still lay out horizontally in
+                  sync with the thead's normal-flow row — the standard
+                  TanStack-virtual-with-sticky-header recipe. Column widths
+                  are pinned via getHeatmapColumnWidth on both thead and
+                  tbody cells so header/body stay aligned by construction,
+                  not by relying on the table layout algorithm (which can't
+                  be trusted once tbody leaves normal flow). Zebra striping
+                  is keyed off the absolute row index rather than DOM
+                  position (nth-child), since virtualization only renders a
+                  sliding window of rows and nth-child would shift on scroll.
                 */}
-                <table className="min-w-full border-collapse text-left text-sm">
-                  <tbody>
-                    {renderedRowIndexes.map((virtualRow) => {
-                      const row = table.getRowModel().rows[virtualRow.index];
+                <tbody style={{ display: 'block', height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
+                  {renderedRowIndexes.map((virtualRow) => {
+                    const row = table.getRowModel().rows[virtualRow.index];
 
-                      if (!row) {
-                        return null;
-                      }
+                    if (!row) {
+                      return null;
+                    }
 
-                      return (
-                        <tr
-                          key={row.id}
-                          className={`border-b border-[var(--surf-divider)] ${virtualRow.index % 2 === 1 ? 'bg-[var(--surf-700)]' : ''}`}
-                          data-index={virtualRow.index}
-                          style={{
-                            position: 'absolute',
-                            transform: `translateY(${virtualRow.start}px)`,
-                            width: '100%',
-                          }}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <td key={cell.id} className="px-3 py-2 align-top">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
-                          ))}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                    return (
+                      <tr
+                        className={`border-b border-[var(--surf-divider)] ${virtualRow.index % 2 === 1 ? 'bg-[var(--surf-700)]' : ''}`}
+                        data-index={virtualRow.index}
+                        key={row.id}
+                        style={{
+                          display: 'flex',
+                          position: 'absolute',
+                          transform: `translateY(${virtualRow.start}px)`,
+                          width: '100%',
+                        }}
+                      >
+                        {row.getVisibleCells().map((cell, columnIndex) => (
+                          <td
+                            className="px-3 py-2 align-top"
+                            key={cell.id}
+                            style={{ width: getHeatmapColumnWidth(columnIndex) }}
+                          >
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
       </Card>
 
-      <Card>
-        <h2 className="text-xl font-semibold">Drill-down</h2>
-        {selectedDrilldown && selectedSummary ? (
-          <div className="mt-4 space-y-3 text-sm">
-            <p className="font-medium">
-              {selectedDrilldown.row.resourceName} —{' '}
-              {new Intl.DateTimeFormat('en-US', { month: 'long' }).format(
-                new Date(filters.year, selectedDrilldown.month - 1, 1),
-              )}{' '}
-              {filters.year}
-            </p>
+      <Drawer
+        onClose={() => setSelectedDrilldown(null)}
+        open={Boolean(selectedDrilldown)}
+        title={
+          selectedDrilldown
+            ? `${selectedDrilldown.row.resourceName} — ${new Intl.DateTimeFormat('en-US', {
+                month: 'long',
+              }).format(new Date(filters.year, selectedDrilldown.month - 1, 1))} ${filters.year}`
+            : ''
+        }
+      >
+        {selectedSummary ? (
+          <div className="space-y-3 text-sm">
             <UtilizationBadge
               displayPrecision={displayPrecision}
               tooltip={buildCapacityDrilldownTooltip(selectedSummary, displayPrecision)}
@@ -609,12 +653,8 @@ export function CapacityCommandCenterPage() {
               </tbody>
             </TableShell>
           </div>
-        ) : (
-          <p className="mt-4 text-sm text-[var(--text-secondary)]">
-            Select a utilization cell to inspect the month details and underlying allocations.
-          </p>
-        )}
-      </Card>
+        ) : null}
+      </Drawer>
     </div>
   );
 }

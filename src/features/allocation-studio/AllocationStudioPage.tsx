@@ -43,6 +43,7 @@ import {
   commitAllocationStudioHistory,
   copyMonthAllocations,
   createAllocationStudioHistory,
+  filterOutFullyCoveredProjects,
   redoAllocationStudioHistory,
   resolveDefaultDropDays,
   resolveMultiMonthDropDays,
@@ -80,6 +81,7 @@ interface AllocationStudioFilters {
   focus: CapacityFocus;
   resourceTypeFilter: string;
   projectSearch: string;
+  hideFullyCovered: boolean;
 }
 
 function createResolver(
@@ -179,6 +181,7 @@ export function AllocationStudioPage() {
       focus: { defaultValue: 'year', param: 'focus' },
       resourceTypeFilter: { defaultValue: 'all', param: 'type' },
       projectSearch: { defaultValue: '', param: 'q', storage: 'local' },
+      hideFullyCovered: { defaultValue: false, param: 'hideCovered' },
     }),
     [initialDate],
   );
@@ -320,6 +323,13 @@ export function AllocationStudioPage() {
     () => buildAllocationStudioBoardRows({ ...boardRowOptions, importBatches: data.importBatches }),
     [boardRowOptions, data.importBatches],
   );
+  const visibleBoardBlocks = useMemo(
+    () =>
+      filters.hideFullyCovered
+        ? filterOutFullyCoveredProjects(boardBlocks, visibleMonths)
+        : boardBlocks,
+    [boardBlocks, filters.hideFullyCovered, visibleMonths],
+  );
   const benchRows = useMemo(
     () =>
       buildResourceBenchRows({
@@ -411,10 +421,18 @@ export function AllocationStudioPage() {
         })),
         onChange: (value) => updateFilter('year', Number(value)),
       },
+      {
+        type: 'boolean',
+        key: 'hideFullyCovered',
+        label: 'Hide fully covered projects',
+        checked: filters.hideFullyCovered,
+        onChange: (value) => updateFilter('hideFullyCovered', value),
+      },
     ],
     [
       data.resourceTypes,
       filters.focus,
+      filters.hideFullyCovered,
       filters.projectSearch,
       filters.resourceTypeFilter,
       filters.year,
@@ -801,7 +819,7 @@ export function AllocationStudioPage() {
         onDeleteFavorite={removeFavorite}
         onReset={resetFilters}
         onSaveFavorite={saveFavorite}
-        resultsSummary={`${boardBlocks.length} project row(s)`}
+        resultsSummary={`${visibleBoardBlocks.length} project row(s)`}
       />
 
       <section className="flex flex-wrap items-center gap-2">
@@ -830,7 +848,7 @@ export function AllocationStudioPage() {
       </section>
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-        <section className="grid gap-6 xl:grid-cols-[22rem_1fr]">
+        <section className="grid gap-6 xl:grid-cols-[17rem_1fr]">
           <section className="space-y-6">
             <ResourceBenchPanel
               armedResourceId={armedResourceId}
@@ -893,12 +911,12 @@ export function AllocationStudioPage() {
                   </p>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Draft rows: {boardBlocks.length}
+                  Draft rows: {visibleBoardBlocks.length}
                 </p>
               </div>
               {loading ? (
                 <p>Loading allocation board…</p>
-              ) : boardBlocks.length === 0 ? (
+              ) : visibleBoardBlocks.length === 0 ? (
                 <p className="text-sm text-[var(--text-secondary)]">
                   No board row matches the selected filters.
                 </p>
@@ -916,17 +934,20 @@ export function AllocationStudioPage() {
                   <TableShell caption="Allocation board by project and month, with keyboard-operable drop targets.">
                     <thead>
                       <tr className="border-b border-[var(--surf-divider)]">
-                        <th className="px-3 py-2 font-semibold" scope="col">
+                        <th
+                          className="sticky left-0 z-20 w-[180px] bg-[var(--surf-800)] px-3 py-2 font-semibold"
+                          scope="col"
+                        >
                           Project
                         </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Status
+                        <th
+                          className="sticky left-[180px] z-20 w-[160px] bg-[var(--surf-800)] px-3 py-2 font-semibold"
+                          scope="col"
+                        >
+                          Activity
                         </th>
                         <th className="px-3 py-2 font-semibold" scope="col">
                           Resource
-                        </th>
-                        <th className="px-3 py-2 font-semibold" scope="col">
-                          Activity
                         </th>
                         <th className="px-3 py-2 text-right font-semibold" scope="col">
                           Total supply
@@ -947,7 +968,7 @@ export function AllocationStudioPage() {
                       {(() => {
                         let flatRowIndex = 0;
 
-                        return boardBlocks.map((block) => {
+                        return visibleBoardBlocks.map((block) => {
                           const demandRowIndex = flatRowIndex;
                           flatRowIndex += 1;
                           const assignmentRowIndexes = block.assignments.map(() => {

@@ -686,6 +686,50 @@ export function buildAllocationStudioBoardRows(options: {
   });
 }
 
+/**
+ * A project is "fully covered" for the given months when every one of its
+ * (project, resourceType) demand-line blocks has remainingDemandDays === 0
+ * for each of those months — mirrors the 'covered' case of
+ * classifyDemandCoverageState (planningAggregations.ts), applied across a
+ * project's blocks instead of a single cell.
+ */
+export function isProjectFullyCoveredForVisibleMonths(
+  projectBlocks: readonly Pick<AllocationStudioProjectBlock, 'demandLine'>[],
+  visibleMonths: readonly number[],
+): boolean {
+  return projectBlocks.every((block) =>
+    visibleMonths.every((month) => (block.demandLine.months[month - 1]?.remainingDemandDays ?? 0) === 0),
+  );
+}
+
+/**
+ * Drops every project whose blocks are all fully covered for
+ * visibleMonths — backs the "Hide fully covered projects" filter. Preserves
+ * the order of the remaining blocks.
+ */
+export function filterOutFullyCoveredProjects(
+  blocks: readonly AllocationStudioProjectBlock[],
+  visibleMonths: readonly number[],
+): AllocationStudioProjectBlock[] {
+  const byProject = new Map<string, AllocationStudioProjectBlock[]>();
+
+  for (const block of blocks) {
+    const projectBlocks = byProject.get(block.demandLine.projectCode) ?? [];
+    projectBlocks.push(block);
+    byProject.set(block.demandLine.projectCode, projectBlocks);
+  }
+
+  const coveredProjectCodes = new Set(
+    [...byProject.entries()]
+      .filter(([, projectBlocks]) =>
+        isProjectFullyCoveredForVisibleMonths(projectBlocks, visibleMonths),
+      )
+      .map(([projectCode]) => projectCode),
+  );
+
+  return blocks.filter((block) => !coveredProjectCodes.has(block.demandLine.projectCode));
+}
+
 export interface ResourceBenchRow {
   resource: Resource;
   resourceTypeLabel: string;

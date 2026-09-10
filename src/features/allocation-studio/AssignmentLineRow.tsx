@@ -44,7 +44,7 @@ export function AssignmentLineRow({
 
   return (
     <tr className="border-b border-[var(--surf-divider)] align-top">
-      <td className="px-3 py-2">
+      <td className="sticky left-0 z-10 w-[180px] bg-[var(--surf-800)] px-3 py-2">
         <button
           aria-label={`Drag to move ${row.resourceName}'s allocation to another project`}
           className="inline-flex items-center rounded p-1 hover:bg-[var(--surf-600)] focus:outline-none focus:ring-2 focus:ring-[var(--color-bmx-blue)]"
@@ -61,14 +61,15 @@ export function AssignmentLineRow({
           <GripVertical aria-hidden="true" size={14} />
         </button>
       </td>
-      <td className="px-3 py-2 text-[var(--text-secondary)]">—</td>
+      <td className="sticky left-[180px] z-10 w-[160px] bg-[var(--surf-800)] px-3 py-2 text-[var(--text-secondary)]">
+        {row.resourceTypeLabel}
+      </td>
       <td className="px-3 py-2">
         <span className="inline-flex items-center gap-1">
           <Pencil aria-hidden="true" className="shrink-0 text-[var(--text-secondary)]" size={14} />
           {row.resourceName}
         </span>
       </td>
-      <td className="px-3 py-2">{row.projectName}</td>
       <td className="px-3 py-2 text-right text-[var(--text-secondary)]">
         {formatDayAmount(row.totalSupplyDays, displayPrecision)} d
       </td>

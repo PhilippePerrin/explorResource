@@ -289,13 +289,17 @@ describe('AllocationStudioPage', () => {
     await screen.findByRole('heading', { name: /^Allocation Studio$/i });
 
     const table = await screen.findByRole('table', { name: /Allocation board/i });
+    const headers = within(table)
+      .getAllByRole('columnheader')
+      .map((header) => header.textContent);
 
-    for (const columnName of ['Status', 'Resource', 'Activity', 'Total supply', 'Total demand']) {
-      expect(within(table).getByRole('columnheader', { name: columnName })).toBeInTheDocument();
-    }
+    expect(headers.slice(0, 5)).toEqual(['Project', 'Activity', 'Resource', 'Total supply', 'Total demand']);
+    expect(within(table).queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
 
-    expect(within(table).getByText('Manual')).toBeInTheDocument();
     expect(within(table).getAllByText('Commercial Analytics').length).toBeGreaterThan(0);
+    // Activity column shows the resource type on both the demand-line row
+    // and the assignment row beneath it.
+    expect(within(table).getAllByText('DEV').length).toBeGreaterThanOrEqual(2);
 
     const assignmentNameCell = within(table).getByText('Alice Martin');
     const assignmentRow = assignmentNameCell.closest('tr');
@@ -305,5 +309,67 @@ describe('AllocationStudioPage', () => {
         name: /Alice Martin in E0100, month January: 3 d/i,
       }),
     ).toBeInTheDocument();
+  });
+
+  it('hides projects whose demand is fully covered for every visible month when the filter is on', async () => {
+    await seedBaseFixtures();
+    await projectsRepository.put({
+      id: '55555555-5555-5555-5555-555555555555',
+      code: 'E0200',
+      name: 'Gapped Delivery',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await demandSnapshotsRepository.put({
+      id: '66666666-6666-6666-6666-666666666666',
+      importBatchId: 'manual',
+      projectCode: 'E0200',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      demandDays: 5,
+      supplyDays: 0,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    // E0100's only demand (5 d in January, from seedBaseFixtures) is fully
+    // allocated, so it should disappear once "Hide fully covered projects"
+    // is on; E0200 has an untouched 5 d gap and must remain.
+    await allocationsRepository.put({
+      id: '99999999-9999-9999-9999-999999999999',
+      resourceId: '11111111-1111-1111-1111-111111111111',
+      projectCode: 'E0100',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      allocatedDays: 5,
+      origin: 'manual',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+    const table = await screen.findByRole('table', { name: /Allocation board/i });
+
+    expect(within(table).getAllByText('Commercial Analytics').length).toBeGreaterThan(0);
+    expect(within(table).getAllByText('Gapped Delivery').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByLabelText(/Hide fully covered projects/i));
+
+    await waitFor(() => {
+      expect(within(table).queryByText('Commercial Analytics')).not.toBeInTheDocument();
+    });
+    expect(within(table).getAllByText('Gapped Delivery').length).toBeGreaterThan(0);
+
+    await user.click(screen.getByLabelText(/Hide fully covered projects/i));
+
+    await waitFor(() => {
+      expect(within(table).getAllByText('Commercial Analytics').length).toBeGreaterThan(0);
+    });
   });
 });
