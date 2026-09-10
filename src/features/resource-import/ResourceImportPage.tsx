@@ -17,6 +17,7 @@ import {
   RESOURCE_IMPORT_WIZARD_STEPS,
   type ResourceImportWorkerClient,
 } from '@/resourceImport';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
 
 const resourceTypesRepository = createRepository('resourceTypes');
@@ -75,6 +76,17 @@ export function ResourceImportPage({
         .filter((batch) => batch.kind === 'resource')
         .sort((left, right) => right.importedAt.localeCompare(left.importedAt)),
     [data.importBatches],
+  );
+
+  const resourceTypeDisplayLabelByLabel = useMemo(
+    () =>
+      new Map(
+        data.resourceTypes.map((resourceType) => [
+          resourceType.label.trim(),
+          getResourceTypeDisplayLabel(resourceType),
+        ]),
+      ),
+    [data.resourceTypes],
   );
 
   useEffect(() => {
@@ -368,11 +380,22 @@ export function ResourceImportPage({
                       </td>
                       <td className="px-3 py-2">
                         {resource.action === 'update' && resource.previousResourceTypeLabel ? (
-                          <span>
-                            {resource.previousResourceTypeLabel} → {resource.resourceTypeLabel}
+                          <span
+                            title={`${resource.previousResourceTypeLabel} → ${resource.resourceTypeLabel}`}
+                          >
+                            {resourceTypeDisplayLabelByLabel.get(
+                              resource.previousResourceTypeLabel.trim(),
+                            ) ?? resource.previousResourceTypeLabel}{' '}
+                            →{' '}
+                            {resourceTypeDisplayLabelByLabel.get(
+                              resource.resourceTypeLabel.trim(),
+                            ) ?? resource.resourceTypeLabel}
                           </span>
                         ) : (
-                          resource.resourceTypeLabel
+                          <span title={resource.resourceTypeLabel}>
+                            {resourceTypeDisplayLabelByLabel.get(resource.resourceTypeLabel.trim()) ??
+                              resource.resourceTypeLabel}
+                          </span>
                         )}
                       </td>
                       <td className="px-3 py-2 capitalize">{resource.action}</td>
@@ -531,7 +554,12 @@ export function ResourceImportPage({
                 <ul className="mt-1 list-disc pl-5">
                   {wizardState.commitResult.skippedTypeChanges.map((skipped) => (
                     <li key={skipped.resourceId}>
-                      {skipped.fullName} → {skipped.attemptedResourceTypeLabel}
+                      <span title={`${skipped.fullName} → ${skipped.attemptedResourceTypeLabel}`}>
+                        {skipped.fullName} →{' '}
+                        {resourceTypeDisplayLabelByLabel.get(
+                          skipped.attemptedResourceTypeLabel.trim(),
+                        ) ?? skipped.attemptedResourceTypeLabel}
+                      </span>
                     </li>
                   ))}
                 </ul>

@@ -63,7 +63,7 @@ describe('ResourcesPage', () => {
 
     await user.click(screen.getByRole('button', { name: /New resource/i }));
     const detailsSection = await screen.findByRole('dialog', { name: /Create resource/i });
-    await within(detailsSection).findByRole('option', { name: 'Developer' });
+    await within(detailsSection).findByRole('option', { name: 'DEV' });
 
     await user.type(within(detailsSection).getByLabelText(/First name/i), 'Alice');
     await user.type(within(detailsSection).getByLabelText(/Last name/i), 'Martin');

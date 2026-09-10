@@ -72,7 +72,7 @@ export function DemandLineRow({
         </span>
       </td>
       <td className="px-3 py-2">
-        <div>{row.resourceTypeLabel}</div>
+        <div title={row.resourceTypeFullLabel}>{row.resourceTypeLabel}</div>
         <button
           className="mt-1 text-left text-[11px] text-[var(--color-bmx-blue)] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-[var(--text-secondary)] disabled:no-underline"
           disabled={!canAddAcrossMonths}

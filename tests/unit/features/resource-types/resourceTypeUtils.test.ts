@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   countResourceTypeReferences,
   createResourceTypeFormSchema,
+  getResourceTypeDisplayLabel,
 } from '@/features/resource-types';
 
 describe('resource type utilities', () => {
@@ -41,5 +42,23 @@ describe('resource type utilities', () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  describe('getResourceTypeDisplayLabel', () => {
+    it('prefers the short code when it is set', () => {
+      expect(getResourceTypeDisplayLabel({ label: 'Developer', shortCode: 'DEV' })).toBe('DEV');
+    });
+
+    it('falls back to the label when the short code is undefined', () => {
+      expect(getResourceTypeDisplayLabel({ label: 'Developer', shortCode: undefined })).toBe(
+        'Developer',
+      );
+    });
+
+    it('falls back to the label when the short code is empty or whitespace only', () => {
+      expect(getResourceTypeDisplayLabel({ label: 'Developer', shortCode: '   ' })).toBe(
+        'Developer',
+      );
+    });
   });
 });

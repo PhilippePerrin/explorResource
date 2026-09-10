@@ -10,6 +10,7 @@ import { getResourceFullName } from '@/domain/entities';
 import { buildResourceYearSummaries, type ResourceMonthSummary } from '@/domain/calculations';
 
 import { MONTH_LABELS } from '@/features/dashboard';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 export type CapacityFocus = 'year' | 's1' | 's2' | 'q1' | 'q2' | 'q3' | 'q4';
 
@@ -17,6 +18,7 @@ export interface CapacityRow {
   resource: Resource;
   resourceName: string;
   resourceTypeLabel: string;
+  resourceTypeFullLabel: string;
   summaries: ResourceMonthSummary[];
 }
 
@@ -54,7 +56,7 @@ export function buildCapacityRows(options: {
   statusFilter: 'all' | Resource['status'];
 }): CapacityRow[] {
   const resourceTypeLookup = new Map(
-    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label]),
+    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType]),
   );
   const normalizedSearch = options.searchTerm.trim().toUpperCase();
 
@@ -62,8 +64,10 @@ export function buildCapacityRows(options: {
     .filter((resource) => {
       const matchesStatus =
         options.statusFilter === 'all' || resource.status === options.statusFilter;
-      const resourceTypeLabel =
-        resourceTypeLookup.get(resource.resourceTypeId) ?? resource.resourceTypeId;
+      const resourceType = resourceTypeLookup.get(resource.resourceTypeId);
+      const resourceTypeSearchText = resourceType
+        ? `${resourceType.label} ${resourceType.shortCode ?? ''}`.toUpperCase()
+        : resource.resourceTypeId.toUpperCase();
       const matchesType =
         options.resourceTypeFilter === 'all' ||
         resource.resourceTypeId === options.resourceTypeFilter;
@@ -73,13 +77,19 @@ export function buildCapacityRows(options: {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         resourceName.toUpperCase().includes(normalizedSearch) ||
-        resourceTypeLabel.toUpperCase().includes(normalizedSearch);
+        resourceTypeSearchText.includes(normalizedSearch);
 
       return matchesStatus && matchesType && matchesCompany && matchesSearch;
     })
     .sort((left, right) => {
-      const leftType = resourceTypeLookup.get(left.resourceTypeId) ?? left.resourceTypeId;
-      const rightType = resourceTypeLookup.get(right.resourceTypeId) ?? right.resourceTypeId;
+      const leftResourceType = resourceTypeLookup.get(left.resourceTypeId);
+      const rightResourceType = resourceTypeLookup.get(right.resourceTypeId);
+      const leftType = leftResourceType
+        ? getResourceTypeDisplayLabel(leftResourceType)
+        : left.resourceTypeId;
+      const rightType = rightResourceType
+        ? getResourceTypeDisplayLabel(rightResourceType)
+        : right.resourceTypeId;
       return (
         leftType.localeCompare(rightType, undefined, { sensitivity: 'base' }) ||
         getResourceFullName(left).localeCompare(getResourceFullName(right), undefined, {
@@ -87,19 +97,26 @@ export function buildCapacityRows(options: {
         })
       );
     })
-    .map((resource) => ({
-      resource,
-      resourceName: getResourceFullName(resource),
-      resourceTypeLabel: resourceTypeLookup.get(resource.resourceTypeId) ?? resource.resourceTypeId,
-      summaries: buildResourceYearSummaries({
+    .map((resource) => {
+      const resourceType = resourceTypeLookup.get(resource.resourceTypeId);
+
+      return {
         resource,
-        year: options.year,
-        workingDaysCalendars: options.workingDaysCalendars,
-        resourceNonWorkingDays: options.resourceNonWorkingDays,
-        allocations: options.allocations,
-        appSettings: options.appSettings,
-      }),
-    }));
+        resourceName: getResourceFullName(resource),
+        resourceTypeLabel: resourceType
+          ? getResourceTypeDisplayLabel(resourceType)
+          : resource.resourceTypeId,
+        resourceTypeFullLabel: resourceType ? resourceType.label : resource.resourceTypeId,
+        summaries: buildResourceYearSummaries({
+          resource,
+          year: options.year,
+          workingDaysCalendars: options.workingDaysCalendars,
+          resourceNonWorkingDays: options.resourceNonWorkingDays,
+          allocations: options.allocations,
+          appSettings: options.appSettings,
+        }),
+      };
+    });
 }
 
 export function buildCapacityDrilldownTooltip(

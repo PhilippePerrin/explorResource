@@ -4,6 +4,7 @@ import { normalizeAmount } from '@/domain/normalization/normalizeAmount';
 import { buildDemandAllocationSummary, selectLatestDemandSnapshots } from '@/domain/calculations';
 
 import { MONTH_LABELS } from '@/features/dashboard';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 export interface DemandCoverageCell {
   month: number;
@@ -22,6 +23,7 @@ export interface DemandCoverageRow {
   projectName: string;
   resourceTypeId: string;
   resourceTypeLabel: string;
+  resourceTypeFullLabel: string;
   months: DemandCoverageCell[];
   totalDemandDays: number;
   totalAllocatedDays: number;
@@ -43,7 +45,7 @@ export function buildDemandCoverageRows(options: {
 }): DemandCoverageRow[] {
   const projectLookup = new Map(options.projects.map((project) => [project.code, project.name]));
   const resourceTypeLookup = new Map(
-    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label]),
+    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType]),
   );
   const normalizedSearch = options.projectSearch.trim().toUpperCase();
   const latestSnapshots = selectLatestDemandSnapshots(options.demandSnapshots).filter(
@@ -76,11 +78,15 @@ export function buildDemandCoverageRows(options: {
     }
 
     const key = `${snapshot.projectCode}::${snapshot.resourceTypeId}`;
+    const resourceType = resourceTypeLookup.get(snapshot.resourceTypeId);
     const existing = grouped.get(key) ?? {
       projectCode: snapshot.projectCode,
       projectName,
       resourceTypeId: snapshot.resourceTypeId,
-      resourceTypeLabel: resourceTypeLookup.get(snapshot.resourceTypeId) ?? snapshot.resourceTypeId,
+      resourceTypeLabel: resourceType
+        ? getResourceTypeDisplayLabel(resourceType)
+        : snapshot.resourceTypeId,
+      resourceTypeFullLabel: resourceType ? resourceType.label : snapshot.resourceTypeId,
       months: Array.from({ length: 12 }, (_, index) => ({
         month: index + 1,
         label: MONTH_LABELS[index] ?? `Month ${index + 1}`,

@@ -25,6 +25,7 @@ import {
   type ImportComparisonSummary,
   type ImportWorkerClient,
 } from '@/import';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
 
 const resourceTypesRepository = createRepository('resourceTypes');
@@ -107,8 +108,13 @@ function getSourceLabel(options: {
   return batch ? `${batch.fileName} (${formatDateTime(batch.importedAt)})` : 'Unknown import batch';
 }
 
-function getProjectIndicatorSummary(projectSummary: ImportComparisonProjectSummary): string[] {
+function getProjectIndicatorSummary(
+  projectSummary: ImportComparisonProjectSummary,
+  resourceTypeDisplayLabelByLabel: Map<string, string>,
+): string[] {
   const indicators: string[] = [];
+  const toDisplayLabel = (label: string) =>
+    resourceTypeDisplayLabelByLabel.get(label.trim()) ?? label;
 
   if (projectSummary.projectState === 'new-project') {
     indicators.push('✨ New project');
@@ -119,11 +125,15 @@ function getProjectIndicatorSummary(projectSummary: ImportComparisonProjectSumma
   }
 
   if (projectSummary.addedResourceTypeLabels.length > 0) {
-    indicators.push(`➕ Type added: ${projectSummary.addedResourceTypeLabels.join(', ')}`);
+    indicators.push(
+      `➕ Type added: ${projectSummary.addedResourceTypeLabels.map(toDisplayLabel).join(', ')}`,
+    );
   }
 
   if (projectSummary.removedResourceTypeLabels.length > 0) {
-    indicators.push(`➖ Type removed: ${projectSummary.removedResourceTypeLabels.join(', ')}`);
+    indicators.push(
+      `➖ Type removed: ${projectSummary.removedResourceTypeLabels.map(toDisplayLabel).join(', ')}`,
+    );
   }
 
   if (indicators.length === 0) {
@@ -195,6 +205,25 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
     () =>
       new Map(
         data.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label] as const),
+      ),
+    [data.resourceTypes],
+  );
+  const resourceTypeDisplayLabelById = useMemo(
+    () =>
+      new Map(
+        data.resourceTypes.map(
+          (resourceType) => [resourceType.id, getResourceTypeDisplayLabel(resourceType)] as const,
+        ),
+      ),
+    [data.resourceTypes],
+  );
+  const resourceTypeDisplayLabelByLabel = useMemo(
+    () =>
+      new Map(
+        data.resourceTypes.map(
+          (resourceType) =>
+            [resourceType.label.trim(), getResourceTypeDisplayLabel(resourceType)] as const,
+        ),
       ),
     [data.resourceTypes],
   );
@@ -682,7 +711,13 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 {wizardState.analysis.demandSnapshots.slice(0, 10).map((snapshot) => (
                   <tr className="border-t border-[var(--surf-divider)]" key={snapshot.cellRef}>
                     <td className="px-3 py-2">{snapshot.projectCode}</td>
-                    <td className="px-3 py-2">{snapshot.resourceTypeLabel}</td>
+                    <td className="px-3 py-2" title={snapshot.resourceTypeLabel}>
+                      {(snapshot.resourceTypeId
+                        ? resourceTypeDisplayLabelById.get(snapshot.resourceTypeId)
+                        : undefined) ??
+                        resourceTypeDisplayLabelByLabel.get(snapshot.resourceTypeLabel.trim()) ??
+                        snapshot.resourceTypeLabel}
+                    </td>
                     <td className="px-3 py-2">{formatMonthLabel(snapshot.year, snapshot.month)}</td>
                     <td className="px-3 py-2 text-right">{formatAmount(snapshot.demandDays)}</td>
                     <td className="px-3 py-2 text-right">{formatAmount(snapshot.supplyDays)}</td>
@@ -908,7 +943,10 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                 {(wizardState.comparison?.items ?? []).slice(0, 12).map((item) => (
                   <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
                     <td className="px-3 py-2">{item.projectCode}</td>
-                    <td className="px-3 py-2">{item.resourceTypeLabel}</td>
+                    <td className="px-3 py-2" title={item.resourceTypeLabel}>
+                      {resourceTypeDisplayLabelById.get(item.resourceTypeId) ??
+                        item.resourceTypeLabel}
+                    </td>
                     <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
                     <td className="px-3 py-2 text-right">{formatAmount(item.deltaDays)}</td>
                     <td className="px-3 py-2">{item.state}</td>
@@ -1396,7 +1434,10 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                         <td className="px-3 py-2 font-medium">{projectSummary.projectCode}</td>
                         <td className="px-3 py-2">
                           <ul className="space-y-1">
-                            {getProjectIndicatorSummary(projectSummary).map((indicator) => (
+                            {getProjectIndicatorSummary(
+                              projectSummary,
+                              resourceTypeDisplayLabelByLabel,
+                            ).map((indicator) => (
                               <li key={`${projectSummary.projectCode}-${indicator}`}>
                                 {indicator}
                               </li>
@@ -1460,7 +1501,10 @@ export function ImportsPage({ workerClientFactory = createImportWorkerClient }: 
                   {comparisonSummary.items.slice(0, 50).map((item) => (
                     <tr className="border-t border-[var(--surf-divider)]" key={item.key}>
                       <td className="px-3 py-2">{item.projectCode}</td>
-                      <td className="px-3 py-2">{item.resourceTypeLabel}</td>
+                      <td className="px-3 py-2" title={item.resourceTypeLabel}>
+                        {resourceTypeDisplayLabelById.get(item.resourceTypeId) ??
+                          item.resourceTypeLabel}
+                      </td>
                       <td className="px-3 py-2">{formatMonthLabel(item.year, item.month)}</td>
                       <td className="px-3 py-2 text-right">
                         {formatAmount(item.previousDemandDays)}

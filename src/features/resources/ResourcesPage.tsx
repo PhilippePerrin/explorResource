@@ -23,6 +23,7 @@ import {
   type WorkingDaysCalendar,
 } from '@/domain/entities';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
 
 import {
@@ -277,8 +278,10 @@ export function ResourcesPage() {
     const normalizedSearch = filters.searchTerm.trim().toUpperCase();
 
     return sortedResources.filter((resource) => {
-      const resourceTypeLabel =
-        resourceTypeLookup.get(resource.resourceTypeId)?.label.toUpperCase() ?? '';
+      const resourceType = resourceTypeLookup.get(resource.resourceTypeId);
+      const resourceTypeSearchText = resourceType
+        ? `${resourceType.label} ${resourceType.shortCode ?? ''}`.toUpperCase()
+        : '';
       const companyName = companyLookup.get(resource.companyId ?? '')?.name.toUpperCase() ?? '';
       const matchesStatus =
         filters.statusFilter === 'all' || resource.status === filters.statusFilter;
@@ -293,7 +296,7 @@ export function ResourcesPage() {
       const matchesSearch =
         normalizedSearch.length === 0 ||
         getResourceFullName(resource).toUpperCase().includes(normalizedSearch) ||
-        resourceTypeLabel.includes(normalizedSearch) ||
+        resourceTypeSearchText.includes(normalizedSearch) ||
         companyName.includes(normalizedSearch);
 
       return (
@@ -341,7 +344,7 @@ export function ResourcesPage() {
           { value: 'all', label: 'All resource types' },
           ...resourceTypeOptions.map((resourceType) => ({
             value: resourceType.id,
-            label: resourceType.label,
+            label: getResourceTypeDisplayLabel(resourceType),
           })),
         ],
         onChange: (value) => updateFilter('resourceTypeFilter', value),
@@ -856,7 +859,16 @@ export function ResourcesPage() {
                       </div>
                     </td>
                     <td className="px-3 py-3">
-                      {resourceTypeLookup.get(resource.resourceTypeId)?.label ?? 'Unknown type'}
+                      {(() => {
+                        const resourceType = resourceTypeLookup.get(resource.resourceTypeId);
+                        return resourceType ? (
+                          <span title={resourceType.label}>
+                            {getResourceTypeDisplayLabel(resourceType)}
+                          </span>
+                        ) : (
+                          'Unknown type'
+                        );
+                      })()}
                     </td>
                     <td className="px-3 py-3">{resource.collaborationType}</td>
                     <td className="px-3 py-3">
@@ -1021,7 +1033,7 @@ export function ResourcesPage() {
                 <option value="">Select a resource type</option>
                 {resourceTypeOptions.map((resourceType) => (
                   <option key={resourceType.id} value={resourceType.id}>
-                    {resourceType.label}
+                    {getResourceTypeDisplayLabel(resourceType)}
                     {resourceType.status === 'archived' ? ' (archived)' : ''}
                   </option>
                 ))}
@@ -1333,7 +1345,7 @@ export function ResourcesPage() {
                             key={resourceType.id}
                             value={resourceType.id}
                           >
-                            {resourceType.label}
+                            {getResourceTypeDisplayLabel(resourceType)}
                             {incompatible ? ' (incompatible)' : ''}
                           </option>
                         );
@@ -1576,8 +1588,16 @@ export function ResourcesPage() {
                       >
                         <td className="px-3 py-3">{allocation.projectCode}</td>
                         <td className="px-3 py-3">
-                          {resourceTypeLookup.get(allocation.resourceTypeId)?.label ??
-                            'Unknown type'}
+                          {(() => {
+                            const resourceType = resourceTypeLookup.get(allocation.resourceTypeId);
+                            return resourceType ? (
+                              <span title={resourceType.label}>
+                                {getResourceTypeDisplayLabel(resourceType)}
+                              </span>
+                            ) : (
+                              'Unknown type'
+                            );
+                          })()}
                         </td>
                         <td className="px-3 py-3">
                           {getMonthLabel(allocation.month)} {allocation.year}

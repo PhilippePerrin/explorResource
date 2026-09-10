@@ -57,7 +57,9 @@ export function ResourceBenchCard({
           />
           <div>
             <p className="font-medium">{resourceName}</p>
-            <p className="text-[var(--text-secondary)]">{row.resourceTypeLabel}</p>
+            <p className="text-[var(--text-secondary)]" title={row.resourceTypeFullLabel}>
+              {row.resourceTypeLabel}
+            </p>
           </div>
         </div>
         <UtilizationBadge

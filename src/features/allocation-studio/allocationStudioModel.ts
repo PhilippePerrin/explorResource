@@ -23,6 +23,7 @@ import {
 } from '@/domain/calculations';
 import { formatDayAmount } from '@/components/formatDayAmount';
 import { MONTH_LABELS } from '@/features/dashboard';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 export const allocationChangeSchema = z
   .object({
@@ -82,6 +83,7 @@ export interface AllocationStudioRow {
   projectName: string;
   resourceTypeId: string;
   resourceTypeLabel: string;
+  resourceTypeFullLabel: string;
   months: AllocationStudioCell[];
 }
 
@@ -99,6 +101,7 @@ export interface AllocationStudioDemandLineRow {
   projectName: string;
   resourceTypeId: string;
   resourceTypeLabel: string;
+  resourceTypeFullLabel: string;
   status: AllocationStudioRowStatus;
   totalSupplyDays: number;
   totalDemandDays: number;
@@ -450,7 +453,7 @@ export function buildAllocationStudioRows(options: {
 }): AllocationStudioRow[] {
   const projectLookup = new Map(options.projects.map((project) => [project.code, project.name]));
   const resourceTypeLookup = new Map(
-    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label]),
+    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType]),
   );
   const resourceLookup = new Map(
     options.resources.map((resource) => [resource.id, getResourceFullName(resource)]),
@@ -482,7 +485,11 @@ export function buildAllocationStudioRows(options: {
     .map((key) => {
       const [projectCode = '', resourceTypeId = ''] = key.split('::');
       const projectName = projectLookup.get(projectCode) ?? projectCode;
-      const resourceTypeLabel = resourceTypeLookup.get(resourceTypeId) ?? resourceTypeId;
+      const resourceType = resourceTypeLookup.get(resourceTypeId);
+      const resourceTypeLabel = resourceType
+        ? getResourceTypeDisplayLabel(resourceType)
+        : resourceTypeId;
+      const resourceTypeFullLabel = resourceType ? resourceType.label : resourceTypeId;
       const months = Array.from({ length: 12 }, (_, index) => {
         const month = index + 1;
         const snapshot = findLatestDemandSnapshot(options.demandSnapshots, {
@@ -535,6 +542,7 @@ export function buildAllocationStudioRows(options: {
         projectName,
         resourceTypeId,
         resourceTypeLabel,
+        resourceTypeFullLabel,
         months,
       } satisfies AllocationStudioRow;
     })
@@ -667,6 +675,7 @@ export function buildAllocationStudioBoardRows(options: {
       projectName: row.projectName,
       resourceTypeId: row.resourceTypeId,
       resourceTypeLabel: row.resourceTypeLabel,
+      resourceTypeFullLabel: row.resourceTypeFullLabel,
       status,
       totalSupplyDays,
       totalDemandDays,
@@ -680,6 +689,7 @@ export function buildAllocationStudioBoardRows(options: {
 export interface ResourceBenchRow {
   resource: Resource;
   resourceTypeLabel: string;
+  resourceTypeFullLabel: string;
   summary: ResourceMonthSummary;
 }
 
@@ -696,7 +706,7 @@ export function buildResourceBenchRows(options: {
   searchTerm: string;
 }): ResourceBenchRow[] {
   const resourceTypeLookup = new Map(
-    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label]),
+    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType]),
   );
   const normalizedSearch = options.searchTerm.trim().toUpperCase();
 
@@ -718,19 +728,26 @@ export function buildResourceBenchRows(options: {
         getResourceFullName(resource).toUpperCase().includes(normalizedSearch)
       );
     })
-    .map((resource) => ({
-      resource,
-      resourceTypeLabel: resourceTypeLookup.get(resource.resourceTypeId) ?? resource.resourceTypeId,
-      summary: buildResourceMonthSummary({
+    .map((resource) => {
+      const resourceType = resourceTypeLookup.get(resource.resourceTypeId);
+
+      return {
         resource,
-        year: options.year,
-        month: options.month,
-        workingDaysCalendars: options.workingDaysCalendars,
-        resourceNonWorkingDays: options.resourceNonWorkingDays,
-        allocations: options.allocations,
-        appSettings: options.appSettings,
-      }),
-    }))
+        resourceTypeLabel: resourceType
+          ? getResourceTypeDisplayLabel(resourceType)
+          : resource.resourceTypeId,
+        resourceTypeFullLabel: resourceType ? resourceType.label : resource.resourceTypeId,
+        summary: buildResourceMonthSummary({
+          resource,
+          year: options.year,
+          month: options.month,
+          workingDaysCalendars: options.workingDaysCalendars,
+          resourceNonWorkingDays: options.resourceNonWorkingDays,
+          allocations: options.allocations,
+          appSettings: options.appSettings,
+        }),
+      };
+    })
     .sort(
       (left, right) => right.summary.availableCapacityDays - left.summary.availableCapacityDays,
     );

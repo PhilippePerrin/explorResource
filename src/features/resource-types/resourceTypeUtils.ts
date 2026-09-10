@@ -81,6 +81,13 @@ export function createResourceTypeDefaultValues(
   };
 }
 
+export function getResourceTypeDisplayLabel(
+  resourceType: Pick<ResourceType, 'label' | 'shortCode'>,
+): string {
+  const shortCode = resourceType.shortCode?.trim();
+  return shortCode && shortCode.length > 0 ? shortCode : resourceType.label;
+}
+
 export function getNextDisplayOrder(resourceTypes: readonly ResourceType[]): number {
   return (
     resourceTypes.reduce(

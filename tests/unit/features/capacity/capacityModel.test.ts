@@ -71,7 +71,8 @@ describe('capacityModel', () => {
 
     expect(rows).toHaveLength(1);
     expect(rows[0]?.resourceName).toBe('Alice Martin');
-    expect(rows[0]?.resourceTypeLabel).toBe('Developer');
+    expect(rows[0]?.resourceTypeLabel).toBe('DEV');
+    expect(rows[0]?.resourceTypeFullLabel).toBe('Developer');
     expect(getFocusMonths('q2')).toEqual([4, 5, 6]);
   });
 });

@@ -10,6 +10,7 @@ import type { DemandCoverageState } from '@/domain/calculations';
 import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 import { buildDemandCoverageRows, type DemandCoverageRow } from './demandCoverageModel';
 
@@ -190,7 +191,7 @@ export function DemandCoverageBoardPage() {
           { value: 'all', label: 'All resource types' },
           ...data.resourceTypes.map((resourceType) => ({
             value: resourceType.id,
-            label: resourceType.label,
+            label: getResourceTypeDisplayLabel(resourceType),
           })),
         ],
         onChange: (value) => updateFilter('resourceTypeFilter', value),
@@ -305,7 +306,9 @@ export function DemandCoverageBoardPage() {
                     <div className="font-medium">{row.projectCode}</div>
                     <div className="text-[var(--text-secondary)]">{row.projectName}</div>
                   </td>
-                  <td className="px-3 py-2">{row.resourceTypeLabel}</td>
+                  <td className="px-3 py-2" title={row.resourceTypeFullLabel}>
+                    {row.resourceTypeLabel}
+                  </td>
                   <td className="px-3 py-2">
                     <div className="mb-2">
                       <DemandCoverageBadge

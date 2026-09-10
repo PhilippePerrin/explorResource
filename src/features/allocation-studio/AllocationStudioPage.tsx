@@ -23,6 +23,7 @@ import { getResourceFullName, isAllocationResourceTypeCompatible } from '@/domai
 import { getFocusMonths, type CapacityFocus } from '@/features/capacity';
 import { MONTH_LABELS } from '@/features/dashboard';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
 
 import { AssignmentLineRow } from './AssignmentLineRow';
@@ -378,7 +379,7 @@ export function AllocationStudioPage() {
           { value: 'all', label: 'All resource types' },
           ...data.resourceTypes.map((resourceType) => ({
             value: resourceType.id,
-            label: resourceType.label,
+            label: getResourceTypeDisplayLabel(resourceType),
           })),
         ],
         onChange: (value) => updateFilter('resourceTypeFilter', value),
@@ -1054,11 +1055,12 @@ export function AllocationStudioPage() {
             );
             return resource ? getResourceFullName(resource) : '';
           })()}
-          resourceTypeLabel={
-            data.resourceTypes.find(
-              (resourceType) => resourceType.id === pendingBatch?.resourceTypeId,
-            )?.label ?? ''
-          }
+          resourceTypeLabel={(() => {
+            const resourceType = data.resourceTypes.find(
+              (candidate) => candidate.id === pendingBatch?.resourceTypeId,
+            );
+            return resourceType ? getResourceTypeDisplayLabel(resourceType) : '';
+          })()}
           onClose={handleCloseMultiMonthAssign}
           onConfirm={handleConfirmMultiMonthAssign}
         />

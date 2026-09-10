@@ -7,6 +7,7 @@ import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Button, Drawer } from '@/components/ui';
 import type { Project, Resource, ResourceType } from '@/domain/entities';
 import { getResourceFullName } from '@/domain/entities';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 import type { AllocationChangeValues, AllocationSimulationPreview } from './allocationStudioModel';
 import { buildCoverageBarCaption } from './allocationStudioModel';
@@ -128,7 +129,7 @@ export function QuickAssignDrawer({
             <option value="">Select a resource type</option>
             {resourceTypes.map((resourceType) => (
               <option key={resourceType.id} value={resourceType.id}>
-                {resourceType.label}
+                {getResourceTypeDisplayLabel(resourceType)}
               </option>
             ))}
           </select>

@@ -25,6 +25,7 @@ import type {
   WorkingDaysCalendar,
 } from '@/domain/entities';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
 
 import {
@@ -254,7 +255,7 @@ export function CapacityCommandCenterPage() {
           { value: 'all', label: 'All resource types' },
           ...data.resourceTypes.map((resourceType) => ({
             value: resourceType.id,
-            label: resourceType.label,
+            label: getResourceTypeDisplayLabel(resourceType),
           })),
         ],
         onChange: (value) => updateFilter('resourceTypeFilter', value),
@@ -336,7 +337,11 @@ export function CapacityCommandCenterPage() {
     () => [
       columnHelper.accessor('resourceTypeLabel', {
         header: 'Resource type',
-        cell: (info) => <span className="text-sm">{info.getValue()}</span>,
+        cell: (info) => (
+          <span className="text-sm" title={info.row.original.resourceTypeFullLabel}>
+            {info.getValue()}
+          </span>
+        ),
       }),
       columnHelper.accessor('resourceName', {
         header: 'Resource',
