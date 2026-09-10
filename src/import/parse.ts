@@ -31,6 +31,11 @@ const COLUMN_KEYS = Array.from({ length: 20 }, (_, columnIndex) =>
 
 const HEADER_ROW_NUMBER = 2;
 const FIRST_DATA_ROW_NUMBER = 2;
+// The source PSA tool always rounds Demand/Supply to 1 decimal (nearest 0.1 day) in the comment
+// text, while the underlying gap cell keeps unrounded precision. Two independent roundings can
+// therefore push the reconstructed gap up to ~0.1 day away from the real cell value even when the
+// comment is correct — confirmed against the production fixture (max observed diff 0.09).
+const COMMENT_GAP_ROUNDING_TOLERANCE_DAYS = 0.1;
 const PERSON_NAME_PATTERN =
   /^[A-Za-zÀ-ÖØ-öø-ÿ'’-]+(?:-[A-Za-zÀ-ÖØ-öø-ÿ'’-]+)?(?:\s+[A-ZÀ-ÖØ-Ý' -]+)+$/;
 
@@ -154,7 +159,7 @@ function finalizePendingDemand(
     if (monthValue.gapDays !== null && parsedComment) {
       const reconstructedGap = normalizeAmount(parsedComment.demandDays - parsedComment.supplyDays);
 
-      if (Math.abs(reconstructedGap - monthValue.gapDays) >= 1e-6) {
+      if (Math.abs(reconstructedGap - monthValue.gapDays) > COMMENT_GAP_ROUNDING_TOLERANCE_DAYS) {
         createAnomaly(
           {
             code: 'comment-gap-mismatch',

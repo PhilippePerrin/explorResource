@@ -47,6 +47,9 @@ describe('analyzeImportWorkbook', () => {
       ambiguousRows: 0,
     });
     expect(analysis.anomalies.filter((anomaly) => anomaly.severity === 'blocking')).toHaveLength(0);
+    expect(
+      analysis.anomalies.filter((anomaly) => anomaly.code === 'comment-gap-mismatch'),
+    ).toHaveLength(0);
 
     const firstDemand = analysis.demandSnapshots.find((snapshot) => snapshot.cellRef === 'I5');
     expect(firstDemand).toMatchObject({

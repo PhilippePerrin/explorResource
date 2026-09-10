@@ -34,6 +34,8 @@ Parsing strategy (decided 2026-09-08):
 
 Implementation note (Lot 7, 2026-09-08): the repository implementation first **verified experimentally** that the existing `xlsx` dependency (`0.18.5`) exposes the real workbook comments through `worksheet[cellRef].c` when read with `cellComments: true` / `cellStyles: true`. That path worked on the provided production fixture, so no manual zip/XML fallback was added at this stage.
 
+Rounding note (2026-09-10): the export tool always rounds Demand/Supply to 1 decimal in the comment text, while the gap cell keeps full unrounded precision. Reconstructing `demand − supply` from the comment can therefore differ from the real gap cell by up to ~0.1 day (two independent roundings) even when nothing is wrong. The `comment-gap-mismatch` anomaly check tolerates this (`COMMENT_GAP_ROUNDING_TOLERANCE_DAYS` in `src/import/parse.ts`) and only flags larger discrepancies.
+
 ## Classification criteria (combined, never style-only)
 
 - Project-code regex on column A.
