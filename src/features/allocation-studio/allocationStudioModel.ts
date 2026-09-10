@@ -4,6 +4,7 @@ import type {
   Allocation,
   AppSettings,
   DemandSnapshot,
+  ImportBatch,
   Project,
   Resource,
   ResourceNonWorkingDays,
@@ -17,7 +18,10 @@ import {
   buildResourceMonthSummary,
   findLatestDemandSnapshot,
   selectLatestDemandSnapshots,
+  type DemandAllocationSummary,
+  type ResourceMonthSummary,
 } from '@/domain/calculations';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import { MONTH_LABELS } from '@/features/dashboard';
 
 export const allocationChangeSchema = z
@@ -33,6 +37,7 @@ export const allocationChangeSchema = z
       .number()
       .refine(Number.isFinite, 'Allocated days are required.')
       .refine((value) => value >= 0, 'Allocated days cannot be negative.'),
+    origin: z.enum(['manual', 'drag-and-drop']),
   })
   .superRefine((values, ctx) => {
     if (values.mode === 'move' && values.sourceProjectCode.length === 0) {
@@ -63,6 +68,8 @@ export interface AllocationStudioCell {
   month: number;
   label: string;
   demandDays: number;
+  supplyDays: number;
+  importBatchId: string | null;
   allocatedDays: number;
   remainingDemandDays: number;
   overServiceDays: number;
@@ -78,11 +85,83 @@ export interface AllocationStudioRow {
   months: AllocationStudioCell[];
 }
 
+/**
+ * 'mixed' surfaces the (legitimate) case where a demand-line row's 12 months
+ * are backed by different import batches — findLatestDemandSnapshot resolves
+ * the latest snapshot independently per month, so a row can span batches.
+ */
+export type AllocationStudioRowStatus =
+  'validated' | 'draft' | 'cancelled' | 'manual' | 'none' | 'mixed';
+
+export interface AllocationStudioDemandLineRow {
+  kind: 'demand-line';
+  projectCode: string;
+  projectName: string;
+  resourceTypeId: string;
+  resourceTypeLabel: string;
+  status: AllocationStudioRowStatus;
+  totalSupplyDays: number;
+  totalDemandDays: number;
+  months: AllocationStudioCell[];
+}
+
+export interface AllocationStudioAssignmentMonth {
+  month: number;
+  label: string;
+  allocatedDays: number;
+}
+
+export interface AllocationStudioAssignmentRow {
+  kind: 'assignment';
+  projectCode: string;
+  projectName: string;
+  resourceTypeId: string;
+  resourceTypeLabel: string;
+  resourceId: string;
+  resourceName: string;
+  // Assignment rows aren't backed by a DemandSnapshot, so there is no batch
+  // to report — always 'none', rendered as "—".
+  status: Extract<AllocationStudioRowStatus, 'none'>;
+  // Mirrors the parent demand-line row's totals: these are project/type-level
+  // facts, not per-resource facts, so there is no separate figure to compute.
+  totalSupplyDays: number;
+  totalDemandDays: number;
+  months: AllocationStudioAssignmentMonth[];
+}
+
+export type AllocationStudioBoardRow =
+  AllocationStudioDemandLineRow | AllocationStudioAssignmentRow;
+
+export interface AllocationStudioProjectBlock {
+  demandLine: AllocationStudioDemandLineRow;
+  assignments: AllocationStudioAssignmentRow[];
+}
+
 export interface AllocationSimulationPreview {
   beforeResourceSummary: ReturnType<typeof buildResourceMonthSummary>;
   afterResourceSummary: ReturnType<typeof buildResourceMonthSummary>;
   beforeDemandSummary: ReturnType<typeof buildDemandAllocationSummary>;
   afterDemandSummary: ReturnType<typeof buildDemandAllocationSummary>;
+}
+
+export function buildCoverageBarCaption(
+  summary: Pick<
+    DemandAllocationSummary,
+    'demandDays' | 'allocatedDays' | 'remainingDemandDays' | 'overServiceDays'
+  >,
+  displayPrecision = 1,
+): string {
+  const parts = [
+    `Demand ${formatDayAmount(summary.demandDays, displayPrecision)} d`,
+    `Covered ${formatDayAmount(summary.allocatedDays, displayPrecision)} d`,
+    `Gap ${formatDayAmount(summary.remainingDemandDays, displayPrecision)} d`,
+  ];
+
+  if (summary.overServiceDays > 0) {
+    parts.push(`Over-service ${formatDayAmount(summary.overServiceDays, displayPrecision)} d`);
+  }
+
+  return parts.join(' · ');
 }
 
 function cloneAllocations(allocations: readonly Allocation[]): Allocation[] {
@@ -253,7 +332,7 @@ export function applyAllocationChange(
           year: change.year,
           month: change.month,
           allocatedDays: movedDays,
-          origin: 'drag-and-drop',
+          origin: change.origin,
         }),
       );
     }
@@ -281,7 +360,7 @@ export function applyAllocationChange(
     next[targetIndex] = {
       ...current,
       allocatedDays: nextDays,
-      origin: 'drag-and-drop',
+      origin: change.origin,
       updatedAt: now,
     };
 
@@ -300,7 +379,7 @@ export function applyAllocationChange(
       year: change.year,
       month: change.month,
       allocatedDays: change.allocatedDays,
-      origin: 'drag-and-drop',
+      origin: change.origin,
     }),
   );
 
@@ -428,6 +507,8 @@ export function buildAllocationStudioRows(options: {
           month,
           label: MONTH_LABELS[index] ?? `Month ${month}`,
           demandDays: summary.demandDays,
+          supplyDays: snapshot?.supplyDays ?? 0,
+          importBatchId: snapshot?.importBatchId ?? null,
           allocatedDays: summary.allocatedDays,
           remainingDemandDays: summary.remainingDemandDays,
           overServiceDays: summary.overServiceDays,
@@ -472,6 +553,320 @@ export function buildAllocationStudioRows(options: {
           sensitivity: 'base',
         }),
     );
+}
+
+export function resolveAllocationStudioRowStatus(
+  months: readonly Pick<AllocationStudioCell, 'importBatchId'>[],
+  importBatches: readonly ImportBatch[],
+): AllocationStudioRowStatus {
+  const importBatchLookup = new Map(importBatches.map((batch) => [batch.id, batch.status]));
+  const statuses = new Set<AllocationStudioRowStatus>();
+
+  for (const month of months) {
+    if (!month.importBatchId) {
+      continue;
+    }
+
+    if (month.importBatchId === 'manual') {
+      statuses.add('manual');
+      continue;
+    }
+
+    const status = importBatchLookup.get(month.importBatchId);
+
+    if (status) {
+      statuses.add(status);
+    }
+  }
+
+  if (statuses.size === 0) {
+    return 'none';
+  }
+
+  if (statuses.size > 1) {
+    return 'mixed';
+  }
+
+  return [...statuses][0] ?? 'none';
+}
+
+/**
+ * Builds the Planisware-style board: one demand-line row per (project,
+ * resourceType) — same data as buildAllocationStudioRows, which this wraps
+ * unchanged — plus one assignment row per resource with at least one
+ * non-zero month anywhere in the year (not just the currently visible
+ * months, so rows don't appear/disappear as the user changes the Focus
+ * filter). Assignment rows always report Status "none" (they aren't backed
+ * by a DemandSnapshot) and mirror the parent's Total supply/demand, since
+ * those are project/type-level facts rather than per-resource facts.
+ */
+export function buildAllocationStudioBoardRows(options: {
+  projects: readonly Project[];
+  resourceTypes: readonly ResourceType[];
+  resources: readonly Resource[];
+  demandSnapshots: readonly DemandSnapshot[];
+  importBatches: readonly ImportBatch[];
+  allocations: readonly Allocation[];
+  year: number;
+  resourceTypeFilter: string;
+  projectSearch: string;
+}): AllocationStudioProjectBlock[] {
+  const rows = buildAllocationStudioRows(options);
+  const resourceLookup = new Map(
+    options.resources.map((resource) => [resource.id, getResourceFullName(resource)]),
+  );
+
+  return rows.map((row) => {
+    const totalSupplyDays = normalizeAmount(
+      row.months.reduce((sum, month) => sum + month.supplyDays, 0),
+    );
+    const totalDemandDays = normalizeAmount(
+      row.months.reduce((sum, month) => sum + month.demandDays, 0),
+    );
+    const status = resolveAllocationStudioRowStatus(row.months, options.importBatches);
+
+    const resourceIds = new Set<string>();
+
+    for (const month of row.months) {
+      for (const allocation of month.allocations) {
+        if (allocation.allocatedDays !== 0) {
+          resourceIds.add(allocation.resourceId);
+        }
+      }
+    }
+
+    const assignments: AllocationStudioAssignmentRow[] = [...resourceIds]
+      .map((resourceId) => ({
+        kind: 'assignment' as const,
+        projectCode: row.projectCode,
+        projectName: row.projectName,
+        resourceTypeId: row.resourceTypeId,
+        resourceTypeLabel: row.resourceTypeLabel,
+        resourceId,
+        resourceName: resourceLookup.get(resourceId) ?? resourceId,
+        status: 'none' as const,
+        totalSupplyDays,
+        totalDemandDays,
+        months: row.months.map((month) => ({
+          month: month.month,
+          label: month.label,
+          allocatedDays:
+            month.allocations.find((allocation) => allocation.resourceId === resourceId)
+              ?.allocatedDays ?? 0,
+        })),
+      }))
+      .sort((left, right) =>
+        left.resourceName.localeCompare(right.resourceName, undefined, {
+          sensitivity: 'base',
+        }),
+      );
+
+    const demandLine: AllocationStudioDemandLineRow = {
+      kind: 'demand-line',
+      projectCode: row.projectCode,
+      projectName: row.projectName,
+      resourceTypeId: row.resourceTypeId,
+      resourceTypeLabel: row.resourceTypeLabel,
+      status,
+      totalSupplyDays,
+      totalDemandDays,
+      months: row.months,
+    };
+
+    return { demandLine, assignments };
+  });
+}
+
+export interface ResourceBenchRow {
+  resource: Resource;
+  resourceTypeLabel: string;
+  summary: ResourceMonthSummary;
+}
+
+export function buildResourceBenchRows(options: {
+  resources: readonly Resource[];
+  resourceTypes: readonly ResourceType[];
+  year: number;
+  month: number;
+  workingDaysCalendars: readonly WorkingDaysCalendar[];
+  resourceNonWorkingDays: readonly ResourceNonWorkingDays[];
+  allocations: readonly Allocation[];
+  appSettings?: AppSettings | null;
+  resourceTypeFilter: string;
+  searchTerm: string;
+}): ResourceBenchRow[] {
+  const resourceTypeLookup = new Map(
+    options.resourceTypes.map((resourceType) => [resourceType.id, resourceType.label]),
+  );
+  const normalizedSearch = options.searchTerm.trim().toUpperCase();
+
+  return options.resources
+    .filter((resource) => {
+      if (resource.status !== 'active') {
+        return false;
+      }
+
+      if (
+        options.resourceTypeFilter !== 'all' &&
+        resource.resourceTypeId !== options.resourceTypeFilter
+      ) {
+        return false;
+      }
+
+      return (
+        normalizedSearch.length === 0 ||
+        getResourceFullName(resource).toUpperCase().includes(normalizedSearch)
+      );
+    })
+    .map((resource) => ({
+      resource,
+      resourceTypeLabel: resourceTypeLookup.get(resource.resourceTypeId) ?? resource.resourceTypeId,
+      summary: buildResourceMonthSummary({
+        resource,
+        year: options.year,
+        month: options.month,
+        workingDaysCalendars: options.workingDaysCalendars,
+        resourceNonWorkingDays: options.resourceNonWorkingDays,
+        allocations: options.allocations,
+        appSettings: options.appSettings,
+      }),
+    }))
+    .sort(
+      (left, right) => right.summary.availableCapacityDays - left.summary.availableCapacityDays,
+    );
+}
+
+/**
+ * Default "Days" value proposed when a resource is dropped/armed onto a
+ * board cell: fills the remaining gap so a single drop tends to close the
+ * demand exactly, but never proposes 0 (applyAllocationChange treats a
+ * resulting 0 as a deletion, so a drop must never silently no-op).
+ */
+export function resolveDefaultDropDays(
+  cell: Pick<AllocationStudioCell, 'remainingDemandDays'>,
+): number {
+  return cell.remainingDemandDays > 0 ? cell.remainingDemandDays : 1;
+}
+
+/**
+ * Fans resolveDefaultDropDays out across every given month — no new gap
+ * logic, just the already-tested single-month function called once per
+ * month, so a multi-month drop matches today's single-cell drop semantics
+ * exactly for each month it touches.
+ */
+export function resolveMultiMonthDropDays(
+  row: Pick<AllocationStudioRow, 'months'>,
+  months: readonly number[],
+): { month: number; allocatedDays: number }[] {
+  return months.map((month) => {
+    const cell = row.months[month - 1];
+
+    return { month, allocatedDays: cell ? resolveDefaultDropDays(cell) : 1 };
+  });
+}
+
+export const allocationBatchEntrySchema = z.object({
+  month: z.coerce.number().int().min(1).max(12),
+  allocatedDays: z.coerce
+    .number()
+    .refine(Number.isFinite, 'Allocated days are required.')
+    .refine((value) => value >= 0, 'Allocated days cannot be negative.'),
+});
+
+export const allocationBatchChangeSchema = z.object({
+  resourceId: z.string().uuid('Resource is required.'),
+  projectCode: z.string().trim().min(1, 'Project is required.'),
+  resourceTypeId: z.string().uuid('Resource type is required.'),
+  year: z.coerce.number().int(),
+  origin: z.enum(['manual', 'drag-and-drop']),
+  entries: z.array(allocationBatchEntrySchema).min(1, 'At least one month is required.'),
+});
+
+export type AllocationBatchChangeValues = z.infer<typeof allocationBatchChangeSchema>;
+
+/**
+ * Folds each month entry through the existing applyAllocationChange
+ * (mode: 'add') and returns the final simulated array. The caller commits
+ * this array ONCE via the existing commitAllocationStudioHistory, so "one
+ * undo step for N months" falls out of the existing whole-array-clone
+ * history model — no changes needed there.
+ */
+export function applyAllocationChangeBatch(
+  allocations: readonly Allocation[],
+  batch: AllocationBatchChangeValues,
+): Allocation[] {
+  return batch.entries.reduce<Allocation[]>(
+    (current, entry) =>
+      applyAllocationChange(current, {
+        mode: 'add',
+        resourceId: batch.resourceId,
+        sourceProjectCode: '',
+        projectCode: batch.projectCode,
+        resourceTypeId: batch.resourceTypeId,
+        year: batch.year,
+        month: entry.month,
+        allocatedDays: entry.allocatedDays,
+        origin: batch.origin,
+      }),
+    [...allocations],
+  );
+}
+
+export interface AllocationBatchPreviewEntry {
+  month: number;
+  label: string;
+  proposedAllocatedDays: number;
+  beforeDemandSummary: DemandAllocationSummary;
+  afterDemandSummary: DemandAllocationSummary;
+}
+
+/**
+ * Per-month demand coverage before/after, reusing planningAggregations
+ * verbatim. Intentionally does not also compute a per-month resource
+ * utilization summary (unlike buildSimulationPreview): this panel is a
+ * review-then-confirm step over up to 12 months, and utilization detail for
+ * that many months would bury the actually decision-relevant number
+ * (coverage) in noise. Resource-level utilization stays in Capacity Command
+ * Center.
+ */
+export function buildBatchSimulationPreview(options: {
+  currentAllocations: readonly Allocation[];
+  simulatedAllocations: readonly Allocation[];
+  batch: AllocationBatchChangeValues;
+  demandSnapshots: readonly DemandSnapshot[];
+}): AllocationBatchPreviewEntry[] {
+  const normalizedProjectCode = options.batch.projectCode.toUpperCase();
+
+  return options.batch.entries.map((entry) => {
+    const snapshot = findLatestDemandSnapshot(options.demandSnapshots, {
+      projectCode: normalizedProjectCode,
+      resourceTypeId: options.batch.resourceTypeId,
+      year: options.batch.year,
+      month: entry.month,
+    });
+    const demandDays = snapshot?.demandDays ?? 0;
+    const demandKey = {
+      projectCode: normalizedProjectCode,
+      resourceTypeId: options.batch.resourceTypeId,
+      year: options.batch.year,
+      month: entry.month,
+      demandDays,
+    };
+
+    return {
+      month: entry.month,
+      label: MONTH_LABELS[entry.month - 1] ?? `Month ${entry.month}`,
+      proposedAllocatedDays: entry.allocatedDays,
+      beforeDemandSummary: buildDemandAllocationSummary({
+        demandSnapshot: demandKey,
+        allocations: options.currentAllocations,
+      }),
+      afterDemandSummary: buildDemandAllocationSummary({
+        demandSnapshot: demandKey,
+        allocations: options.simulatedAllocations,
+      }),
+    };
+  });
 }
 
 export function buildSimulationPreview(options: {

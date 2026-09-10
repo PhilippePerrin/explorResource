@@ -22,6 +22,7 @@ export {
   FolderKanban,
   FolderTree,
   Gauge,
+  GripVertical,
   Inbox,
   Info,
   Layers3,

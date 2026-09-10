@@ -1,11 +1,13 @@
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import axe from 'axe-core';
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  PointerSensor: class PointerSensor {},
   useDraggable: () => ({
     attributes: {},
     listeners: {},
@@ -16,6 +18,8 @@ vi.mock('@dnd-kit/core', () => ({
     isOver: false,
     setNodeRef: () => undefined,
   }),
+  useSensor: () => null,
+  useSensors: () => [],
 }));
 
 import { AllocationStudioPage } from '@/features/allocation-studio';
@@ -203,6 +207,81 @@ describe('accessibility smoke tests', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Loading allocation board/i)).not.toBeInTheDocument();
     });
+
+    await expectNoAxeViolations(container);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Add allocation…/i }));
+    await screen.findByRole('dialog', { name: /Add allocation/i });
+
+    await expectNoAxeViolations(container);
+  });
+
+  it('has no obvious axe violations with the multi-month assign panel open', async () => {
+    await resourceTypesRepository.put({
+      id: '77777777-7777-4777-8777-777777777777',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourcesRepository.put({
+      id: '88888888-8888-4888-8888-888888888888',
+      firstName: 'Alice',
+      lastName: 'Martin',
+      resourceTypeId: '77777777-7777-4777-8777-777777777777',
+      collaborationType: 'internal',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await projectsRepository.put({
+      id: '99999999-9999-4999-8999-999999999999',
+      code: 'E0100',
+      name: 'Commercial Analytics',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await workingDaysRepository.put({
+      id: 'aaaaaaaa-1111-4aaa-8aaa-aaaaaaaabbbb',
+      year: 2026,
+      month: 1,
+      workingDaysCount: 10,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await demandSnapshotsRepository.put({
+      id: 'bbbbbbbb-1111-4bbb-8bbb-bbbbbbbbbbbb',
+      importBatchId: 'manual',
+      projectCode: 'E0100',
+      resourceTypeId: '77777777-7777-4777-8777-777777777777',
+      year: 2026,
+      month: 1,
+      demandDays: 5,
+      supplyDays: 0,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { container } = render(
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <AllocationStudioPage />
+      </MemoryRouter>,
+    );
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading allocation board/i)).not.toBeInTheDocument();
+    });
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /Alice Martin/i, pressed: false }));
+    await user.click(screen.getByRole('button', { name: /Add across all visible months/i }));
+    await screen.findByRole('dialog', { name: /Add across all visible months/i });
 
     await expectNoAxeViolations(container);
   });

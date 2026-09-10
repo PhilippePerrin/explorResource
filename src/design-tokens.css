@@ -259,3 +259,44 @@
   background-image: var(--hexfield-bg);
   background-repeat: repeat;
 }
+
+/*
+ * Allocation Studio coverage bar — compact visual stand-in for the
+ * demand/covered/gap/over-service numbers, always paired with the existing
+ * DemandCoverageBadge (icon + label + value + tooltip) so nothing here is
+ * ever the sole carrier of meaning.
+ */
+.ui-coverage-bar {
+  display: flex;
+  height: 0.5rem;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: var(--surf-divider);
+}
+.ui-coverage-bar-covered {
+  background-color: var(--status-success-border);
+}
+.ui-coverage-bar-gap {
+  background-color: transparent;
+  border-top: 1px dashed var(--status-caution-border);
+  border-bottom: 1px dashed var(--status-caution-border);
+}
+.ui-coverage-bar-overservice {
+  background-color: var(--status-attention-border);
+}
+
+/* Keyboard "armed" state on a resource bench card, before a target cell is
+   activated. Border/background only — the card's own text label carries the
+   meaning, per the never-color-alone rule. */
+.armed-resource-card {
+  border-color: var(--status-info-border);
+  background-color: var(--status-info-bg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .armed-resource-card {
+    transition:
+      border-color 0.15s ease-out,
+      background-color 0.15s ease-out;
+  }
+}

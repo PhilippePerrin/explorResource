@@ -236,10 +236,7 @@ export function DemandCoverageBoardPage() {
   );
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
-      id="demand-coverage-board-page"
-    >
+    <div className="flex w-full flex-col gap-6 p-6" id="demand-coverage-board-page">
       <PageHeader
         description="Project × resource-type coverage, with demand, covered load, remaining demand, and over-service shown side-by-side so nothing is silently netted out."
         descriptionClassName="max-w-4xl"

@@ -85,18 +85,20 @@ test('allocation studio keyboard flow requires Save draft and resources allow ov
   });
 
   await openPrimaryPage(page, /^Allocation Studio$/i, /^Allocation Studio$/i);
-  await expect(page.getByRole('heading', { name: /Keyboard allocation form/i })).toBeVisible();
 
-  await page.locator('#studio-resource').focus();
-  await page.locator('#studio-resource').selectOption(E2E_RESOURCE.id);
-  await page.locator('#studio-project').focus();
-  await page.locator('#studio-project').selectOption(E2E_PROJECT.code);
-  await page.locator('#studio-form-type').focus();
-  await page.locator('#studio-form-type').selectOption(E2E_RESOURCE_TYPE.id);
-  await page.locator('#studio-form-year').fill(String(TEST_YEAR));
-  await page.locator('#studio-form-month').selectOption(String(TEST_MONTH));
-  await page.locator('#studio-form-days').fill('2');
-  await page.getByRole('button', { name: /Queue change/i }).click();
+  async function queueAllocation(options: { resourceId: string; days: string }) {
+    await page.getByRole('button', { name: /^Add allocation/ }).click();
+    const drawer = page.getByRole('dialog', { name: /Add allocation/i });
+    await drawer.locator('#studio-resource').selectOption(options.resourceId);
+    await drawer.locator('#studio-project').selectOption(E2E_PROJECT.code);
+    await drawer.locator('#studio-form-type').selectOption(E2E_RESOURCE_TYPE.id);
+    await drawer.locator('#studio-form-year').fill(String(TEST_YEAR));
+    await drawer.locator('#studio-form-month').selectOption(String(TEST_MONTH));
+    await drawer.locator('#studio-form-days').fill(options.days);
+    await drawer.getByRole('button', { name: /Queue change/i }).click();
+  }
+
+  await queueAllocation({ resourceId: E2E_RESOURCE.id, days: '2' });
 
   await expect(
     page.locator('p[role="status"]').filter({ hasText: /Draft allocation queued/i }),
@@ -111,13 +113,7 @@ test('allocation studio keyboard flow requires Save draft and resources allow ov
   await expect(page.getByRole('heading', { name: /^Allocation Studio$/i })).toBeVisible();
   await expect(page.getByText(/Gap 5 d/i)).toBeVisible();
 
-  await page.locator('#studio-resource').selectOption(E2E_RESOURCE.id);
-  await page.locator('#studio-project').selectOption(E2E_PROJECT.code);
-  await page.locator('#studio-form-type').selectOption(E2E_RESOURCE_TYPE.id);
-  await page.locator('#studio-form-year').fill(String(TEST_YEAR));
-  await page.locator('#studio-form-month').selectOption(String(TEST_MONTH));
-  await page.locator('#studio-form-days').fill('2');
-  await page.getByRole('button', { name: /Queue change/i }).click();
+  await queueAllocation({ resourceId: E2E_RESOURCE.id, days: '2' });
   await page.getByRole('button', { name: /Save draft/i }).click();
 
   await expect(
@@ -130,13 +126,7 @@ test('allocation studio keyboard flow requires Save draft and resources allow ov
   await expect(boardRow).toContainText(/Covered 2 d/i);
   await expect(boardRow).toContainText(/Gap 3 d/i);
 
-  await page.locator('#studio-resource').selectOption(E2E_RESOURCE_B.id);
-  await page.locator('#studio-project').selectOption(E2E_PROJECT.code);
-  await page.locator('#studio-form-type').selectOption(E2E_RESOURCE_TYPE.id);
-  await page.locator('#studio-form-year').fill(String(TEST_YEAR));
-  await page.locator('#studio-form-month').selectOption(String(TEST_MONTH));
-  await page.locator('#studio-form-days').fill('3');
-  await page.getByRole('button', { name: /Queue change/i }).click();
+  await queueAllocation({ resourceId: E2E_RESOURCE_B.id, days: '3' });
   await page.getByRole('button', { name: /Save draft/i }).click();
 
   await expect(boardRow).toContainText(/Covered 5 d/i);
@@ -177,4 +167,116 @@ test('allocation studio keyboard flow requires Save draft and resources allow ov
   await expect(
     allocationSection.getByRole('row').filter({ hasText: E2E_PROJECT.code }),
   ).toContainText('18 d');
+});
+
+test('dragging a resource card onto a project row queues allocations across every visible month', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await setupAppWithSeed(page, {
+    projects: [E2E_PROJECT],
+    resourceTypes: [E2E_RESOURCE_TYPE],
+    resources: [E2E_RESOURCE],
+    workingDaysCalendars: [E2E_WORKING_DAYS],
+    demandSnapshots: [E2E_DEMAND_SNAPSHOT],
+  });
+
+  await openPrimaryPage(page, /^Allocation Studio$/i, /^Allocation Studio$/i);
+
+  const benchCard = page.getByRole('button', { name: /Alice Martin/i }).first();
+  const targetCell = page
+    .getByRole('button', { name: /E0100 Commercial Analytics, month January/i })
+    .first();
+
+  await targetCell.scrollIntoViewIfNeeded();
+  await benchCard.scrollIntoViewIfNeeded();
+
+  const sourceBox = await benchCard.boundingBox();
+  const targetBox = await targetCell.boundingBox();
+
+  if (!sourceBox || !targetBox) {
+    throw new Error('Could not locate the bench card or the target board cell.');
+  }
+
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    sourceBox.x + sourceBox.width / 2 + 20,
+    sourceBox.y + sourceBox.height / 2 + 20,
+    { steps: 5 },
+  );
+  await page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + targetBox.height / 2, {
+    steps: 10,
+  });
+  await page.mouse.up();
+
+  // Rule A: any resource-tile drop fans out across every visible month
+  // (Focus defaults to "Year", so all 12), regardless of which specific
+  // month cell was the physical drop target — the panel reviews the whole
+  // batch before anything is committed.
+  const panel = page.getByRole('dialog', { name: /Add across all visible months/i });
+  await expect(panel).toBeVisible();
+  const januaryRow = panel.getByRole('row').filter({ hasText: 'January' });
+  const februaryRow = panel.getByRole('row').filter({ hasText: 'February' });
+  await expect(januaryRow).toContainText('5 d');
+  await expect(februaryRow).toContainText('1 d');
+
+  await panel.getByRole('button', { name: /Queue change/i }).click();
+  await expect(
+    page.locator('p[role="status"]').filter({ hasText: /Draft allocations queued for 12 month/i }),
+  ).toContainText(/Draft allocations queued for 12 month/i);
+
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await expect(
+    page.locator('p[role="status"]').filter({ hasText: /Allocation draft saved/i }),
+  ).toContainText(/Allocation draft saved/i);
+
+  await expect(page.getByText(/Covered 5 d/i)).toBeVisible();
+  const assignmentCellFebruary = page.getByRole('button', {
+    name: /Alice Martin in E0100, month February: 1 d/i,
+  });
+  await expect(assignmentCellFebruary).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /^Allocation Studio$/i })).toBeVisible();
+  await expect(page.getByText(/Covered 5 d/i)).toBeVisible();
+  await expect(assignmentCellFebruary).toBeVisible();
+});
+
+test('arming a resource and using the row-level activator adds it across every visible month without any drag', async ({
+  page,
+}) => {
+  await setupAppWithSeed(page, {
+    projects: [E2E_PROJECT],
+    resourceTypes: [E2E_RESOURCE_TYPE],
+    resources: [E2E_RESOURCE],
+    workingDaysCalendars: [E2E_WORKING_DAYS],
+    demandSnapshots: [E2E_DEMAND_SNAPSHOT],
+  });
+
+  await openPrimaryPage(page, /^Allocation Studio$/i, /^Allocation Studio$/i);
+
+  const addAcrossButton = page.getByRole('button', { name: /Add across all visible months/i });
+  await expect(addAcrossButton).toBeDisabled();
+
+  await page.getByRole('button', { name: /Alice Martin/i, pressed: false }).click();
+  await expect(addAcrossButton).toBeEnabled();
+  await addAcrossButton.click();
+
+  const panel = page.getByRole('dialog', { name: /Add across all visible months/i });
+  await expect(panel).toBeVisible();
+  await expect(panel.getByRole('row').filter({ hasText: 'January' })).toContainText('5 d');
+
+  await panel.getByRole('button', { name: /Queue change/i }).click();
+  await expect(
+    page.locator('p[role="status"]').filter({ hasText: /Draft allocations queued for 12 month/i }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await expect(
+    page.locator('p[role="status"]').filter({ hasText: /Allocation draft saved/i }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Alice Martin in E0100, month December: 1 d/i }),
+  ).toBeVisible();
 });

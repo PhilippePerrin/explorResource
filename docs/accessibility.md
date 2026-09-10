@@ -2,7 +2,7 @@
 title: Accessibility
 id: accessibility
 status: living
-last_updated: 2026-09-08
+last_updated: 2026-09-10
 ---
 
 # Accessibility
@@ -11,7 +11,7 @@ Target: **WCAG 2.2 AA**.
 
 ## Commitments
 
-- Full keyboard navigation for every action, including a non-drag-and-drop path for every drag-and-drop interaction (Allocation Studio).
+- Full keyboard navigation for every action, including a non-drag-and-drop path for every drag-and-drop interaction. Allocation Studio: arming a resource card with Enter/Space then activating a demand-line cell, an assignment-line cell, or the row's own "Add across all visible months" button all produce the same result a drop onto that target would — the multi-month review panel (or, for editing a single existing assignment cell, the same single-month quick-assign panel a drop there would open). An always-available "Add allocation…" button covers add/set/move without dragging or arming anything, including moving an existing allocation between projects (the drag-only interaction for that move has no dedicated keyboard equivalent beyond this form, since the redesign did not change that interaction).
 - Route transitions use lazy loading with a visible loading message (`role="status"`), not a spinner-only fallback.
 - Visible focus indicator (`:focus-visible`, already defined in `src/index.css`).
 - Explicit form labels, assertive/polite live regions for import, save, restore, reset, and anomaly feedback.

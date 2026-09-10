@@ -126,6 +126,10 @@ test('keyboard-only navigation reaches Allocation Studio and saves without drag-
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: /^Allocation Studio$/i })).toBeVisible();
 
+  await page.getByRole('button', { name: /^Add allocation/ }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('dialog', { name: /Add allocation/i })).toBeVisible();
+
   await page.locator('#studio-resource').focus();
   await page.keyboard.press('ArrowDown');
   await page.locator('#studio-project').focus();

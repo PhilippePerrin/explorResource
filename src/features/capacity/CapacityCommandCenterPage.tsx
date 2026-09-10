@@ -10,6 +10,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import { Activity } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
@@ -59,13 +60,6 @@ interface CapacityFilters {
   resourceTypeFilter: string;
   companyFilter: string;
   statusFilter: 'all' | Resource['status'];
-}
-
-function formatDayAmount(value: number, displayPrecision = 1): string {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: displayPrecision,
-    minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, displayPrecision),
-  }).format(value);
 }
 
 export function CapacityCommandCenterPage() {
@@ -421,10 +415,7 @@ export function CapacityCommandCenterPage() {
     : [];
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6"
-      id="capacity-command-center-page"
-    >
+    <div className="flex w-full flex-col gap-6 p-6" id="capacity-command-center-page">
       <PageHeader
         description="Virtualized heatmap for utilization by resource and month. Every cell includes label, icon, value, and tooltip — never color only."
         descriptionClassName="max-w-4xl"

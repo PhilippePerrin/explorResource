@@ -204,7 +204,7 @@ export function DashboardPage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 p-6" id="dashboard-page">
+    <div className="flex w-full flex-col gap-6 p-6" id="dashboard-page">
       <PageHeader
         actions={
           <div className="grid gap-3 sm:grid-cols-2">

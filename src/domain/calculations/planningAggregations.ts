@@ -222,3 +222,55 @@ export function classifyDemandCoverageState(
 
   return 'covered';
 }
+
+export interface CoverageBarSegment {
+  kind: 'covered' | 'gap' | 'over-service';
+  widthPercent: number;
+}
+
+/**
+ * Compact visual breakdown of a demand/allocation cell for a coverage bar.
+ * Scaled against max(demandDays, allocatedDays) so the covered+gap segments
+ * always span exactly the demand width, and an over-service segment always
+ * renders as a visible overflow past that width rather than being clipped.
+ */
+export function buildCoverageBarSegments(
+  summary: Pick<
+    DemandAllocationSummary,
+    'demandDays' | 'allocatedDays' | 'remainingDemandDays' | 'overServiceDays'
+  >,
+): CoverageBarSegment[] {
+  const demandDays = normalizeAmount(summary.demandDays);
+  const allocatedDays = normalizeAmount(summary.allocatedDays);
+
+  if (demandDays === 0 && allocatedDays === 0) {
+    return [];
+  }
+
+  const baseDays = Math.max(demandDays, allocatedDays);
+  const coveredDays = Math.min(allocatedDays, demandDays);
+  const segments: CoverageBarSegment[] = [];
+
+  if (coveredDays > 0) {
+    segments.push({
+      kind: 'covered',
+      widthPercent: normalizeAmount((coveredDays / baseDays) * 100),
+    });
+  }
+
+  if (summary.remainingDemandDays > 0) {
+    segments.push({
+      kind: 'gap',
+      widthPercent: normalizeAmount((summary.remainingDemandDays / baseDays) * 100),
+    });
+  }
+
+  if (summary.overServiceDays > 0) {
+    segments.push({
+      kind: 'over-service',
+      widthPercent: normalizeAmount((summary.overServiceDays / baseDays) * 100),
+    });
+  }
+
+  return segments;
+}
