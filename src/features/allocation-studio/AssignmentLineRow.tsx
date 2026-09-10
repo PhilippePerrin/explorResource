@@ -1,7 +1,8 @@
 import { useDraggable } from '@dnd-kit/core';
 
-import { GripVertical, Pencil } from '@/components/icons';
+import { GripVertical, Pencil, Trash2 } from '@/components/icons';
 import { formatDayAmount } from '@/components/formatDayAmount';
+import { IconButton } from '@/components/ui';
 
 import { AllocationAssignmentCell } from './AllocationAssignmentCell';
 import type { AllocationAssignmentCellProps } from './AllocationAssignmentCell';
@@ -13,7 +14,8 @@ export interface AssignmentLineRowProps {
   year: number;
   rowIndex: number;
   displayPrecision: number;
-  onActivateCell: (month: number) => void;
+  onCommitCell: (month: number, allocatedDays: number) => void;
+  onRequestUnassign: () => void;
   onGridKeyDown: AllocationAssignmentCellProps['onGridKeyDown'];
 }
 
@@ -29,7 +31,8 @@ export function AssignmentLineRow({
   year,
   rowIndex,
   displayPrecision,
-  onActivateCell,
+  onCommitCell,
+  onRequestUnassign,
   onGridKeyDown,
 }: AssignmentLineRowProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -45,21 +48,38 @@ export function AssignmentLineRow({
   return (
     <tr className="border-b border-[var(--surf-divider)] align-top">
       <td className="sticky left-0 z-10 w-[180px] bg-[var(--surf-800)] px-3 py-2">
-        <button
-          aria-label={`Drag to move ${row.resourceName}'s allocation to another project`}
-          className="inline-flex items-center rounded p-1 hover:bg-[var(--surf-600)] focus:outline-none focus:ring-2 focus:ring-[var(--color-bmx-blue)]"
-          ref={setNodeRef}
-          style={
-            transform
-              ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
-              : undefined
-          }
-          type="button"
-          {...attributes}
-          {...listeners}
-        >
-          <GripVertical aria-hidden="true" size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            aria-label={`Drag to move ${row.resourceName}'s allocation to another project`}
+            className="inline-flex items-center rounded p-1 hover:bg-[var(--surf-600)] focus:outline-none focus:ring-2 focus:ring-[var(--color-bmx-blue)]"
+            ref={setNodeRef}
+            style={
+              transform
+                ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+                : undefined
+            }
+            type="button"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical aria-hidden="true" size={14} />
+          </button>
+          {/*
+            Lives in this sticky, always-on-top column (not the "Resource"
+            column further right) so it stays reachable without scrolling
+            back — and so it never sits in the region where the "Activity"
+            sticky column visually overlaps the non-sticky columns whenever
+            the table's auto layout gives any column more width than its
+            hardcoded sticky offset assumes.
+          */}
+          <IconButton
+            className="shrink-0 text-[var(--text-secondary)] hover:text-red-300"
+            icon={Trash2}
+            label={`Unassign ${row.resourceName} from ${row.projectCode}`}
+            size="sm"
+            onClick={onRequestUnassign}
+          />
+        </div>
       </td>
       <td className="sticky left-[180px] z-10 w-[160px] bg-[var(--surf-800)] px-3 py-2 text-[var(--text-secondary)]">
         {row.resourceTypeLabel}
@@ -92,7 +112,7 @@ export function AssignmentLineRow({
               resourceTypeId={row.resourceTypeId}
               rowIndex={rowIndex}
               year={year}
-              onActivate={() => onActivateCell(month)}
+              onCommit={(allocatedDays) => onCommitCell(month, allocatedDays)}
               onGridKeyDown={onGridKeyDown}
             />
           </td>

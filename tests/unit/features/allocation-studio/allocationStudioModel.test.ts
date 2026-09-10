@@ -14,6 +14,7 @@ import {
   filterOutFullyCoveredProjects,
   isProjectFullyCoveredForVisibleMonths,
   redoAllocationStudioHistory,
+  removeAssignmentFromProject,
   resolveAllocationStudioRowStatus,
   resolveDefaultDropDays,
   resolveMultiMonthDropDays,
@@ -213,6 +214,74 @@ describe('allocationStudioModel', () => {
     });
 
     expect(updatedViaSet[0]?.origin).toBe('manual');
+  });
+
+  describe('removeAssignmentFromProject', () => {
+    it('removes every month of the matching resource/project/type/year combination', () => {
+      const otherMonth = {
+        ...baseAllocation,
+        id: 'aaaaaaaa-bbbb-cccc-dddd-000000000001',
+        month: 6,
+      };
+
+      const next = removeAssignmentFromProject([baseAllocation, otherMonth], {
+        resourceId: baseAllocation.resourceId,
+        projectCode: baseAllocation.projectCode,
+        resourceTypeId: baseAllocation.resourceTypeId,
+        year: baseAllocation.year,
+      });
+
+      expect(next).toHaveLength(0);
+    });
+
+    it('leaves allocations from other resources, projects, types, or years untouched', () => {
+      const otherResource = {
+        ...baseAllocation,
+        id: 'aaaaaaaa-bbbb-cccc-dddd-000000000002',
+        resourceId: '33333333-3333-3333-3333-333333333333',
+      };
+      const otherProject = {
+        ...baseAllocation,
+        id: 'aaaaaaaa-bbbb-cccc-dddd-000000000003',
+        projectCode: 'E0200',
+      };
+      const otherType = {
+        ...baseAllocation,
+        id: 'aaaaaaaa-bbbb-cccc-dddd-000000000004',
+        resourceTypeId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      };
+      const otherYear = {
+        ...baseAllocation,
+        id: 'aaaaaaaa-bbbb-cccc-dddd-000000000005',
+        year: 2027,
+      };
+
+      const next = removeAssignmentFromProject(
+        [baseAllocation, otherResource, otherProject, otherType, otherYear],
+        {
+          resourceId: baseAllocation.resourceId,
+          projectCode: baseAllocation.projectCode,
+          resourceTypeId: baseAllocation.resourceTypeId,
+          year: baseAllocation.year,
+        },
+      );
+
+      expect(next).toEqual(
+        expect.arrayContaining([otherResource, otherProject, otherType, otherYear]),
+      );
+      expect(next).toHaveLength(4);
+    });
+
+    it('normalizes the project code casing like applyAllocationChange does', () => {
+      const next = removeAssignmentFromProject([baseAllocation], {
+        resourceId: baseAllocation.resourceId,
+        projectCode: baseAllocation.projectCode.toLowerCase(),
+        resourceTypeId: baseAllocation.resourceTypeId,
+        year: baseAllocation.year,
+      });
+
+      expect(next).toHaveLength(0);
+    });
   });
 
   describe('buildAllocationStudioRows', () => {

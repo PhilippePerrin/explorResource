@@ -280,3 +280,72 @@ test('arming a resource and using the row-level activator adds it across every v
     page.getByRole('button', { name: /Alice Martin in E0100, month December: 1 d/i }),
   ).toBeVisible();
 });
+
+test('editing an assignment cell inline and unassigning a resource from a project', async ({
+  page,
+}) => {
+  await setupAppWithSeed(page, {
+    projects: [E2E_PROJECT],
+    resourceTypes: [E2E_RESOURCE_TYPE],
+    resources: [E2E_RESOURCE],
+    workingDaysCalendars: [E2E_WORKING_DAYS],
+    demandSnapshots: [E2E_DEMAND_SNAPSHOT],
+  });
+
+  await openPrimaryPage(page, /^Allocation Studio$/i, /^Allocation Studio$/i);
+
+  await page.getByRole('button', { name: /^Add allocation/ }).click();
+  const drawer = page.getByRole('dialog', { name: /Add allocation/i });
+  await drawer.locator('#studio-resource').selectOption(E2E_RESOURCE.id);
+  await drawer.locator('#studio-project').selectOption(E2E_PROJECT.code);
+  await drawer.locator('#studio-form-type').selectOption(E2E_RESOURCE_TYPE.id);
+  await drawer.locator('#studio-form-year').fill(String(TEST_YEAR));
+  await drawer.locator('#studio-form-month').selectOption(String(TEST_MONTH));
+  await drawer.locator('#studio-form-days').fill('2');
+  await drawer.getByRole('button', { name: /Queue change/i }).click();
+  await page.getByRole('button', { name: /Save draft/i }).click();
+  await expect(
+    page.locator('p[role="status"]').filter({ hasText: /Allocation draft saved/i }),
+  ).toBeVisible();
+
+  const assignmentCell = page.getByRole('button', {
+    name: /Alice Martin in E0100, month January: 2 d/i,
+  });
+  await expect(assignmentCell).toBeVisible();
+  await assignmentCell.click();
+
+  await expect(page.getByRole('dialog', { name: /Add allocation/i })).not.toBeVisible();
+  const cellInput = page.getByRole('spinbutton', {
+    name: /Alice Martin in E0100, month January: days allocated/i,
+  });
+  await cellInput.fill('4.5');
+  await cellInput.press('Enter');
+
+  await expect(
+    page.getByRole('button', { name: /Alice Martin in E0100, month January: 4.5 d/i }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: /Save draft/i }).click();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /^Allocation Studio$/i })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Alice Martin in E0100, month January: 4.5 d/i }),
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: /Unassign Alice Martin from E0100/i }).click();
+  const unassignDialog = page.getByRole('dialog', { name: /Unassign resource/i });
+  await expect(unassignDialog).toContainText(/Alice Martin/i);
+  await expect(unassignDialog).toContainText(/4.5 d/i);
+  await unassignDialog.getByRole('button', { name: /^Unassign$/i }).click();
+
+  await expect(
+    page.getByRole('button', { name: /Alice Martin in E0100, month January/i }),
+  ).not.toBeVisible();
+  await page.getByRole('button', { name: /Save draft/i }).click();
+
+  await page.reload();
+  await expect(page.getByRole('heading', { name: /^Allocation Studio$/i })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Alice Martin in E0100, month January/i }),
+  ).not.toBeVisible();
+});

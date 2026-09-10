@@ -224,7 +224,7 @@ describe('AllocationStudioPage', () => {
     expect(addAcrossButton).toBeDisabled();
   });
 
-  it('still opens single-month quick-assign when editing an existing assignment cell', async () => {
+  async function seedAssignmentFixture() {
     await seedBaseFixtures();
     await allocationsRepository.put({
       id: '99999999-9999-9999-9999-999999999999',
@@ -238,6 +238,10 @@ describe('AllocationStudioPage', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
+  }
+
+  it('edits an existing assignment cell inline instead of opening the drawer', async () => {
+    await seedAssignmentFixture();
 
     const user = userEvent.setup();
     renderPage();
@@ -249,16 +253,22 @@ describe('AllocationStudioPage', () => {
     });
     await user.click(assignmentCell);
 
-    const drawer = await screen.findByRole('dialog', { name: /Add allocation/i });
-    expect(within(drawer).getByLabelText(/^Resource$/i)).toHaveValue(
-      '11111111-1111-1111-1111-111111111111',
-    );
-    expect(within(drawer).getByLabelText(/^Days$/i)).toHaveValue(3);
-    expect(within(drawer).getByLabelText(/^Change mode$/i)).toHaveValue('set');
+    expect(screen.queryByRole('dialog', { name: /Add allocation/i })).not.toBeInTheDocument();
+    const input = screen.getByRole('spinbutton', {
+      name: /Alice Martin in E0100, month January: days allocated/i,
+    });
+    expect(input).toHaveValue(3);
 
-    await user.clear(within(drawer).getByLabelText(/^Days$/i));
-    await user.type(within(drawer).getByLabelText(/^Days$/i), '4');
-    await user.click(within(drawer).getByRole('button', { name: /Queue change/i }));
+    await user.clear(input);
+    await user.type(input, '4');
+    await user.keyboard('{Enter}');
+
+    expect(
+      await screen.findByRole('button', { name: /Alice Martin in E0100, month January: 4 d/i }),
+    ).toBeInTheDocument();
+    expect(await allocationsRepository.getAll()).toHaveLength(1);
+    expect((await allocationsRepository.getAll())[0]?.allocatedDays).toBe(3);
+
     await user.click(screen.getByRole('button', { name: /Save draft/i }));
 
     await waitFor(async () => {
@@ -267,6 +277,173 @@ describe('AllocationStudioPage', () => {
       expect(allocations[0]?.allocatedDays).toBe(4);
       expect(allocations[0]?.month).toBe(1);
     });
+  });
+
+  it('cancels an inline cell edit on Escape without touching the draft', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+
+    const assignmentCell = await screen.findByRole('button', {
+      name: /Alice Martin in E0100, month January: 3 d/i,
+    });
+    await user.click(assignmentCell);
+
+    const input = screen.getByRole('spinbutton', {
+      name: /Alice Martin in E0100, month January: days allocated/i,
+    });
+    await user.clear(input);
+    await user.type(input, '9');
+    await user.keyboard('{Escape}');
+
+    expect(
+      await screen.findByRole('button', { name: /Alice Martin in E0100, month January: 3 d/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Undo$/i })).toBeDisabled();
+  });
+
+  it('rejects a negative inline edit without committing it', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+
+    const assignmentCell = await screen.findByRole('button', {
+      name: /Alice Martin in E0100, month January: 3 d/i,
+    });
+    await user.click(assignmentCell);
+
+    const input = screen.getByRole('spinbutton', {
+      name: /Alice Martin in E0100, month January: days allocated/i,
+    });
+    await user.clear(input);
+    await user.type(input, '-1');
+    await user.keyboard('{Enter}');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/non-negative/i);
+    expect(input).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Undo$/i })).toBeDisabled();
+  });
+
+  it('clears an assignment cell with Delete without entering edit mode', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+
+    const assignmentCell = await screen.findByRole('button', {
+      name: /Alice Martin in E0100, month January: 3 d/i,
+    });
+    assignmentCell.focus();
+    await user.keyboard('{Delete}');
+
+    // The fixture's only allocation was this one January entry, so clearing
+    // it removes the resource's last non-zero month for this (project,
+    // resourceType) — the whole assignment row disappears, same as
+    // buildAllocationStudioBoardRows would drop it after a full unassign.
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: /Alice Martin in E0100, month January/i }),
+      ).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /^Undo$/i })).toBeEnabled();
+  });
+
+  it('starts inline editing when a digit is typed on a focused assignment cell', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+
+    const assignmentCell = await screen.findByRole('button', {
+      name: /Alice Martin in E0100, month January: 3 d/i,
+    });
+    assignmentCell.focus();
+    await user.keyboard('7');
+
+    const input = screen.getByRole('spinbutton', {
+      name: /Alice Martin in E0100, month January: days allocated/i,
+    });
+    expect(input).toHaveValue(7);
+    await user.keyboard('{Enter}');
+
+    expect(
+      await screen.findByRole('button', { name: /Alice Martin in E0100, month January: 7 d/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('unassigns a resource from a project through the confirm dialog, undoable and save-draft-backed', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+    await screen.findByRole('button', {
+      name: /Alice Martin in E0100, month January: 3 d/i,
+    });
+
+    await user.click(screen.getByRole('button', { name: /Unassign Alice Martin from E0100/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /Unassign resource/i });
+    expect(dialog).toHaveTextContent(/Alice Martin/i);
+    expect(dialog).toHaveTextContent(/E0100/i);
+    expect(dialog).toHaveTextContent(/3 d/i);
+
+    await user.click(within(dialog).getByRole('button', { name: /^Unassign$/i }));
+
+    expect(
+      screen.queryByRole('button', { name: /Alice Martin in E0100, month January/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      (await screen.findAllByText(/Resource unassigned from project/i)).length,
+    ).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole('button', { name: /^Undo$/i }));
+    expect(
+      await screen.findByRole('button', { name: /Alice Martin in E0100, month January: 3 d/i }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /Unassign Alice Martin from E0100/i }));
+    await user.click(
+      within(await screen.findByRole('dialog', { name: /Unassign resource/i })).getByRole(
+        'button',
+        { name: /^Unassign$/i },
+      ),
+    );
+    await user.click(screen.getByRole('button', { name: /Save draft/i }));
+
+    await waitFor(async () => {
+      expect(await allocationsRepository.getAll()).toHaveLength(0);
+    });
+  });
+
+  it('leaves the draft untouched when the unassign confirm dialog is cancelled', async () => {
+    await seedAssignmentFixture();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+    await user.click(screen.getByRole('button', { name: /Unassign Alice Martin from E0100/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: /Unassign resource/i });
+    await user.click(within(dialog).getByRole('button', { name: /^Cancel$/i }));
+
+    expect(screen.queryByRole('dialog', { name: /Unassign resource/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Alice Martin in E0100, month January: 3 d/i }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Undo$/i })).toBeDisabled();
   });
 
   it('renders the new summary columns and one row per demand-line plus assignment', async () => {
@@ -293,7 +470,13 @@ describe('AllocationStudioPage', () => {
       .getAllByRole('columnheader')
       .map((header) => header.textContent);
 
-    expect(headers.slice(0, 5)).toEqual(['Project', 'Activity', 'Resource', 'Total supply', 'Total demand']);
+    expect(headers.slice(0, 5)).toEqual([
+      'Project',
+      'Activity',
+      'Resource',
+      'Total supply',
+      'Total demand',
+    ]);
     expect(within(table).queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
 
     expect(within(table).getAllByText('Commercial Analytics').length).toBeGreaterThan(0);

@@ -389,6 +389,30 @@ export function applyAllocationChange(
   return next;
 }
 
+/**
+ * Removes every month (the full year, regardless of the currently visible
+ * Focus filter) of a resource's allocation to one (project, resourceType)
+ * pair — the "unassign resource from project" action in Allocation Studio.
+ * Pure, so callers commit the result through the same draft/undo history as
+ * every other Studio change.
+ */
+export function removeAssignmentFromProject(
+  allocations: readonly Allocation[],
+  key: { resourceId: string; projectCode: string; resourceTypeId: string; year: number },
+): Allocation[] {
+  const normalizedProjectCode = key.projectCode.toUpperCase();
+
+  return allocations.filter(
+    (allocation) =>
+      !(
+        allocation.resourceId === key.resourceId &&
+        allocation.projectCode === normalizedProjectCode &&
+        allocation.resourceTypeId === key.resourceTypeId &&
+        allocation.year === key.year
+      ),
+  );
+}
+
 export function copyMonthAllocations(options: {
   allocations: readonly Allocation[];
   year: number;
@@ -698,7 +722,9 @@ export function isProjectFullyCoveredForVisibleMonths(
   visibleMonths: readonly number[],
 ): boolean {
   return projectBlocks.every((block) =>
-    visibleMonths.every((month) => (block.demandLine.months[month - 1]?.remainingDemandDays ?? 0) === 0),
+    visibleMonths.every(
+      (month) => (block.demandLine.months[month - 1]?.remainingDemandDays ?? 0) === 0,
+    ),
   );
 }
 

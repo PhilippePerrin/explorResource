@@ -3,8 +3,10 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { useForm, type Resolver } from 'react-hook-form';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import { Shuffle } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
 import { Button, Card, TableShell } from '@/components/ui';
@@ -45,6 +47,7 @@ import {
   createAllocationStudioHistory,
   filterOutFullyCoveredProjects,
   redoAllocationStudioHistory,
+  removeAssignmentFromProject,
   resolveDefaultDropDays,
   resolveMultiMonthDropDays,
   undoAllocationStudioHistory,
@@ -169,6 +172,15 @@ export function AllocationStudioPage() {
   const [multiMonthAssignOpen, setMultiMonthAssignOpen] = useState(false);
   const [copySourceMonth, setCopySourceMonth] = useState(1);
   const [copyTargetMonth, setCopyTargetMonth] = useState(2);
+  const [pendingUnassign, setPendingUnassign] = useState<{
+    resourceId: string;
+    resourceName: string;
+    projectCode: string;
+    projectName: string;
+    resourceTypeId: string;
+    resourceTypeLabel: string;
+    totalDays: number;
+  } | null>(null);
   const loadRequestIdRef = useRef(0);
   const boardRegionRef = useRef<HTMLDivElement | null>(null);
   // A minimum drag distance keeps a plain click on a bench card (which arms
@@ -589,14 +601,14 @@ export function AllocationStudioPage() {
     });
   }
 
-  function handleAssignmentCellActivate(
+  function handleAssignmentCellCommit(
     resourceId: string,
     projectCode: string,
     resourceTypeId: string,
     month: number,
     allocatedDays: number,
   ) {
-    openQuickAssign({
+    const values: AllocationChangeValues = {
       mode: 'set',
       resourceId,
       sourceProjectCode: '',
@@ -606,7 +618,48 @@ export function AllocationStudioPage() {
       month,
       allocatedDays,
       origin: 'manual',
+    };
+    const next = applyAllocationChange(history.present, values);
+    setHistory((current) => commitAllocationStudioHistory(current, next));
+    setFeedback('Allocation updated. Save draft to persist changes.');
+  }
+
+  function handleRequestUnassign(row: {
+    resourceId: string;
+    resourceName: string;
+    projectCode: string;
+    projectName: string;
+    resourceTypeId: string;
+    resourceTypeLabel: string;
+    months: readonly { allocatedDays: number }[];
+  }) {
+    setPendingUnassign({
+      resourceId: row.resourceId,
+      resourceName: row.resourceName,
+      projectCode: row.projectCode,
+      projectName: row.projectName,
+      resourceTypeId: row.resourceTypeId,
+      resourceTypeLabel: row.resourceTypeLabel,
+      totalDays: row.months.reduce((sum, monthCell) => sum + monthCell.allocatedDays, 0),
     });
+  }
+
+  function handleCancelUnassign() {
+    setPendingUnassign(null);
+  }
+
+  function handleConfirmUnassign() {
+    if (!pendingUnassign) {
+      return;
+    }
+
+    const next = removeAssignmentFromProject(history.present, {
+      ...pendingUnassign,
+      year: filters.year,
+    });
+    setHistory((current) => commitAllocationStudioHistory(current, next));
+    setFeedback('Resource unassigned from project. Save draft to persist changes.');
+    setPendingUnassign(null);
   }
 
   function handleArm(resourceId: string) {
@@ -804,7 +857,7 @@ export function AllocationStudioPage() {
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="allocation-studio-page">
       <PageHeader
-        description="Drag a resource onto a project cell to add supply, or arm a resource and activate a cell with the keyboard. Every change is simulated before it joins your draft."
+        description="Drag a resource onto a project cell (or arm a resource and activate a cell with the keyboard) to add new supply, reviewed before it joins your draft. Edit an already-assigned resource's day value directly in its cell — click, type, Enter to save."
         descriptionClassName="max-w-4xl"
         icon={Shuffle}
         title="Allocation Studio"
@@ -906,8 +959,10 @@ export function AllocationStudioPage() {
                     Allocation board
                   </h2>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    Drag a resource card onto a cell, or arm a resource and press Enter or Space on
-                    a cell, to open quick-assign.
+                    Drag a resource card onto a demand-line cell (or arm a resource and press Enter
+                    or Space) to add it as a new resource. For an already-assigned resource, click
+                    its cell to edit the day value directly, press Delete to clear a month, or use
+                    the trash icon to unassign it from the project entirely.
                   </p>
                 </div>
                 <p className="text-sm text-[var(--text-secondary)]">
@@ -929,7 +984,9 @@ export function AllocationStudioPage() {
                 >
                   <p className="sr-only" id="allocation-board-instructions">
                     Use Tab to enter the board buttons, then arrow keys to move between months and
-                    projects. Press Enter or Space to open quick-assign for the focused cell.
+                    projects. On a demand-line cell, press Enter or Space to open quick-assign and
+                    add a new resource. On an assignment cell, press Enter, Space, or a digit key to
+                    edit its day value in place, or Delete to clear it.
                   </p>
                   <TableShell caption="Allocation board by project and month, with keyboard-operable drop targets.">
                     <thead>
@@ -1017,18 +1074,17 @@ export function AllocationStudioPage() {
                                   rowIndex={assignmentRowIndexes[assignmentIndex] ?? demandRowIndex}
                                   visibleMonths={visibleMonths}
                                   year={filters.year}
-                                  onActivateCell={(month) => {
-                                    const cell = assignment.months[month - 1];
-
-                                    handleAssignmentCellActivate(
+                                  onCommitCell={(month, allocatedDays) =>
+                                    handleAssignmentCellCommit(
                                       assignment.resourceId,
                                       assignment.projectCode,
                                       assignment.resourceTypeId,
                                       month,
-                                      cell?.allocatedDays ?? 0,
-                                    );
-                                  }}
+                                      allocatedDays,
+                                    )
+                                  }
                                   onGridKeyDown={handleGridKeyDown}
+                                  onRequestUnassign={() => handleRequestUnassign(assignment)}
                                 />
                               ))}
                             </Fragment>
@@ -1084,6 +1140,27 @@ export function AllocationStudioPage() {
           })()}
           onClose={handleCloseMultiMonthAssign}
           onConfirm={handleConfirmMultiMonthAssign}
+        />
+
+        <ConfirmDialog
+          confirmLabel="Unassign"
+          description={
+            pendingUnassign ? (
+              <p>
+                Unassign <strong>{pendingUnassign.resourceName}</strong> (
+                {pendingUnassign.resourceTypeLabel}) from{' '}
+                <strong>{pendingUnassign.projectCode}</strong> — {pendingUnassign.projectName}? This
+                removes {formatDayAmount(pendingUnassign.totalDays, displayPrecision)} d allocated
+                across the year from your draft. Save draft to persist the removal, or Undo to bring
+                it back.
+              </p>
+            ) : null
+          }
+          open={Boolean(pendingUnassign)}
+          title="Unassign resource"
+          tone="danger"
+          onCancel={handleCancelUnassign}
+          onConfirm={handleConfirmUnassign}
         />
       </DndContext>
     </div>
