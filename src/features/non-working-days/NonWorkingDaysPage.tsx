@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
-import { CalendarOff, Inbox } from '@/components/icons';
+import { CalendarOff, Inbox, UploadCloud } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
 import { resolveWorkingDaysByMonth } from '@/domain/calculations';
 import type {
@@ -191,6 +191,15 @@ export function NonWorkingDaysPage() {
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="non-working-days-page">
       <PageHeader
+        actions={
+          <Link
+            className="inline-flex items-center gap-2 rounded-md bg-[var(--color-bmx-blue)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            to="/non-working-days/import"
+          >
+            <UploadCloud aria-hidden="true" className="size-4" />
+            Import from Excel
+          </Link>
+        }
         description="Maintain resource absences for a full year. Decimal days are allowed. Paste tab/newline ranges directly from Excel into any cell to populate multiple months and resources at once."
         descriptionClassName="max-w-4xl"
         icon={CalendarOff}

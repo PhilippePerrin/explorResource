@@ -48,6 +48,11 @@ const ImportsPage = lazy(() =>
 const ResourceImportPage = lazy(() =>
   import('@/features/resource-import').then((module) => ({ default: module.ResourceImportPage })),
 );
+const TeamCalendarImportPage = lazy(() =>
+  import('@/features/team-calendar-import').then((module) => ({
+    default: module.TeamCalendarImportPage,
+  })),
+);
 const CompaniesPage = lazy(() =>
   import('@/features/companies').then((module) => ({ default: module.CompaniesPage })),
 );
@@ -97,6 +102,7 @@ export default function App() {
               <Route path="/working-days" element={<WorkingDaysPage />} />
               <Route path="/imports" element={<ImportsPage />} />
               <Route path="/resources/import" element={<ResourceImportPage />} />
+              <Route path="/non-working-days/import" element={<TeamCalendarImportPage />} />
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/resource-types" element={<ResourceTypesPage />} />
               <Route path="/settings" element={<SettingsPage />} />

@@ -110,7 +110,11 @@ describe('accessibility smoke tests', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
 
-    const { container } = render(<DashboardPage />);
+    const { container } = render(
+      <MemoryRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
     await screen.findByRole('heading', { name: /^Dashboard$/i });
 
     await expectNoAxeViolations(container);

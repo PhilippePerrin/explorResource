@@ -284,4 +284,225 @@ describe('dashboardModel', () => {
     expect(filtered.months[0]?.netCapacityDays).toBe(20);
     expect(filtered.months[0]?.remainingDemandDays).toBe(5);
   });
+
+  it('restricts months and period totals to visibleMonths when a Focus period is set', () => {
+    const workingDaysCalendars = [1, 2, 3, 4].map((month) => ({
+      id: `working-days-${month}`,
+      year: 2026,
+      month,
+      workingDaysCount: 20,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }));
+
+    const viewModel = buildDashboardViewModel({
+      resources: [
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          firstName: 'Alice',
+          lastName: 'Martin',
+          resourceTypeId: 'type-a',
+          collaborationType: 'internal',
+          status: 'active',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      allocations: [],
+      demandSnapshots: [],
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches: [],
+      year: 2026,
+      selectedMonth: 1,
+      visibleMonths: [1, 2, 3],
+    });
+
+    expect(viewModel.months.map((month) => month.month)).toEqual([1, 2, 3]);
+    // 20 working days/month over 3 months (Q1); month 4's 20 working days must not leak in.
+    expect(viewModel.periodTotals.netCapacityDays).toBe(60);
+  });
+
+  it('looks up selectedMonthMetrics by month field, not array position, once months are period-scoped', () => {
+    const viewModel = buildDashboardViewModel({
+      resources: [],
+      allocations: [],
+      demandSnapshots: [],
+      workingDaysCalendars: [
+        {
+          id: 'working-days-7',
+          year: 2026,
+          month: 7,
+          workingDaysCount: 18,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'working-days-8',
+          year: 2026,
+          month: 8,
+          workingDaysCount: 19,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'working-days-9',
+          year: 2026,
+          month: 9,
+          workingDaysCount: 20,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches: [],
+      year: 2026,
+      selectedMonth: 8,
+      visibleMonths: [7, 8, 9],
+    });
+
+    expect(viewModel.selectedMonthMetrics.month).toBe(8);
+    expect(viewModel.selectedMonthMetrics.label).toBe('August');
+  });
+
+  it('falls back to the first visible month when selectedMonth is outside visibleMonths', () => {
+    const viewModel = buildDashboardViewModel({
+      resources: [],
+      allocations: [],
+      demandSnapshots: [],
+      workingDaysCalendars: [],
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches: [],
+      year: 2026,
+      selectedMonth: 1,
+      visibleMonths: [4, 5, 6],
+    });
+
+    expect(viewModel.selectedMonthMetrics.month).toBe(4);
+  });
+
+  it('restricts demandVariation to the selected resource type and visible months', () => {
+    const importBatches = [
+      {
+        id: 'latest-batch',
+        importedAt: '2026-01-01T00:00:00.000Z',
+        referenceDate: '2026-01-01',
+        note: 'latest',
+        fileName: 'latest.xlsx',
+        fileSha256: 'a'.repeat(64),
+        rowCount: 1,
+        status: 'validated' as const,
+        kind: 'demand' as const,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'previous-batch',
+        importedAt: '2025-12-01T00:00:00.000Z',
+        referenceDate: '2025-12-01',
+        note: 'previous',
+        fileName: 'previous.xlsx',
+        fileSha256: 'b'.repeat(64),
+        rowCount: 1,
+        status: 'validated' as const,
+        kind: 'demand' as const,
+        createdAt: '2025-12-01T00:00:00.000Z',
+        updatedAt: '2025-12-01T00:00:00.000Z',
+      },
+    ];
+
+    const demandSnapshots = [
+      // type-a, month 1 (in scope): +4
+      {
+        id: 'snap-1',
+        importBatchId: 'latest-batch',
+        projectCode: 'E0100',
+        resourceTypeId: 'type-a',
+        year: 2026,
+        month: 1,
+        demandDays: 24,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'snap-2',
+        importBatchId: 'previous-batch',
+        projectCode: 'E0100',
+        resourceTypeId: 'type-a',
+        year: 2026,
+        month: 1,
+        demandDays: 20,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2025-12-01T00:00:00.000Z',
+        updatedAt: '2025-12-01T00:00:00.000Z',
+      },
+      // type-b, month 1 (wrong resource type): +5, must be excluded
+      {
+        id: 'snap-3',
+        importBatchId: 'latest-batch',
+        projectCode: 'E0200',
+        resourceTypeId: 'type-b',
+        year: 2026,
+        month: 1,
+        demandDays: 10,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      {
+        id: 'snap-4',
+        importBatchId: 'previous-batch',
+        projectCode: 'E0200',
+        resourceTypeId: 'type-b',
+        year: 2026,
+        month: 1,
+        demandDays: 5,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2025-12-01T00:00:00.000Z',
+        updatedAt: '2025-12-01T00:00:00.000Z',
+      },
+      // type-a, month 2 (outside visibleMonths): +100, must be excluded
+      {
+        id: 'snap-5',
+        importBatchId: 'latest-batch',
+        projectCode: 'E0300',
+        resourceTypeId: 'type-a',
+        year: 2026,
+        month: 2,
+        demandDays: 100,
+        supplyDays: 0,
+        origin: 'import' as const,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ];
+
+    const viewModel = buildDashboardViewModel({
+      resources: [],
+      allocations: [],
+      demandSnapshots,
+      workingDaysCalendars: [],
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches,
+      year: 2026,
+      selectedMonth: 1,
+      resourceTypeFilter: 'type-a',
+      visibleMonths: [1],
+    });
+
+    expect(viewModel.demandVariation).toMatchObject({
+      positiveDeltaDays: 4,
+      negativeDeltaDays: 0,
+      netDeltaDays: 4,
+    });
+  });
 });

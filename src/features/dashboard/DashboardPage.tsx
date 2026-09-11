@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { FilterBar, type FilterBarField } from '@/components/FilterBar';
 import { formatDayAmount } from '@/components/formatDayAmount';
 import {
   AlertTriangle,
@@ -25,7 +26,9 @@ import { MetricCard } from '@/components/MetricCard';
 import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Card, IconChip, Skeleton, type IconChipTone } from '@/components/ui';
+import { getFocusLabel, getFocusMonths, type CapacityFocus } from '@/features/capacity';
 import { UtilizationRing } from '@/features/dashboard/UtilizationRing';
+import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import type {
   Allocation,
@@ -89,8 +92,15 @@ interface DashboardData {
   importBatches: ImportBatch[];
 }
 
+interface DashboardFilters {
+  year: number;
+  focus: CapacityFocus;
+  resourceTypeFilter: string;
+  selectedMonth: number;
+}
+
 export function DashboardPage() {
-  const now = new Date();
+  const initialDate = useRef(new Date()).current;
   const [data, setData] = useState<DashboardData>({
     resources: [],
     resourceTypes: [],
@@ -103,11 +113,35 @@ export function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
-  const [year, setYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
-  const [trendResourceTypeFilter, setTrendResourceTypeFilter] = useState('all');
   const loadRequestIdRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
+
+  const filterDefinitions = useMemo<FilterDefinitions<DashboardFilters>>(
+    () => ({
+      year: { defaultValue: initialDate.getFullYear(), param: 'year' },
+      focus: { defaultValue: 'year', param: 'focus' },
+      resourceTypeFilter: { defaultValue: 'all', param: 'type' },
+      selectedMonth: { defaultValue: initialDate.getMonth() + 1, param: 'month' },
+    }),
+    [initialDate],
+  );
+  const {
+    filters,
+    favorites,
+    updateFilter,
+    resetFilters,
+    saveFavorite,
+    applyFavorite,
+    removeFavorite,
+  } = usePersistentPageFilters('dashboard', filterDefinitions);
+  const { year, focus, resourceTypeFilter, selectedMonth: storedSelectedMonth } = filters;
+  const visibleMonths = useMemo(() => getFocusMonths(focus), [focus]);
+  // Derived rather than synced back into filter state via an effect: an
+  // effect calling updateFilter here would race with the URL-persisted
+  // filter state's own re-render cycle and loop indefinitely.
+  const selectedMonth = visibleMonths.includes(storedSelectedMonth)
+    ? storedSelectedMonth
+    : (visibleMonths[0] ?? 1);
 
   useEffect(() => {
     void loadData();
@@ -192,6 +226,8 @@ export function DashboardPage() {
         importBatches: data.importBatches,
         year,
         selectedMonth,
+        resourceTypeFilter,
+        visibleMonths,
       }),
     [
       data.allocations,
@@ -201,82 +237,80 @@ export function DashboardPage() {
       data.resourceNonWorkingDays,
       data.resources,
       data.workingDaysCalendars,
+      resourceTypeFilter,
       selectedMonth,
+      visibleMonths,
       year,
     ],
   );
-  const trendViewModel = useMemo(
-    () =>
-      buildDashboardViewModel({
-        resources: data.resources,
-        allocations: data.allocations,
-        demandSnapshots: data.demandSnapshots,
-        workingDaysCalendars: data.workingDaysCalendars,
-        resourceNonWorkingDays: data.resourceNonWorkingDays,
-        appSettings: data.appSettings,
-        importBatches: data.importBatches,
-        year,
-        selectedMonth,
-        resourceTypeFilter: trendResourceTypeFilter,
-      }),
-    [
-      data.allocations,
-      data.appSettings,
-      data.demandSnapshots,
-      data.importBatches,
-      data.resourceNonWorkingDays,
-      data.resources,
-      data.workingDaysCalendars,
-      selectedMonth,
-      trendResourceTypeFilter,
-      year,
+
+  const filterFields = useMemo<FilterBarField[]>(
+    () => [
+      {
+        type: 'single-select',
+        key: 'resourceTypeFilter',
+        label: 'Resource type',
+        value: resourceTypeFilter,
+        options: [
+          { value: 'all', label: 'All resource types' },
+          ...data.resourceTypes.map((resourceType) => ({
+            value: resourceType.id,
+            label: getResourceTypeDisplayLabel(resourceType),
+          })),
+        ],
+        onChange: (value) => updateFilter('resourceTypeFilter', value),
+      },
+      {
+        type: 'single-select',
+        key: 'focus',
+        label: 'Focus',
+        value: focus,
+        options: [
+          { value: 'year', label: 'Year' },
+          { value: 's1', label: 'S1' },
+          { value: 's2', label: 'S2' },
+          { value: 'q1', label: 'Q1' },
+          { value: 'q2', label: 'Q2' },
+          { value: 'q3', label: 'Q3' },
+          { value: 'q4', label: 'Q4' },
+        ],
+        onChange: (value) => updateFilter('focus', value as CapacityFocus),
+      },
+      {
+        type: 'single-select',
+        key: 'year',
+        label: 'Year',
+        value: String(year),
+        options: yearOptions.map((optionYear) => ({
+          value: String(optionYear),
+          label: String(optionYear),
+        })),
+        onChange: (value) => updateFilter('year', Number(value)),
+      },
     ],
+    [data.resourceTypes, focus, resourceTypeFilter, updateFilter, year, yearOptions],
   );
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="dashboard-page">
       <PageHeader
-        actions={
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-medium" htmlFor="dashboard-year">
-              Year
-              <select
-                className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
-                id="dashboard-year"
-                value={year}
-                onChange={(event) => setYear(Number(event.target.value))}
-              >
-                {yearOptions.map((optionYear) => (
-                  <option key={optionYear} value={optionYear}>
-                    {optionYear}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="text-sm font-medium" htmlFor="dashboard-month">
-              Alert focus month
-              <select
-                className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
-                id="dashboard-month"
-                value={selectedMonth}
-                onChange={(event) => setSelectedMonth(Number(event.target.value))}
-              >
-                {MONTH_LABELS.map((label, index) => (
-                  <option key={label} value={index + 1}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        }
-        description="Portfolio overview for capacity, demand coverage, utilization, and the highest-priority alerts for the selected planning month."
+        description="Portfolio overview for capacity, demand coverage, utilization, and the highest-priority alerts for the selected planning period."
         descriptionClassName="max-w-4xl"
         icon={Gauge}
         title="Dashboard"
       />
 
       <FeedbackMessage message={feedback} />
+
+      <FilterBar
+        favorites={favorites}
+        fields={filterFields}
+        onApplyFavorite={applyFavorite}
+        onDeleteFavorite={removeFavorite}
+        onReset={resetFilters}
+        onSaveFavorite={saveFavorite}
+        resultsSummary={`${getFocusLabel(focus)} ${year}`}
+      />
 
       {loading ? (
         <Card>
@@ -294,27 +328,27 @@ export function DashboardPage() {
                   WebkitMaskImage: 'linear-gradient(135deg, black, transparent 75%)',
                 }}
               />
-              <UtilizationRing className="relative" utilization={viewModel.yearUtilization} />
+              <UtilizationRing className="relative" utilization={viewModel.periodUtilization} />
               <div className="relative min-w-0 flex-1">
                 <p className="font-accent text-4xl leading-none font-semibold tabular-nums">
-                  {formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)}
+                  {formatDayAmount(viewModel.periodTotals.netCapacityDays, displayPrecision)}
                   <span className="ml-1 font-sans text-base font-normal text-[var(--text-secondary)]">
                     d
                   </span>
                 </p>
                 <p className="mt-2 text-xs font-medium tracking-wide text-[var(--text-muted)] uppercase">
-                  Net capacity &middot; FY {year}
+                  Net capacity &middot; {getFocusLabel(focus)} {year}
                 </p>
                 <p className="mt-2 text-sm text-[var(--text-secondary)]">
                   Allocated{' '}
-                  {formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} d for{' '}
-                  {year}.
+                  {formatDayAmount(viewModel.periodTotals.assignedLoadDays, displayPrecision)} d for{' '}
+                  {getFocusLabel(focus)} {year}.
                 </p>
                 <UtilizationBadge
                   compact
                   displayPrecision={displayPrecision}
-                  tooltip={`Year utilization based on ${formatDayAmount(viewModel.yearTotals.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(viewModel.yearTotals.netCapacityDays, displayPrecision)} net capacity days.`}
-                  utilization={viewModel.yearUtilization}
+                  tooltip={`${getFocusLabel(focus)} utilization based on ${formatDayAmount(viewModel.periodTotals.assignedLoadDays, displayPrecision)} allocated days over ${formatDayAmount(viewModel.periodTotals.netCapacityDays, displayPrecision)} net capacity days.`}
+                  utilization={viewModel.periodUtilization}
                   className="mt-3"
                 />
               </div>
@@ -325,7 +359,7 @@ export function DashboardPage() {
               icon={TrendingUp}
               title="Available capacity"
               tone="success"
-              value={`${formatDayAmount(viewModel.yearTotals.availableCapacityDays, displayPrecision)} d`}
+              value={`${formatDayAmount(viewModel.periodTotals.availableCapacityDays, displayPrecision)} d`}
             />
             <MetricCard
               className="hero-rise hero-rise-delay-3"
@@ -333,7 +367,7 @@ export function DashboardPage() {
               icon={AlertTriangle}
               title="Uncovered demand"
               tone="attention"
-              value={`${formatDayAmount(viewModel.yearTotals.remainingDemandDays, displayPrecision)} d`}
+              value={`${formatDayAmount(viewModel.periodTotals.remainingDemandDays, displayPrecision)} d`}
             />
             <MetricCard
               className="hero-rise hero-rise-delay-4"
@@ -341,7 +375,7 @@ export function DashboardPage() {
               icon={TrendingDown}
               title="Over-service"
               tone="info"
-              value={`${formatDayAmount(viewModel.yearTotals.overServiceDays, displayPrecision)} d`}
+              value={`${formatDayAmount(viewModel.periodTotals.overServiceDays, displayPrecision)} d`}
             />
           </section>
 
@@ -351,7 +385,8 @@ export function DashboardPage() {
                 <div>
                   <h2 className="text-xl font-semibold">Utilization trend</h2>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    Monthly net capacity, allocated load, and residual demand for {year}.
+                    Net capacity, allocated load, and residual demand for {getFocusLabel(focus)}{' '}
+                    {year}.
                   </p>
                 </div>
                 <UtilizationBadge
@@ -361,32 +396,13 @@ export function DashboardPage() {
                   utilization={viewModel.selectedMonthMetrics.utilization}
                 />
               </div>
-              <label
-                className="mb-4 block text-sm font-medium"
-                htmlFor="dashboard-trend-resource-type"
-              >
-                Resource type
-                <select
-                  className="mt-1 block w-full max-w-xs rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
-                  id="dashboard-trend-resource-type"
-                  value={trendResourceTypeFilter}
-                  onChange={(event) => setTrendResourceTypeFilter(event.target.value)}
-                >
-                  <option value="all">All resource types</option>
-                  {data.resourceTypes.map((resourceType) => (
-                    <option key={resourceType.id} value={resourceType.id}>
-                      {getResourceTypeDisplayLabel(resourceType)}
-                    </option>
-                  ))}
-                </select>
-              </label>
               <div
                 className="h-80 w-full"
                 data-testid="dashboard-utilization-chart"
                 style={{ minHeight: 320, minWidth: 320 }}
               >
                 <ResponsiveContainer height="100%" width="100%">
-                  <LineChart data={trendViewModel.months}>
+                  <LineChart data={viewModel.months}>
                     <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
                     <XAxis
                       dataKey="label"
@@ -430,11 +446,30 @@ export function DashboardPage() {
             </Card>
 
             <Card className="hero-rise hero-rise-delay-5">
-              <h2 className="text-xl font-semibold">Priority alerts</h2>
-              <p className="mt-1 text-sm text-[var(--text-secondary)]">
-                Text, icon, and quantitative alerts for {viewModel.selectedMonthMetrics.label}{' '}
-                {year}.
-              </p>
+              <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold">Priority alerts</h2>
+                  <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                    Text, icon, and quantitative alerts for {viewModel.selectedMonthMetrics.label}{' '}
+                    {year}.
+                  </p>
+                </div>
+                <label className="text-sm font-medium" htmlFor="dashboard-month">
+                  Alert focus month
+                  <select
+                    className="mt-1 block w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
+                    id="dashboard-month"
+                    value={selectedMonth}
+                    onChange={(event) => updateFilter('selectedMonth', Number(event.target.value))}
+                  >
+                    {visibleMonths.map((month) => (
+                      <option key={month} value={month}>
+                        {MONTH_LABELS[month - 1]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
               <ul className="mt-4 space-y-3">
                 {viewModel.alerts.length === 0 ? (
                   <li className="flex items-center gap-3 rounded-lg border border-[var(--status-success-border)] bg-[var(--status-success-bg)] p-4 text-sm">

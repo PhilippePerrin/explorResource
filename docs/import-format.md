@@ -2,7 +2,7 @@
 title: Import Format
 id: import-format
 status: living
-last_updated: 2026-09-08
+last_updated: 2026-09-11
 ---
 
 # Import Format
@@ -63,3 +63,45 @@ SHA-256 of the raw file bytes (Web Crypto API, computed client-side) is compared
 ## Wizard steps
 
 1. File selection → 2. Technical analysis → 3. Preview → 4. Column/type mapping → 5. Row classification → 6. Anomaly review → 7. Comparison with previous import → 8. Validation → 9. Atomic import → 10. Final report (downloadable Markdown in the current implementation).
+
+## Team Calendar (Non-working Days) import
+
+Based on real inspection of `data/Team Calendar.xlsx` (sheet `Presence`), used to fill `ResourceNonWorkingDays` (`src/teamCalendarImport/**`, page `/non-working-days/import`).
+
+### Source and layout
+
+The team records absences by hand in a shared "Team Calendar" workbook — a different tool/format from the PSA demand export above, with **no cell comments** at all. Sheet `Presence`: columns A–F carry a small legend (see below), column G lists one resource per row ("Firstname LASTNAME", one inconsistency observed in the real file: two rows use non-uppercase last names), and one column per calendar day starts right after it. Row landmarks (located dynamically at parse time by searching for the sheet's own "Month" header cell, never hard-coded row numbers, since this file is hand-maintained and rows can shift):
+
+- The row holding the "Month" label also holds the month abbreviation (English, `Jan`..`Dec`) for every data column.
+- A row above it (found by scanning upward for the first plausible 4-digit year) holds the calendar year per data column.
+- Resource rows are every row below the header block whose name-column cell is non-empty and isn't one of the header labels ("Week"/"Day").
+
+Only the year + month per column are used (not the exact day), because `ResourceNonWorkingDays` stores a single aggregate `days` figure per resource/year/month — there is no per-date storage in this app.
+
+### Decoding a cell: no comments, only text + fill color
+
+Absences are signaled by a handful of text values and the cell's solid background fill, decoded against the sheet's **own legend** (a color swatch sits directly next to each legend label in cells A1/A2/A6, next to B1 `PTO`, B2 `Travelling > mention the location`, B6 `Site closed / Bank holidays`):
+
+| Signal | Legend meaning | Days counted |
+| --- | --- | --- |
+| Text `AM` or `PM`, no PTO fill | half-day absence | 0.5 |
+| Solid fill `C00000` (dark red), no text | PTO (confirmed by real block-shaped date ranges matching plausible vacation patterns) | 1.0 |
+| Solid fill `C00000` **with** any text (`AM`/`PM`/other) | conflicting signal — the file has a few cells with both | 0.5 (text wins), flagged as a `conflicting-marking` warning |
+| Solid fill `FFFF00` (yellow), legend "Travelling" | resource is still working, just elsewhere | 0 (never counted, even with a location note in the cell) |
+| Solid fill `theme 0` with a dark tint, legend "Site closed / Bank holidays" | company-wide closure, uniform across every resource on the same ~10-12 columns | 0 at the resource level (assumed already reflected in the global `WorkingDaysCalendar`) |
+| The sheet's default banding fill (`DEEBF7`), applied almost everywhere | not semantic, ignore | 0 |
+| Any other solid fill, or unrecognized text with no meaningful fill | undocumented in the file's own legend | 0, flagged as an `unrecognized-marking` warning (never guessed) |
+
+Decoding logic lives in `src/teamCalendarImport/decode.ts` (`classifyCalendarFill`, `decodeCalendarCell`) — pure, framework-free, and unit-tested against every row of the table above.
+
+### Name matching
+
+Column G names are matched to `Resource.firstName + ' ' + lastName` case- **and** accent-insensitively (`normalizePersonName`, NFD-normalized), unlike the exact-match-only demand/resource imports, because the real file has both accented names and inconsistent casing. A name that still doesn't match any **active** resource — whether it's absent from the resource list entirely, or present but archived — raises a **non-blocking** `unknown-resource` warning and that resource's rows are excluded from the staged totals; it is never silently dropped (the warning names the row and the resource, and `statistics.unmatchedResourceRows` counts it) and never auto-created. This keeps one unresolved name from holding up every other resource's import — fix the name or activate/create the resource and re-import to pick up just that one.
+
+### Commit semantics
+
+For every resource/year/month the file has a signal for, the import **replaces** whatever is currently on the Non-working Days grid for that cell (the file becomes the source of truth for the months it covers); months/resources it has no signal for are left untouched. This reuses the grid's own `createNonWorkingDayMutationPlan` (`src/features/non-working-days/nonWorkingDaysModel.ts`) rather than a separate write path, so manual edits and imported edits stay consistent.
+
+### Wizard steps
+
+1. File selection → 2. Preview (staged resource/month totals) → 3. Anomaly review → 4. Commit → 5. Final report (downloadable Markdown).

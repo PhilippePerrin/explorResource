@@ -28,6 +28,13 @@ const REAL_RESOURCE_IMPORT_FILE_PATH = path.join(
   'fixtures',
   REAL_RESOURCE_IMPORT_FILE_NAME,
 );
+const REAL_TEAM_CALENDAR_IMPORT_FILE_NAME = 'team-calendar.xlsx';
+const REAL_TEAM_CALENDAR_IMPORT_FILE_PATH = path.join(
+  process.cwd(),
+  'tests',
+  'fixtures',
+  REAL_TEAM_CALENDAR_IMPORT_FILE_NAME,
+);
 const TEST_YEAR = 2026;
 const TEST_MONTH = 1;
 
@@ -479,6 +486,10 @@ export async function uploadRealResourceImport(locator: Locator) {
   await locator.setInputFiles(REAL_RESOURCE_IMPORT_FILE_PATH);
 }
 
+export async function uploadRealTeamCalendarImport(locator: Locator) {
+  await locator.setInputFiles(REAL_TEAM_CALENDAR_IMPORT_FILE_PATH);
+}
+
 export async function analyzeSelectedImport(page: Page, note?: string) {
   if (note) {
     await page.getByLabel(/Import note/i).fill(note);
@@ -530,6 +541,8 @@ export {
   REAL_IMPORT_FILE_PATH,
   REAL_RESOURCE_IMPORT_FILE_NAME,
   REAL_RESOURCE_IMPORT_FILE_PATH,
+  REAL_TEAM_CALENDAR_IMPORT_FILE_NAME,
+  REAL_TEAM_CALENDAR_IMPORT_FILE_PATH,
   TEST_MONTH,
   TEST_YEAR,
 };

@@ -2,7 +2,7 @@
 title: Data Model
 id: data-model
 status: living
-last_updated: 2026-09-09
+last_updated: 2026-09-11
 ---
 
 # Data Model
@@ -42,7 +42,7 @@ erDiagram
 | `ProjectRelease`         | `(projectId, releaseId)`                                    | join entity                                                                                                               |
 | `WorkingDaysCalendar`    | `(year, month)` unique                                      |                                                                                                                           |
 | `ResourceNonWorkingDays` | `(resourceId, year, month)` unique                          |                                                                                                                           |
-| `ImportBatch`            | id + `fileSha256` (dedup)                                   | immutable once `validated`; `kind: 'demand' \| 'resource'` (default `'demand'`) keeps the two importers' history separate |
+| `ImportBatch`            | id + `fileSha256` (dedup)                                   | immutable once `validated`; `kind: 'demand' \| 'resource' \| 'non-working-days'` (default `'demand'`) keeps the three importers' history separate |
 | `ImportRawRow`           | `(importBatchId, rowNumber)`                                | diagnostic raw data, includes classification                                                                              |
 | `DemandSnapshot`         | `(projectCode, resourceTypeId, year, month, importBatchId)` |                                                                                                                           |
 | `Allocation`             | id                                                          | `(resourceId, projectCode, resourceTypeId, year, month)` for lookups                                                      |

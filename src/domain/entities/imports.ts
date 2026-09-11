@@ -11,7 +11,9 @@ import {
 } from './base';
 
 export const importBatchStatusSchema = z.enum(['draft', 'validated', 'cancelled']);
-export const importBatchKindSchema = z.enum(['demand', 'resource']).default('demand');
+export const importBatchKindSchema = z
+  .enum(['demand', 'resource', 'non-working-days'])
+  .default('demand');
 
 const importBatchBaseSchema = z
   .object({

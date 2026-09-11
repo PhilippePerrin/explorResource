@@ -63,14 +63,14 @@ export interface DemandVariationSummary {
 export interface DashboardViewModel {
   months: DashboardMonthMetrics[];
   selectedMonthMetrics: DashboardMonthMetrics;
-  yearTotals: {
+  periodTotals: {
     netCapacityDays: number;
     assignedLoadDays: number;
     availableCapacityDays: number;
     remainingDemandDays: number;
     overServiceDays: number;
   };
-  yearUtilization: ResourceMonthSummary['utilization'];
+  periodUtilization: ResourceMonthSummary['utilization'];
   alerts: DashboardAlert[];
   underServedProjectsCount: number;
   demandVariation: DemandVariationSummary | null;
@@ -172,22 +172,27 @@ export function buildDashboardViewModel(options: {
   year: number;
   selectedMonth: number;
   resourceTypeFilter?: string;
+  visibleMonths?: readonly number[];
 }): DashboardViewModel {
   const resourceTypeFilter = options.resourceTypeFilter ?? 'all';
+  const visibleMonths =
+    options.visibleMonths ?? Array.from({ length: 12 }, (_, index) => index + 1);
   const activeResources = options.resources.filter(
     (resource) =>
       resource.status === 'active' &&
       (resourceTypeFilter === 'all' || resource.resourceTypeId === resourceTypeFilter),
   );
-  const months = Array.from({ length: 12 }, (_, index) => createEmptyMonthMetrics(index + 1));
+  const months = visibleMonths.map((month) => createEmptyMonthMetrics(month));
+  const monthBuckets = new Map(months.map((bucket) => [bucket.month, bucket]));
   const latestSnapshots = selectLatestDemandSnapshots(options.demandSnapshots).filter(
     (snapshot) =>
       snapshot.year === options.year &&
+      visibleMonths.includes(snapshot.month) &&
       (resourceTypeFilter === 'all' || snapshot.resourceTypeId === resourceTypeFilter),
   );
 
   for (const resource of activeResources) {
-    for (let month = 1; month <= 12; month += 1) {
+    for (const month of visibleMonths) {
       const summary = buildResourceMonthSummary({
         resource,
         year: options.year,
@@ -197,7 +202,7 @@ export function buildDashboardViewModel(options: {
         allocations: options.allocations,
         appSettings: options.appSettings,
       });
-      const bucket = months[month - 1];
+      const bucket = monthBuckets.get(month);
 
       if (!bucket) {
         continue;
@@ -229,7 +234,7 @@ export function buildDashboardViewModel(options: {
       demandSnapshot: snapshot,
       allocations: options.allocations,
     });
-    const bucket = months[snapshot.month - 1];
+    const bucket = monthBuckets.get(snapshot.month);
 
     if (!bucket) {
       continue;
@@ -253,7 +258,7 @@ export function buildDashboardViewModel(options: {
     );
   }
 
-  const yearTotals = months.reduce(
+  const periodTotals = months.reduce(
     (totals, month) => ({
       netCapacityDays: normalizeAmount(totals.netCapacityDays + month.netCapacityDays),
       assignedLoadDays: normalizeAmount(totals.assignedLoadDays + month.assignedLoadDays),
@@ -271,13 +276,13 @@ export function buildDashboardViewModel(options: {
       overServiceDays: 0,
     },
   );
-  const yearUtilization = tauxUtilisation(
-    yearTotals.assignedLoadDays,
-    yearTotals.netCapacityDays,
+  const periodUtilization = tauxUtilisation(
+    periodTotals.assignedLoadDays,
+    periodTotals.netCapacityDays,
     options.appSettings?.visualThresholds,
   );
   const selectedMonthMetrics =
-    months[Math.max(0, Math.min(11, options.selectedMonth - 1))] ?? months[0]!;
+    months.find((bucket) => bucket.month === options.selectedMonth) ?? months[0]!;
   const alerts: DashboardAlert[] = [];
 
   if (selectedMonthMetrics.criticalResourcesCount > 0) {
@@ -308,15 +313,21 @@ export function buildDashboardViewModel(options: {
     });
   }
 
+  const demandVariationSnapshots = options.demandSnapshots.filter(
+    (snapshot) =>
+      visibleMonths.includes(snapshot.month) &&
+      (resourceTypeFilter === 'all' || snapshot.resourceTypeId === resourceTypeFilter),
+  );
+
   return {
     months,
     selectedMonthMetrics,
-    yearTotals,
-    yearUtilization,
+    periodTotals,
+    periodUtilization,
     alerts,
     underServedProjectsCount: underServedProjects.size,
     demandVariation: buildDemandVariationSummary({
-      demandSnapshots: options.demandSnapshots,
+      demandSnapshots: demandVariationSnapshots,
       importBatches: options.importBatches,
       year: options.year,
     }),
