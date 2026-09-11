@@ -375,6 +375,7 @@ describe('ResourcesPage', () => {
       expect(within(resourceListSection).queryByText('Bob Durand')).not.toBeInTheDocument();
     });
 
+    await user.click(screen.getByRole('button', { name: /Favorites/i }));
     await user.type(screen.getByLabelText(/Save current filters as favorite/i), 'Alice view');
     await user.click(screen.getByRole('button', { name: /Save favorite/i }));
     await user.clear(screen.getByLabelText(/Search resources/i));

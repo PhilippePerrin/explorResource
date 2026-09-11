@@ -16,11 +16,12 @@ import {
 import { PageHeader } from '@/components/PageHeader';
 import { Button, Card, IconChip, Tabs } from '@/components/ui';
 import type { AppSettings } from '@/domain/entities';
-import { exportBackup, restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
+import { restoreBackup, validateBackup, type BackupFile } from '@/persistence/backup';
 import { deletePlannerDb } from '@/persistence/db';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { useThemePreference } from '@/theme/useThemePreference';
+import { useBackupExport } from '@/app/useBackupExport';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light' },
@@ -92,14 +93,6 @@ function formatPercentage(value: number): string {
   }).format(value);
 }
 
-function formatExportTimestamp(value: string): string {
-  return value.replaceAll(':', '-').replaceAll('.', '-');
-}
-
-function buildBackupFileName(exportedAt: string): string {
-  return `resource-capacity-planner-backup-${formatExportTimestamp(exportedAt)}.json`;
-}
-
 async function readTextFile(file: File): Promise<string> {
   if (typeof file.text === 'function') {
     return file.text();
@@ -129,7 +122,7 @@ export function SettingsPage() {
   const backupFileInputRef = useRef<HTMLInputElement | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [exporting, setExporting] = useState(false);
+  const backupExport = useBackupExport();
   const [busyRestore, setBusyRestore] = useState(false);
   const [busyReset, setBusyReset] = useState(false);
   const [feedback, setFeedback] = useState('');
@@ -199,6 +192,12 @@ export function SettingsPage() {
     };
   }, [hasUnsavedChanges]);
 
+  useEffect(() => {
+    if (backupExport.feedback) {
+      setFeedback(backupExport.feedback);
+    }
+  }, [backupExport.feedback]);
+
   async function handleSave(values: SettingsFormValues) {
     setSubmitting(true);
     setFeedback('');
@@ -216,30 +215,6 @@ export function SettingsPage() {
       setFeedback(error instanceof Error ? error.message : 'Unable to save settings.');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleExportBackup() {
-    setExporting(true);
-    setFeedback('');
-
-    try {
-      const backup = await exportBackup();
-      const url = URL.createObjectURL(
-        new Blob([JSON.stringify(backup, null, 2)], {
-          type: 'application/json',
-        }),
-      );
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = buildBackupFileName(backup.exportedAt);
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setFeedback('Backup exported.');
-    } catch (error) {
-      setFeedback(error instanceof Error ? error.message : 'Unable to export backup.');
-    } finally {
-      setExporting(false);
     }
   }
 
@@ -547,13 +522,13 @@ export function SettingsPage() {
 
             <div className="mt-4 flex flex-wrap gap-3">
               <Button
-                busy={exporting}
+                busy={backupExport.exporting}
                 onClick={() => {
-                  void handleExportBackup();
+                  void backupExport.triggerExport();
                 }}
               >
                 <Download aria-hidden="true" size={16} strokeWidth={2.25} />
-                {exporting ? 'Exporting…' : 'Export backup as JSON'}
+                {backupExport.exporting ? 'Exporting…' : 'Export backup as JSON'}
               </Button>
             </div>
 

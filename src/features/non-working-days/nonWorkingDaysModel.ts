@@ -131,6 +131,20 @@ export function setNonWorkingDayValue(
   });
 }
 
+export function calculateWorkingDaysReferenceTotal(
+  workingDaysByMonth: readonly (number | null)[],
+): number | null {
+  const configuredValues = workingDaysByMonth.filter(
+    (value): value is number => value !== null,
+  );
+
+  if (configuredValues.length === 0) {
+    return null;
+  }
+
+  return normalizeAmount(configuredValues.reduce((total, value) => total + value, 0));
+}
+
 export function calculateNonWorkingDayTotals(
   rows: readonly NonWorkingDayRow[],
 ): NonWorkingDayTotals {

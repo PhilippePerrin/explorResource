@@ -2,7 +2,7 @@
 title: Accessibility
 id: accessibility
 status: living
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 ---
 
 # Accessibility
@@ -17,7 +17,7 @@ Target: **WCAG 2.2 AA**.
 - Explicit form labels, assertive/polite live regions for import, save, restore, reset, and anomaly feedback.
 - Exactly one application `<main>` landmark at the shell level; each routed page keeps a single visible `<h1>`.
 - Confirmation dialogs trap focus, support <kbd>Escape</kbd>, and return focus to the triggering control when closed.
-- Accessible data tables (headers, scope, captions where useful) even when virtualized.
+- Accessible data tables (headers, scope, captions where useful). The Capacity Command Center heatmap renders every matching resource row directly (no virtualization/inner-scroll clipping), so all rows stay in the accessibility tree and reachable by keyboard without a scroll-to-reveal step.
 - Sufficient color contrast in both light and dark themes (tokens already defined in `src/index.css`).
 - Zoom support; no fixed-pixel layouts that break reflow.
 - `prefers-reduced-motion` respected, with non-essential hover and entrance motion guarded by `@media (prefers-reduced-motion: no-preference)`.
@@ -26,6 +26,9 @@ Target: **WCAG 2.2 AA**.
 - The grouped sidebar navigation (`src/app/Sidebar.tsx`) keeps a single `<nav aria-label="Primary">` landmark, the skip link as the first focusable element, and exactly one `<main id="main-content">` landmark — unchanged from the flat top-nav it replaced. Collapsed-sidebar mode keeps each nav item's full label in the DOM (visually hidden, not `aria-hidden`) so its accessible name never depends on the collapse state.
 - Light/dark/system theme (`src/theme/applyTheme.ts`, Settings → Appearance) is a user preference, not a requirement — both themes independently satisfy the contrast and non-color-alone commitments above.
 - New interactive primitives (`src/components/ui/Tabs.tsx`, `Tooltip.tsx`, `IconButton.tsx`) are keyboard-operable: `Tabs` implements roving tabindex with arrow-key/Home/End navigation and `role="tablist"`/`role="tab"`; `Tooltip` reveals on focus (not hover-only) and dismisses on <kbd>Escape</kbd>; `IconButton` requires an explicit accessible name.
+- The sidebar (`src/app/Sidebar.tsx`) is pinned to the viewport on desktop (`position: sticky`) purely as a visual/layout change — it keeps the same single `<nav aria-label="Primary">` landmark and DOM order, so it does not alter the existing keyboard/landmark commitments above.
+- The Demand Coverage Board's monthly tiles (`src/features/demand-coverage/DemandCoverageBoardPage.tsx`) are native `<button>` elements with a full `aria-label` (project, resource type, month, and coverage summary), reachable by <kbd>Tab</kbd> and activated with <kbd>Enter</kbd>/<kbd>Space</kbd> — opening the same resource-detail `Drawer` a mouse click would, with no drag-and-drop involved.
+- The header's database-backup export icon (`src/app/AppShell.tsx`, via `IconButton`) has an explicit "Export database backup" accessible name and a `role="status"` live region announces the "Backup exported." confirmation next to it.
 
 ## Verification
 

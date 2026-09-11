@@ -22,6 +22,20 @@ export interface CapacityRow {
   summaries: ResourceMonthSummary[];
 }
 
+const FOCUS_LABELS: Record<CapacityFocus, string> = {
+  year: 'Year',
+  s1: 'S1',
+  s2: 'S2',
+  q1: 'Q1',
+  q2: 'Q2',
+  q3: 'Q3',
+  q4: 'Q4',
+};
+
+export function getFocusLabel(focus: CapacityFocus): string {
+  return FOCUS_LABELS[focus];
+}
+
 export function getFocusMonths(focus: CapacityFocus): number[] {
   switch (focus) {
     case 's1':

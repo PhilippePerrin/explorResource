@@ -1,6 +1,22 @@
 import { describe, expect, it } from 'vitest';
 
-import { buildCoverageBarSegments, buildDemandAllocationSummary } from '@/domain/calculations';
+import {
+  buildCoverageBarSegments,
+  buildDemandAllocationSummary,
+  buildResourceMonthSummary,
+  buildResourcePeriodSummary,
+} from '@/domain/calculations';
+
+const periodResource = {
+  id: 'r1',
+  firstName: 'Alice',
+  lastName: 'Martin',
+  resourceTypeId: 'type-1',
+  collaborationType: 'internal' as const,
+  status: 'active' as const,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+};
 
 describe('buildCoverageBarSegments', () => {
   it('returns a covered + gap split for partial coverage', () => {
@@ -158,5 +174,104 @@ describe('buildCoverageBarSegments', () => {
       const total = segments.reduce((sum, segment) => sum + segment.widthPercent, 0);
       expect(total).toBeLessThanOrEqual(100.0001);
     }
+  });
+});
+
+describe('buildResourcePeriodSummary', () => {
+  const workingDaysCalendars = [
+    { id: 'wd-1', year: 2026, month: 1, workingDaysCount: 5, createdAt: '', updatedAt: '' },
+    { id: 'wd-2', year: 2026, month: 2, workingDaysCount: 20, createdAt: '', updatedAt: '' },
+  ];
+  const allocations = [
+    {
+      id: 'a-1',
+      resourceId: 'r1',
+      projectCode: 'E0100',
+      resourceTypeId: 'type-1',
+      year: 2026,
+      month: 1,
+      allocatedDays: 10,
+      origin: 'manual' as const,
+      createdAt: '',
+      updatedAt: '',
+    },
+    {
+      id: 'a-2',
+      resourceId: 'r1',
+      projectCode: 'E0100',
+      resourceTypeId: 'type-1',
+      year: 2026,
+      month: 2,
+      allocatedDays: 4,
+      origin: 'manual' as const,
+      createdAt: '',
+      updatedAt: '',
+    },
+  ];
+
+  it('matches a single buildResourceMonthSummary call when given one month', () => {
+    const { year: _year, month: _month, ...monthSummary } = buildResourceMonthSummary({
+      resource: periodResource,
+      year: 2026,
+      month: 1,
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      allocations,
+    });
+    const periodSummary = buildResourcePeriodSummary({
+      resource: periodResource,
+      year: 2026,
+      months: [1],
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      allocations,
+    });
+
+    expect(periodSummary).toEqual({ ...monthSummary, months: [1] });
+  });
+
+  it('sums capacity/load across months and recomputes utilization from the totals, not an average of monthly rates', () => {
+    const periodSummary = buildResourcePeriodSummary({
+      resource: periodResource,
+      year: 2026,
+      months: [1, 2],
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      allocations,
+    });
+
+    // Month 1: 10/5 = 200%. Month 2: 4/20 = 20%. Averaging those rates would
+    // give 110%, but the correct period rate is the summed load over the
+    // summed capacity: (10 + 4) / (5 + 20) * 100 = 56%.
+    expect(periodSummary.netCapacityDays).toBe(25);
+    expect(periodSummary.assignedLoadDays).toBe(14);
+    expect(periodSummary.availableCapacityDays).toBe(11);
+    expect(periodSummary.utilization.ratePercent).toBe(56);
+  });
+
+  it('reports workingDaysConfigured true when at least one month in the range has a calendar entry', () => {
+    const periodSummary = buildResourcePeriodSummary({
+      resource: periodResource,
+      year: 2026,
+      months: [1, 3],
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      allocations: [],
+    });
+
+    expect(periodSummary.workingDaysConfigured).toBe(true);
+  });
+
+  it('reports workingDaysConfigured false when no month in the range has a calendar entry', () => {
+    const periodSummary = buildResourcePeriodSummary({
+      resource: periodResource,
+      year: 2026,
+      months: [3, 4],
+      workingDaysCalendars,
+      resourceNonWorkingDays: [],
+      allocations: [],
+    });
+
+    expect(periodSummary.workingDaysConfigured).toBe(false);
   });
 });

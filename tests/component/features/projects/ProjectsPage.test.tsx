@@ -149,6 +149,7 @@ describe('ProjectsPage', () => {
       expect(screen.queryByText('Supply Chain')).not.toBeInTheDocument();
     });
 
+    await user.click(screen.getByRole('button', { name: /Favorites/i }));
     await user.type(screen.getByLabelText(/Save current filters as favorite/i), 'Wave 1 only');
     await user.click(screen.getByRole('button', { name: /Save favorite/i }));
     await user.clear(screen.getByLabelText(/Search projects/i));

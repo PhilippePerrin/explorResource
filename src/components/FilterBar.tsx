@@ -72,6 +72,14 @@ interface FilterBarProps<TState extends object> {
   resultsSummary?: string;
 }
 
+function fieldRowClasses(extraClasses = '') {
+  return `flex min-w-[14rem] flex-1 items-center gap-2 ${extraClasses}`.trim();
+}
+
+function fieldLabelClasses() {
+  return 'w-28 shrink-0 text-sm font-medium';
+}
+
 function fieldContainerClasses(extraClasses = '') {
   return `rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-3 ${extraClasses}`.trim();
 }
@@ -87,6 +95,7 @@ export function FilterBar<TState extends object>({
 }: FilterBarProps<TState>) {
   const [favoriteName, setFavoriteName] = useState('');
   const [selectedFavoriteId, setSelectedFavoriteId] = useState('');
+  const [favoritesOpen, setFavoritesOpen] = useState(false);
 
   useEffect(() => {
     if (selectedFavoriteId.length === 0) {
@@ -98,47 +107,36 @@ export function FilterBar<TState extends object>({
     }
   }, [favorites, selectedFavoriteId]);
 
-  const columnClassName =
-    fields.length >= 4
-      ? 'xl:grid-cols-4'
-      : fields.length === 3
-        ? 'lg:grid-cols-3'
-        : 'md:grid-cols-2';
-
   return (
-    <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-5">
-      <div className={`grid gap-3 ${columnClassName}`}>
+    <section className="rounded-xl border border-[var(--surf-divider)] bg-[var(--surf-800)] p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {fields.map((field) => {
           if (field.type === 'search') {
             return (
-              <label
-                className={fieldContainerClasses()}
-                htmlFor={`filter-${field.key}`}
-                key={field.key}
-              >
-                <span className="text-sm font-medium">{field.label}</span>
+              <div className={fieldRowClasses()} key={field.key}>
+                <label className={fieldLabelClasses()} htmlFor={`filter-${field.key}`}>
+                  {field.label}
+                </label>
                 <input
-                  className="mt-2 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                  className="w-full flex-1 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-1.5"
                   id={`filter-${field.key}`}
                   placeholder={field.placeholder}
                   type="search"
                   value={field.value}
                   onChange={(event) => field.onChange(event.target.value)}
                 />
-              </label>
+              </div>
             );
           }
 
           if (field.type === 'single-select') {
             return (
-              <label
-                className={fieldContainerClasses()}
-                htmlFor={`filter-${field.key}`}
-                key={field.key}
-              >
-                <span className="text-sm font-medium">{field.label}</span>
+              <div className={fieldRowClasses()} key={field.key}>
+                <label className={fieldLabelClasses()} htmlFor={`filter-${field.key}`}>
+                  {field.label}
+                </label>
                 <select
-                  className="mt-2 w-full rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                  className="w-full flex-1 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-700)] px-3 py-1.5"
                   id={`filter-${field.key}`}
                   value={field.value}
                   onChange={(event) => field.onChange(event.target.value)}
@@ -149,18 +147,17 @@ export function FilterBar<TState extends object>({
                     </option>
                   ))}
                 </select>
-              </label>
+              </div>
             );
           }
 
           if (field.type === 'boolean') {
             return (
               <label
-                className={`${fieldContainerClasses('flex items-center gap-3')} justify-between`}
+                className="flex min-w-[10rem] items-center gap-2 text-sm font-medium"
                 htmlFor={`filter-${field.key}`}
                 key={field.key}
               >
-                <span className="text-sm font-medium">{field.label}</span>
                 <input
                   checked={field.checked}
                   className="h-4 w-4"
@@ -168,6 +165,7 @@ export function FilterBar<TState extends object>({
                   type="checkbox"
                   onChange={(event) => field.onChange(event.target.checked)}
                 />
+                <span>{field.label}</span>
               </label>
             );
           }
@@ -187,15 +185,15 @@ export function FilterBar<TState extends object>({
           }
 
           return (
-            <fieldset className={fieldContainerClasses()} key={field.key}>
-              <legend className="text-sm font-medium">{field.label}</legend>
-              <div className="mt-2 flex flex-wrap gap-2">
+            <fieldset className={fieldRowClasses('flex-wrap')} key={field.key}>
+              <legend className={fieldLabelClasses()}>{field.label}</legend>
+              <div className="flex flex-1 flex-wrap gap-2">
                 {field.options.map((option) => {
                   const checked = field.values.includes(option.value);
 
                   return (
                     <label
-                      className="inline-flex items-center gap-2 rounded-full border border-[var(--surf-divider)] px-3 py-1.5 text-sm"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--surf-divider)] px-3 py-1 text-sm"
                       key={option.value}
                     >
                       <input
@@ -218,8 +216,23 @@ export function FilterBar<TState extends object>({
         })}
       </div>
 
-      <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(14rem,1fr)_auto]">
-        <div className="grid gap-3 md:grid-cols-[minmax(10rem,16rem)_auto_auto]">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <button
+          aria-expanded={favoritesOpen}
+          className="text-sm font-medium text-[var(--color-bmx-blue)] hover:underline"
+          type="button"
+          onClick={() => setFavoritesOpen((current) => !current)}
+        >
+          {favoritesOpen ? '▾' : '▸'} Favorites
+        </button>
+
+        {resultsSummary ? (
+          <p className="text-sm text-[var(--text-secondary)]">{resultsSummary}</p>
+        ) : null}
+      </div>
+
+      {favoritesOpen ? (
+        <div className="mt-3 grid gap-3 md:grid-cols-[minmax(10rem,16rem)_auto_auto]">
           <label className={fieldContainerClasses()} htmlFor="filter-favorite-name">
             <span className="text-sm font-medium">Save current filters as favorite</span>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -285,13 +298,7 @@ export function FilterBar<TState extends object>({
             </Button>
           </div>
         </div>
-
-        {resultsSummary ? (
-          <div className="flex items-end justify-start lg:justify-end">
-            <p className="text-sm text-[var(--text-secondary)]">{resultsSummary}</p>
-          </div>
-        ) : null}
-      </div>
+      ) : null}
     </section>
   );
 }

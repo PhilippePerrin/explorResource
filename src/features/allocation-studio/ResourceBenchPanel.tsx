@@ -8,7 +8,7 @@ export interface ResourceBenchPanelProps {
   displayPrecision: number;
   armedResourceId: string | null;
   onArm: (resourceId: string) => void;
-  focusMonthLabel: string;
+  focusRangeLabel: string;
 }
 
 export function ResourceBenchPanel({
@@ -16,16 +16,16 @@ export function ResourceBenchPanel({
   displayPrecision,
   armedResourceId,
   onArm,
-  focusMonthLabel,
+  focusRangeLabel,
 }: ResourceBenchPanelProps) {
   return (
     <Card>
       <h2 className="text-xl font-semibold">Resources</h2>
       <p className="mt-1 text-sm text-[var(--text-secondary)]">
         Drag a resource onto a project cell to add supply, or select one and press Enter or Space on
-        a cell. Sorted by availability in {focusMonthLabel}.
+        a cell. Sorted by availability across {focusRangeLabel}.
       </p>
-      <ul className="mt-4 space-y-2">
+      <ul className="mt-4 max-h-[calc(100vh-14rem)] space-y-2 overflow-y-auto">
         {rows.length === 0 ? (
           <li className="text-sm text-[var(--text-secondary)]">
             No active resource matches the current filters.

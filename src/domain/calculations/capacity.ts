@@ -25,6 +25,27 @@ export function capaciteBrute(
 }
 
 /**
+ * Resolves the configured working-days count for every month (January-December) of a year.
+ *
+ * `null` at an index means no {@link WorkingDaysCalendar} entry exists for that month, which is
+ * distinct from a legitimate configured value of `0`.
+ *
+ * @param year - Target year.
+ * @param calendars - Working-days calendar entries to search (any year, unfiltered).
+ * @returns A 12-length array, index 0 = January, of gross capacity days or `null` when unconfigured.
+ */
+export function resolveWorkingDaysByMonth(
+  year: number,
+  calendars: readonly WorkingDaysCalendar[],
+): (number | null)[] {
+  return Array.from({ length: 12 }, (_, index) => {
+    const month = index + 1;
+    const entry = calendars.find((calendar) => calendar.year === year && calendar.month === month);
+    return entry ? normalizeAmount(entry.workingDaysCount) : null;
+  });
+}
+
+/**
  * Returns the net monthly capacity in days after subtracting non-working days.
  *
  * Formula: `capaciteNette = max(0, capaciteBrute - joursNonTravailles)`

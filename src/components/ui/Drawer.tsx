@@ -103,7 +103,7 @@ export function Drawer({
 
   return (
     <div aria-hidden="false" className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50" />
+      <div aria-hidden="true" className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div
         aria-labelledby={titleId}
         aria-modal="true"

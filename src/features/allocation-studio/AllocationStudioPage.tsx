@@ -22,8 +22,7 @@ import type {
   WorkingDaysCalendar,
 } from '@/domain/entities';
 import { getResourceFullName, isAllocationResourceTypeCompatible } from '@/domain/entities';
-import { getFocusMonths, type CapacityFocus } from '@/features/capacity';
-import { MONTH_LABELS } from '@/features/dashboard';
+import { getFocusLabel, getFocusMonths, type CapacityFocus } from '@/features/capacity';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import { createRepository } from '@/persistence/repository';
@@ -303,7 +302,7 @@ export function AllocationStudioPage() {
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
   const visibleMonths = useMemo(() => getFocusMonths(filters.focus), [filters.focus]);
   const focusMonth = visibleMonths[0] ?? 1;
-  const focusMonthLabel = MONTH_LABELS[focusMonth - 1] ?? `Month ${focusMonth}`;
+  const focusRangeLabel = `${getFocusLabel(filters.focus)} ${filters.year}`;
 
   const boardRowOptions = useMemo(
     () => ({
@@ -332,8 +331,13 @@ export function AllocationStudioPage() {
   // demand-line/assignment-line split used for rendering.
   const demandRows = useMemo(() => buildAllocationStudioRows(boardRowOptions), [boardRowOptions]);
   const boardBlocks = useMemo(
-    () => buildAllocationStudioBoardRows({ ...boardRowOptions, importBatches: data.importBatches }),
-    [boardRowOptions, data.importBatches],
+    () =>
+      buildAllocationStudioBoardRows({
+        ...boardRowOptions,
+        importBatches: data.importBatches,
+        visibleMonths,
+      }),
+    [boardRowOptions, data.importBatches, visibleMonths],
   );
   const visibleBoardBlocks = useMemo(
     () =>
@@ -348,7 +352,7 @@ export function AllocationStudioPage() {
         resources: data.resources,
         resourceTypes: data.resourceTypes,
         year: filters.year,
-        month: focusMonth,
+        visibleMonths,
         workingDaysCalendars: data.workingDaysCalendars,
         resourceNonWorkingDays: data.resourceNonWorkingDays,
         allocations: history.present,
@@ -363,7 +367,7 @@ export function AllocationStudioPage() {
       data.resources,
       data.workingDaysCalendars,
       filters.resourceTypeFilter,
-      focusMonth,
+      visibleMonths,
       filters.year,
       history.present,
     ],
@@ -902,11 +906,11 @@ export function AllocationStudioPage() {
 
       <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
         <section className="grid gap-6 xl:grid-cols-[17rem_1fr]">
-          <section className="space-y-6">
+          <section className="space-y-6 xl:sticky xl:top-6 xl:self-start">
             <ResourceBenchPanel
               armedResourceId={armedResourceId}
               displayPrecision={displayPrecision}
-              focusMonthLabel={focusMonthLabel}
+              focusRangeLabel={focusRangeLabel}
               rows={benchRows}
               onArm={handleArm}
             />
@@ -997,10 +1001,7 @@ export function AllocationStudioPage() {
                         >
                           Project
                         </th>
-                        <th
-                          className="sticky left-[180px] z-20 w-[160px] bg-[var(--surf-800)] px-3 py-2 font-semibold"
-                          scope="col"
-                        >
+                        <th className="w-[160px] px-3 py-2 font-semibold" scope="col">
                           Activity
                         </th>
                         <th className="px-3 py-2 font-semibold" scope="col">

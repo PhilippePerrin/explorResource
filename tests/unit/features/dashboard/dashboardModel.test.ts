@@ -172,4 +172,116 @@ describe('dashboardModel', () => {
       netDeltaDays: -1,
     });
   });
+
+  it('formats the uncovered-demand alert to one decimal place instead of a raw float', () => {
+    const viewModel = buildDashboardViewModel({
+      resources: [],
+      allocations: [],
+      demandSnapshots: [
+        {
+          id: 'aaaaaaaa-1111-1111-1111-111111111111',
+          importBatchId: 'batch-1',
+          projectCode: 'E0100',
+          resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          year: 2026,
+          month: 11,
+          demandDays: 229.94511422620783,
+          supplyDays: 0,
+          origin: 'import',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      workingDaysCalendars: [],
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches: [],
+      year: 2026,
+      selectedMonth: 11,
+    });
+
+    const alert = viewModel.alerts.find((entry) => entry.id === 'coverage-gap');
+    expect(alert?.description).toBe('229.9 d remain uncovered in November.');
+  });
+
+  it('restricts monthly aggregation to the selected resource type when a filter is set', () => {
+    const buildOptions = (resourceTypeFilter?: string) => ({
+      resources: [
+        {
+          id: '11111111-1111-1111-1111-111111111111',
+          firstName: 'Alice',
+          lastName: 'Martin',
+          resourceTypeId: 'type-a',
+          collaborationType: 'internal' as const,
+          status: 'active' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: '22222222-2222-2222-2222-222222222222',
+          firstName: 'Bob',
+          lastName: 'Durand',
+          resourceTypeId: 'type-b',
+          collaborationType: 'internal' as const,
+          status: 'active' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      allocations: [],
+      demandSnapshots: [
+        {
+          id: 'aaaaaaaa-1111-1111-1111-111111111111',
+          importBatchId: 'batch-1',
+          projectCode: 'E0100',
+          resourceTypeId: 'type-a',
+          year: 2026,
+          month: 1,
+          demandDays: 5,
+          supplyDays: 0,
+          origin: 'import' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'bbbbbbbb-1111-1111-1111-111111111111',
+          importBatchId: 'batch-1',
+          projectCode: 'E0200',
+          resourceTypeId: 'type-b',
+          year: 2026,
+          month: 1,
+          demandDays: 3,
+          supplyDays: 0,
+          origin: 'import' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      workingDaysCalendars: [
+        {
+          id: '99999999-9999-9999-9999-999999999999',
+          year: 2026,
+          month: 1,
+          workingDaysCount: 20,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      resourceNonWorkingDays: [],
+      appSettings: null,
+      importBatches: [],
+      year: 2026,
+      selectedMonth: 1,
+      resourceTypeFilter,
+    });
+
+    const unfiltered = buildDashboardViewModel(buildOptions());
+    const filtered = buildDashboardViewModel(buildOptions('type-a'));
+
+    expect(unfiltered.months[0]?.netCapacityDays).toBe(40);
+    expect(unfiltered.months[0]?.remainingDemandDays).toBe(8);
+
+    expect(filtered.months[0]?.netCapacityDays).toBe(20);
+    expect(filtered.months[0]?.remainingDemandDays).toBe(5);
+  });
 });

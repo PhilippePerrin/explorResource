@@ -2,7 +2,7 @@
 title: Traceability Matrix
 id: traceability-matrix
 status: living
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 ---
 
 # Traceability Matrix
@@ -40,7 +40,9 @@ Maps each major requirement to its implementing lot, key files, and validating t
 
 | Allocation Studio: unassign a resource from a project (confirm dialog, full-year removal, undoable draft step) and inline per-cell editing for already-assigned resources (replaces the QuickAssignDrawer for that case) | Lot 23 | `src/features/allocation-studio/{AllocationStudioPage,allocationStudioModel,AssignmentLineRow,AllocationAssignmentCell}.tsx/ts`, `src/components/ConfirmDialog.tsx` (reused, unchanged) | `tests/unit/features/allocation-studio/allocationStudioModel.test.ts` (`removeAssignmentFromProject`), `tests/component/features/allocation-studio/AllocationStudioPage.test.tsx` (inline edit commit/Escape-cancel/negative-rejected/Delete-clears/digit-starts-editing, unassign confirm+undo+save-draft, unassign cancel), `tests/e2e/master-data-and-allocation.spec.ts` — `editing an assignment cell inline and unassigning a resource from a project` |
 
-This table is updated as each lot completes; lots 0-17, 21, 22, and 23 are reflected here with concrete file/test references. Lots 18-20 (2026 visual-pass reskins of Master Data, Calendars/Imports/Settings, and the "wahou" polish pass) are documented in `CHANGELOG.md` but have not yet been added as rows to this table.
+| Sticky sidebar navigation; full (non-virtualized) Capacity Command Center heatmap with project name in the drill-down drawer; Dashboard Utilization trend resource-type filter; one-decimal day-amount formatting fix (Dashboard uncovered-demand alert) with `formatDayAmount` de-duplicated across Dashboard/Resources/Demand Coverage Board; Demand Coverage Board tile-click detail drawer (resources/totals/empty state); always-visible header icon for one-click database backup export | Lot 24 | `src/app/{Sidebar,AppShell,useBackupExport}.tsx/ts`, `src/features/capacity/CapacityCommandCenterPage.tsx`, `src/features/dashboard/{DashboardPage,dashboardModel}.tsx/ts`, `src/features/demand-coverage/DemandCoverageBoardPage.tsx`, `src/features/resources/ResourcesPage.tsx`, `src/features/settings/SettingsPage.tsx`, `src/components/formatDayAmount.ts` | `tests/component/features/capacity/CapacityCommandCenterPage.test.tsx` (full-row rendering, drilldown project name), `tests/unit/features/dashboard/dashboardModel.test.ts` (alert precision, resource-type-filtered aggregation), `tests/component/features/dashboard/DashboardPage.test.tsx` (alert precision, trend resource-type filter), `tests/component/features/demand-coverage/DemandCoverageBoardPage.test.tsx` (tile-click drawer, empty state), `tests/component/app/AppShell.test.tsx` (header backup export, sticky sidebar classes) |
+
+This table is updated as each lot completes; lots 0-17, 21, 22, 23, and 24 are reflected here with concrete file/test references. Lots 18-20 (2026 visual-pass reskins of Master Data, Calendars/Imports/Settings, and the "wahou" polish pass) are documented in `CHANGELOG.md` but have not yet been added as rows to this table. Lot 24's new E2E scenarios (functional-specification.md scenarios 25-27) are covered at the component-test level above; Playwright specs for them have not been added yet.
 
 ## Lot 13 — E2E acceptance scenario mapping
 

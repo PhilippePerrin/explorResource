@@ -126,6 +126,7 @@ describe('FilterBar and filter persistence', () => {
       />,
     );
 
+    await user.click(screen.getByRole('button', { name: /Favorites/i }));
     await user.type(screen.getByLabelText(/Save current filters as favorite/i), 'Pinned view');
     await user.click(screen.getByRole('button', { name: /Save favorite/i }));
     await user.selectOptions(screen.getByLabelText(/Saved favorites/i), 'favorite-1');

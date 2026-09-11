@@ -55,9 +55,12 @@ export function ResourceBenchCard({
           size={14}
         />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <p className="truncate font-medium" title={resourceName}>
-              {resourceName}
+          <p className="truncate font-medium" title={resourceName}>
+            {resourceName}
+          </p>
+          <div className="mt-1 flex items-center justify-between gap-2">
+            <p className="truncate text-[var(--text-secondary)]" title={row.resourceTypeFullLabel}>
+              {row.resourceTypeLabel}
             </p>
             <UtilizationBadge
               compact
@@ -69,9 +72,6 @@ export function ResourceBenchCard({
               utilization={row.summary.utilization}
             />
           </div>
-          <p className="truncate text-[var(--text-secondary)]" title={row.resourceTypeFullLabel}>
-            {row.resourceTypeLabel}
-          </p>
         </div>
       </div>
       {isArmed ? (

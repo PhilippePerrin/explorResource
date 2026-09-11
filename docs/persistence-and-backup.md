@@ -2,7 +2,7 @@
 title: Persistence & Backup
 id: persistence-and-backup
 status: living
-last_updated: 2026-09-10
+last_updated: 2026-09-11
 ---
 
 # Persistence & Backup
@@ -27,7 +27,7 @@ Schema version is tracked via `PRAGMA user_version`, a single incrementing integ
 - **Reset**: full data wipe requires double confirmation. Implemented by clearing every table in one transaction (`deletePlannerDb()`), not by deleting the underlying database file — that avoids racing the Worker's open OPFS handles.
 - **Quota/write errors**: surfaced as typed errors (`PersistenceWriteError`) with a human-readable message; no silent data loss. SQLite result codes (`SQLITE_FULL`, `SQLITE_CONSTRAINT`, `SQLITE_BUSY`/`SQLITE_LOCKED`) are translated in `src/persistence/repository.ts`.
 
-Lot 11's Settings UI reuses `src/persistence/backup.ts` directly for export, validation, and restore. No parallel JSON import/export implementation is allowed in feature code.
+Lot 11's Settings UI reuses `src/persistence/backup.ts` directly for export, validation, and restore. No parallel JSON import/export implementation is allowed in feature code. Lot 24 added a second export entry point — an always-visible header icon (`src/app/AppShell.tsx`) — but it still goes through the same `exportBackup()` function via a small shared hook (`src/app/useBackupExport.ts`) rather than a separate implementation.
 
 ## Unsaved changes
 

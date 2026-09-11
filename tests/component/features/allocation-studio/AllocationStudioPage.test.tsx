@@ -555,4 +555,71 @@ describe('AllocationStudioPage', () => {
       expect(within(table).getAllByText('Commercial Analytics').length).toBeGreaterThan(0);
     });
   });
+
+  it('scopes the Total supply / Total demand columns to the selected Focus period', async () => {
+    // seedBaseFixtures already puts a 5 d demand / 0 d supply snapshot in
+    // January (Q1). Add a second snapshot in May (Q2) with different
+    // demand/supply so the two quarters are distinguishable.
+    await seedBaseFixtures();
+    await demandSnapshotsRepository.put({
+      id: '77777777-7777-7777-7777-777777777777',
+      importBatchId: 'manual',
+      projectCode: 'E0100',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 5,
+      demandDays: 8,
+      supplyDays: 3,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+    const table = await screen.findByRole('table', { name: /Allocation board/i });
+
+    function readDemandLineTotals() {
+      const projectCell = within(table).getByText('E0100');
+      const row = projectCell.closest('tr') as HTMLElement;
+      const cells = within(row).getAllByRole('cell');
+
+      return { totalSupply: cells[3]?.textContent, totalDemand: cells[4]?.textContent };
+    }
+
+    // Default Focus is "Year": totals include both quarters' snapshots.
+    await waitFor(() => {
+      expect(readDemandLineTotals()).toEqual({ totalSupply: '3 d', totalDemand: '13 d' });
+    });
+
+    await user.selectOptions(screen.getByLabelText(/^Focus$/i), 'q1');
+    await waitFor(() => {
+      expect(readDemandLineTotals()).toEqual({ totalSupply: '0 d', totalDemand: '5 d' });
+    });
+
+    await user.selectOptions(screen.getByLabelText(/^Focus$/i), 'q2');
+    await waitFor(() => {
+      expect(readDemandLineTotals()).toEqual({ totalSupply: '3 d', totalDemand: '8 d' });
+    });
+  });
+
+  it('describes the Resources bench sort order using the selected Focus period, not a single month', async () => {
+    await seedBaseFixtures();
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Allocation Studio$/i });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Sorted by availability across Year 2026\./i)).toBeInTheDocument();
+    });
+
+    await user.selectOptions(screen.getByLabelText(/^Focus$/i), 'q1');
+    await waitFor(() => {
+      expect(screen.getByText(/Sorted by availability across Q1 2026\./i)).toBeInTheDocument();
+    });
+  });
 });

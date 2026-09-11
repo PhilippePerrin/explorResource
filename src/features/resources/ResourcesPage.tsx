@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import { Users } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
@@ -139,13 +140,6 @@ function getErrorSummary<T extends FieldValues>(errors: FieldErrors<T>): string[
   return Object.values(errors)
     .map((error) => error?.message)
     .filter((message): message is string => Boolean(message));
-}
-
-function formatDayAmount(value: number, displayPrecision = 1): string {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: displayPrecision,
-    minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, displayPrecision),
-  }).format(value);
 }
 
 function getMonthLabel(month: number): string {

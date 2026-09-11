@@ -1,18 +1,27 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { CalendarOff, Inbox } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
-import type { Resource, ResourceNonWorkingDays } from '@/domain/entities';
+import { resolveWorkingDaysByMonth } from '@/domain/calculations';
+import type {
+  Resource,
+  ResourceNonWorkingDays,
+  ResourceType,
+  WorkingDaysCalendar,
+} from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { Button, Card, EmptyState, Skeleton } from '@/components/ui';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 
 import {
   MONTH_LABELS,
   applyClipboardGrid,
   buildNonWorkingDayRows,
   calculateNonWorkingDayTotals,
+  calculateWorkingDaysReferenceTotal,
   createNonWorkingDayMutationPlan,
   duplicateNonWorkingDayRows,
   parseClipboardGrid,
@@ -22,16 +31,26 @@ import {
 
 const resourcesRepository = createRepository('resources');
 const nonWorkingDaysRepository = createRepository('resourceNonWorkingDays');
+const workingDaysRepository = createRepository('workingDaysCalendars');
+const resourceTypesRepository = createRepository('resourceTypes');
 
 interface NonWorkingDaysPageData {
   resources: Resource[];
   entries: ResourceNonWorkingDays[];
+  workingDaysCalendars: WorkingDaysCalendar[];
+  resourceTypes: ResourceType[];
 }
 
 export function NonWorkingDaysPage() {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [data, setData] = useState<NonWorkingDaysPageData>({ resources: [], entries: [] });
+  const [resourceTypeFilter, setResourceTypeFilter] = useState('all');
+  const [data, setData] = useState<NonWorkingDaysPageData>({
+    resources: [],
+    entries: [],
+    workingDaysCalendars: [],
+    resourceTypes: [],
+  });
   const [rows, setRows] = useState<NonWorkingDayRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -48,12 +67,15 @@ export function NonWorkingDaysPage() {
     setLoading(true);
 
     try {
-      const [resources, allEntries] = await Promise.all([
+      const [resources, allEntries, allWorkingDaysCalendars, resourceTypes] = await Promise.all([
         resourcesRepository.getAll(),
         nonWorkingDaysRepository.getByIndex('by-year-month', { from: [year, 1], to: [year, 12] }),
+        workingDaysRepository.getByIndex('by-year', year),
+        resourceTypesRepository.getAll(),
       ]);
       const entries = allEntries.filter((entry) => entry.year === year);
-      setData({ resources, entries });
+      const workingDaysCalendars = allWorkingDaysCalendars.filter((entry) => entry.year === year);
+      setData({ resources, entries, workingDaysCalendars, resourceTypes });
       setRows(buildNonWorkingDayRows(resources, entries));
       setValidationMessage('');
     } finally {
@@ -140,7 +162,31 @@ export function NonWorkingDaysPage() {
     }
   }
 
-  const totals = useMemo(() => calculateNonWorkingDayTotals(rows), [rows]);
+  const resourceTypeById = useMemo(
+    () => new Map(data.resources.map((resource) => [resource.id, resource.resourceTypeId])),
+    [data.resources],
+  );
+  const visibleRows = useMemo(
+    () =>
+      rows
+        .map((row, index) => ({ row, index }))
+        .filter(
+          ({ row }) =>
+            resourceTypeFilter === 'all' ||
+            resourceTypeById.get(row.resourceId) === resourceTypeFilter,
+        ),
+    [rows, resourceTypeById, resourceTypeFilter],
+  );
+  const totals = useMemo(
+    () => calculateNonWorkingDayTotals(visibleRows.map(({ row }) => row)),
+    [visibleRows],
+  );
+  const workingDaysByMonth = useMemo(
+    () => resolveWorkingDaysByMonth(selectedYear, data.workingDaysCalendars),
+    [selectedYear, data.workingDaysCalendars],
+  );
+  const workingDaysConfigured = workingDaysByMonth.some((value) => value !== null);
+  const workingDaysReferenceTotal = calculateWorkingDaysReferenceTotal(workingDaysByMonth);
 
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="non-working-days-page">
@@ -163,6 +209,16 @@ export function NonWorkingDaysPage() {
           role="alert"
         >
           {validationMessage}
+        </div>
+      ) : null}
+
+      {!loading && !workingDaysConfigured ? (
+        <div className="rounded-lg border border-[var(--status-info-border)] bg-[var(--status-info-bg)] px-4 py-3 text-sm text-[var(--status-info-text)]">
+          No working-days calendar is configured for {selectedYear} yet, so the reference row below
+          shows no values.{' '}
+          <Link className="font-semibold underline" to="/working-days">
+            Configure working days
+          </Link>
         </div>
       ) : null}
 
@@ -202,6 +258,27 @@ export function NonWorkingDaysPage() {
             >
               Next year
             </Button>
+            <div>
+              <label
+                className="mb-1 block text-sm font-medium"
+                htmlFor="non-working-days-resource-type"
+              >
+                Resource type
+              </label>
+              <select
+                className="w-48 rounded-md border border-[var(--surf-divider)] bg-[var(--surf-600)] px-3 py-2"
+                id="non-working-days-resource-type"
+                value={resourceTypeFilter}
+                onChange={(event) => setResourceTypeFilter(event.target.value)}
+              >
+                <option value="all">All resource types</option>
+                {data.resourceTypes.map((resourceType) => (
+                  <option key={resourceType.id} value={resourceType.id}>
+                    {getResourceTypeDisplayLabel(resourceType)}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -230,7 +307,9 @@ export function NonWorkingDaysPage() {
           <div className="overflow-x-auto">
             <table className="min-w-[74rem] border-collapse text-left text-sm">
               <caption className="sr-only">
-                Resource by month grid for non-working days with row and column totals.
+                Resource by month grid for non-working days with row and column totals. A
+                non-editable reference row shows the configured working days per month and is
+                excluded from the totals below.
               </caption>
               <thead>
                 <tr className="border-b border-[var(--surf-divider)]">
@@ -249,9 +328,26 @@ export function NonWorkingDaysPage() {
                     Total
                   </th>
                 </tr>
+                <tr className="border-b border-[var(--surf-divider)] bg-[var(--surf-700)]">
+                  <th
+                    className="sticky left-0 z-10 bg-[var(--surf-700)] px-3 py-2 font-medium"
+                    scope="row"
+                  >
+                    Working days (reference)
+                  </th>
+                  {workingDaysByMonth.map((value, monthIndex) => (
+                    <td
+                      className="px-3 py-2 font-medium"
+                      key={`working-days-reference-${monthIndex + 1}`}
+                    >
+                      {value ?? '–'}
+                    </td>
+                  ))}
+                  <td className="px-3 py-2 font-medium">{workingDaysReferenceTotal ?? '–'}</td>
+                </tr>
               </thead>
               <tbody>
-                {rows.map((row, rowIndex) => (
+                {visibleRows.map(({ row, index: rowIndex }) => (
                   <tr className="border-b border-[var(--surf-divider)]" key={row.resourceId}>
                     <th className="sticky left-0 z-10 bg-[var(--surf-800)] px-3 py-3" scope="row">
                       <div className="font-medium">{row.resourceName}</div>

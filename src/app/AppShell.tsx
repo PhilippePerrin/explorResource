@@ -1,10 +1,11 @@
 import { useState, type ReactNode } from 'react';
 
-import { Menu } from '@/components/icons';
+import { Download, Menu } from '@/components/icons';
 import { IconButton } from '@/components/ui/IconButton';
 
 import { Sidebar } from './Sidebar';
 import { UpdateBanner } from './UpdateBanner';
+import { useBackupExport } from './useBackupExport';
 
 interface AppShellProps {
   children: ReactNode;
@@ -12,6 +13,7 @@ interface AppShellProps {
 
 export function AppShell({ children }: AppShellProps) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const backupExport = useBackupExport();
 
   return (
     <div className="flex min-h-dvh">
@@ -31,6 +33,22 @@ export function AppShell({ children }: AppShellProps) {
             size="sm"
           />
           <p className="sr-only">Resource Capacity &amp; Project Demand Planner</p>
+          <div className="ml-auto flex items-center gap-3">
+            {backupExport.feedback ? (
+              <p aria-live="polite" className="text-sm text-[var(--text-secondary)]" role="status">
+                {backupExport.feedback}
+              </p>
+            ) : null}
+            <IconButton
+              disabled={backupExport.exporting}
+              icon={Download}
+              label="Export database backup"
+              onClick={() => {
+                void backupExport.triggerExport();
+              }}
+              size="sm"
+            />
+          </div>
         </header>
 
         <UpdateBanner />

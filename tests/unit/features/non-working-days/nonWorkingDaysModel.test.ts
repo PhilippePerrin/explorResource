@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   applyClipboardGrid,
   calculateNonWorkingDayTotals,
+  calculateWorkingDaysReferenceTotal,
   createNonWorkingDayMutationPlan,
   parseClipboardGrid,
 } from '@/features/non-working-days';
@@ -62,6 +63,17 @@ describe('non-working days model', () => {
     expect(totals.rowTotals['resource-1']).toBe(3);
     expect(totals.columnTotals[0]).toBe(1.5);
     expect(totals.grandTotal).toBe(4.5);
+  });
+
+  it('sums the reference working-days row, ignoring unconfigured months', () => {
+    const fullYear = Array.from({ length: 12 }, () => 21);
+    expect(calculateWorkingDaysReferenceTotal(fullYear)).toBe(252);
+
+    const partialYear = [21, null, 22, ...Array.from({ length: 9 }, () => null)];
+    expect(calculateWorkingDaysReferenceTotal(partialYear)).toBe(43);
+
+    const emptyYear = Array.from({ length: 12 }, () => null);
+    expect(calculateWorkingDaysReferenceTotal(emptyYear)).toBeNull();
   });
 
   it('creates upserts for non-zero values and deletes for cleared cells', () => {

@@ -56,7 +56,7 @@ export function Sidebar({ mobileOpen, onCloseMobile }: SidebarProps) {
       <aside
         className={`sidebar-collapse-transition fixed inset-y-0 left-0 z-50 flex flex-col border-r border-[var(--surf-divider)] bg-[var(--surf-800)] ${
           collapsed ? 'w-20' : 'w-64'
-        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:static md:translate-x-0`}
+        } ${mobileOpen ? 'translate-x-0' : '-translate-x-full'} md:sticky md:top-0 md:h-dvh md:translate-x-0`}
       >
         <nav aria-label="Primary" className="order-2 flex-1 overflow-y-auto p-2">
           {NAV_GROUPS.map((group) => (

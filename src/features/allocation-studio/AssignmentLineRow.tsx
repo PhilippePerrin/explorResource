@@ -65,12 +65,9 @@ export function AssignmentLineRow({
             <GripVertical aria-hidden="true" size={14} />
           </button>
           {/*
-            Lives in this sticky, always-on-top column (not the "Resource"
+            Lives in this sticky, pinned Project column (not the "Resource"
             column further right) so it stays reachable without scrolling
-            back — and so it never sits in the region where the "Activity"
-            sticky column visually overlaps the non-sticky columns whenever
-            the table's auto layout gives any column more width than its
-            hardcoded sticky offset assumes.
+            back to the start of the row.
           */}
           <IconButton
             className="shrink-0 text-[var(--text-secondary)] hover:text-red-300"
@@ -81,7 +78,7 @@ export function AssignmentLineRow({
           />
         </div>
       </td>
-      <td className="sticky left-[180px] z-10 w-[160px] bg-[var(--surf-800)] px-3 py-2 text-[var(--text-secondary)]">
+      <td className="w-[160px] px-3 py-2 text-[var(--text-secondary)]">
         {row.resourceTypeLabel}
       </td>
       <td className="px-3 py-2">

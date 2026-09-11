@@ -6,7 +6,6 @@ import {
   useReactTable,
   createColumnHelper,
 } from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
@@ -20,6 +19,7 @@ import type {
   Allocation,
   AppSettings,
   Company,
+  Project,
   Resource,
   ResourceNonWorkingDays,
   ResourceType,
@@ -40,6 +40,7 @@ import {
 const resourcesRepository = createRepository('resources');
 const resourceTypesRepository = createRepository('resourceTypes');
 const companiesRepository = createRepository('companies');
+const projectsRepository = createRepository('projects');
 const allocationsRepository = createRepository('allocations');
 const workingDaysRepository = createRepository('workingDaysCalendars');
 const resourceNonWorkingDaysRepository = createRepository('resourceNonWorkingDays');
@@ -49,6 +50,7 @@ interface CapacityData {
   resources: Resource[];
   resourceTypes: ResourceType[];
   companies: Company[];
+  projects: Project[];
   allocations: Allocation[];
   workingDaysCalendars: WorkingDaysCalendar[];
   resourceNonWorkingDays: ResourceNonWorkingDays[];
@@ -86,6 +88,7 @@ export function CapacityCommandCenterPage() {
     resources: [],
     resourceTypes: [],
     companies: [],
+    projects: [],
     allocations: [],
     workingDaysCalendars: [],
     resourceNonWorkingDays: [],
@@ -98,7 +101,6 @@ export function CapacityCommandCenterPage() {
     month: number;
   } | null>(null);
   const loadRequestIdRef = useRef(0);
-  const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const heatmapRegionRef = useRef<HTMLDivElement | null>(null);
   const filterDefinitions = useMemo<FilterDefinitions<CapacityFilters>>(
     () => ({
@@ -134,6 +136,7 @@ export function CapacityCommandCenterPage() {
         resources,
         resourceTypes,
         companies,
+        projects,
         allocations,
         workingDaysCalendars,
         resourceNonWorkingDays,
@@ -142,6 +145,7 @@ export function CapacityCommandCenterPage() {
         resourcesRepository.getAll(),
         resourceTypesRepository.getAll(),
         companiesRepository.getAll(),
+        projectsRepository.getAll(),
         allocationsRepository.getAll(),
         workingDaysRepository.getAll(),
         resourceNonWorkingDaysRepository.getAll(),
@@ -156,6 +160,7 @@ export function CapacityCommandCenterPage() {
         resources,
         resourceTypes,
         companies,
+        projects,
         allocations,
         workingDaysCalendars,
         resourceNonWorkingDays,
@@ -177,6 +182,10 @@ export function CapacityCommandCenterPage() {
     return [...years].sort((left, right) => left - right);
   }, [data.allocations, data.workingDaysCalendars, filters.year]);
   const displayPrecision = data.appSettings?.displayPrecision ?? 1;
+  const projectLookup = useMemo(
+    () => new Map(data.projects.map((project) => [project.code, project.name])),
+    [data.projects],
+  );
   const visibleMonths = useMemo(() => getFocusMonths(filters.focus), [filters.focus]);
   const focusGridCell = useCallback((rowIndex: number, monthIndex: number) => {
     const target = heatmapRegionRef.current?.querySelector<HTMLButtonElement>(
@@ -362,7 +371,11 @@ export function CapacityCommandCenterPage() {
       }),
       columnHelper.accessor('resourceName', {
         header: 'Resource',
-        cell: (info) => <span className="font-medium">{info.getValue()}</span>,
+        cell: (info) => (
+          <span className="block truncate font-medium" title={info.getValue()}>
+            {info.getValue()}
+          </span>
+        ),
       }),
       ...visibleMonths.map((month) =>
         columnHelper.display({
@@ -408,25 +421,6 @@ export function CapacityCommandCenterPage() {
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
-  const virtualizer = useVirtualizer({
-    count: table.getRowModel().rows.length,
-    getScrollElement: () => tableContainerRef.current,
-    estimateSize: () => 58,
-    overscan: 6,
-  });
-  const virtualRows = virtualizer.getVirtualItems();
-  const renderedRowIndexes =
-    virtualRows.length > 0
-      ? virtualRows.map((virtualRow) => ({
-          index: virtualRow.index,
-          start: virtualRow.start,
-          key: virtualRow.key,
-        }))
-      : table.getRowModel().rows.map((row, index) => ({
-          index,
-          start: index * 58,
-          key: row.id,
-        }));
   const selectedSummary = selectedDrilldown?.row.summaries[selectedDrilldown.month - 1] ?? null;
   const selectedAllocations = selectedDrilldown
     ? data.allocations.filter(
@@ -440,7 +434,7 @@ export function CapacityCommandCenterPage() {
   return (
     <div className="flex w-full flex-col gap-6 p-6" id="capacity-command-center-page">
       <PageHeader
-        description="Virtualized heatmap for utilization by resource and month. Every cell includes label, icon, value, and tooltip — never color only."
+        description="Full-team heatmap for utilization by resource and month. Every cell includes label, icon, value, and tooltip — never color only."
         descriptionClassName="max-w-4xl"
         icon={Activity}
         title="Capacity Command Center"
@@ -465,7 +459,7 @@ export function CapacityCommandCenterPage() {
               Utilization heatmap
             </h2>
             <p className="text-sm text-[var(--text-secondary)]">
-              Rows are virtualized for responsive rendering.
+              All resource rows are shown for a complete view of the team.
             </p>
           </div>
           <p className="text-sm text-[var(--text-secondary)]">{rows.length} resource row(s)</p>
@@ -501,9 +495,8 @@ export function CapacityCommandCenterPage() {
               })}
             </div>
             <div
-              className="max-h-[28rem] overflow-auto rounded-xl border border-[var(--surf-divider)]"
-              data-testid="capacity-virtualized-body"
-              ref={tableContainerRef}
+              className="overflow-x-auto rounded-xl border border-[var(--surf-divider)]"
+              data-testid="capacity-heatmap-body"
             >
               <table
                 aria-colcount={visibleMonths.length + 2}
@@ -519,10 +512,12 @@ export function CapacityCommandCenterPage() {
                     <tr key={headerGroup.id} className="border-b border-[var(--surf-divider)]">
                       {headerGroup.headers.map((header, columnIndex) => (
                         <th
-                          className="px-3 py-2 font-semibold"
+                          className="overflow-hidden px-3 py-2 font-semibold"
                           key={header.id}
                           scope="col"
-                          style={{ width: getHeatmapColumnWidth(columnIndex) }}
+                          style={{
+                            width: getHeatmapColumnWidth(columnIndex),
+                          }}
                         >
                           {header.isPlaceholder
                             ? null
@@ -532,53 +527,25 @@ export function CapacityCommandCenterPage() {
                     </tr>
                   ))}
                 </thead>
-                {/*
-                  tbody uses display:block so the virtualized rows can be
-                  absolutely positioned inside it (their offsets come from
-                  virtualizer.getVirtualItems()), and each row uses
-                  display:flex so its cells still lay out horizontally in
-                  sync with the thead's normal-flow row — the standard
-                  TanStack-virtual-with-sticky-header recipe. Column widths
-                  are pinned via getHeatmapColumnWidth on both thead and
-                  tbody cells so header/body stay aligned by construction,
-                  not by relying on the table layout algorithm (which can't
-                  be trusted once tbody leaves normal flow). Zebra striping
-                  is keyed off the absolute row index rather than DOM
-                  position (nth-child), since virtualization only renders a
-                  sliding window of rows and nth-child would shift on scroll.
-                */}
-                <tbody style={{ display: 'block', height: `${virtualizer.getTotalSize()}px`, position: 'relative' }}>
-                  {renderedRowIndexes.map((virtualRow) => {
-                    const row = table.getRowModel().rows[virtualRow.index];
-
-                    if (!row) {
-                      return null;
-                    }
-
-                    return (
-                      <tr
-                        className={`border-b border-[var(--surf-divider)] ${virtualRow.index % 2 === 1 ? 'bg-[var(--surf-700)]' : ''}`}
-                        data-index={virtualRow.index}
-                        key={row.id}
-                        style={{
-                          display: 'flex',
-                          position: 'absolute',
-                          transform: `translateY(${virtualRow.start}px)`,
-                          width: '100%',
-                        }}
-                      >
-                        {row.getVisibleCells().map((cell, columnIndex) => (
-                          <td
-                            className="px-3 py-2 align-top"
-                            key={cell.id}
-                            style={{ width: getHeatmapColumnWidth(columnIndex) }}
-                          >
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                          </td>
-                        ))}
-                      </tr>
-                    );
-                  })}
+                <tbody>
+                  {table.getRowModel().rows.map((row, rowIndex) => (
+                    <tr
+                      className={`border-b border-[var(--surf-divider)] ${rowIndex % 2 === 1 ? 'bg-[var(--surf-700)]' : ''}`}
+                      key={row.id}
+                    >
+                      {row.getVisibleCells().map((cell, columnIndex) => (
+                        <td
+                          className="overflow-hidden px-3 py-2 align-top"
+                          key={cell.id}
+                          style={{
+                            width: getHeatmapColumnWidth(columnIndex),
+                          }}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -642,7 +609,12 @@ export function CapacityCommandCenterPage() {
                 ) : (
                   selectedAllocations.map((allocation) => (
                     <tr key={allocation.id} className="border-b border-[var(--surf-divider)]">
-                      <td className="px-3 py-2">{allocation.projectCode}</td>
+                      <td className="px-3 py-2">
+                        <div>{allocation.projectCode}</div>
+                        <div className="text-[11px] text-[var(--text-secondary)]">
+                          {projectLookup.get(allocation.projectCode) ?? allocation.projectCode}
+                        </div>
+                      </td>
                       <td className="px-3 py-2">
                         {formatDayAmount(allocation.allocatedDays, displayPrecision)} d
                       </td>

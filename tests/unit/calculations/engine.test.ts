@@ -12,6 +12,7 @@ import {
   chargeAffectee,
   chargeNonAffecteeProjet,
   classifyUtilizationStatus,
+  resolveWorkingDaysByMonth,
   tauxUtilisation,
   type UtilizationStatus,
 } from '@/domain/calculations';
@@ -52,6 +53,28 @@ describe('capacity and workload calculations', () => {
   it('computes net capacity and clamps it to zero', () => {
     expect(capaciteNette(20, 3.5)).toBe(16.5);
     expect(capaciteNette(2, 4)).toBe(0);
+  });
+
+  it('resolves working days per month, using null for unconfigured months', () => {
+    const calendars = [
+      buildCalendarEntry({ id: '1a1a1a1a-31f1-4d35-a53e-e5b6c17194c2', month: 1, workingDaysCount: 21 }),
+      buildCalendarEntry({ id: '2b2b2b2b-31f1-4d35-a53e-e5b6c17194c2', month: 3, workingDaysCount: 22 }),
+      buildCalendarEntry({
+        id: '3c3c3c3c-31f1-4d35-a53e-e5b6c17194c2',
+        year: 2025,
+        month: 2,
+        workingDaysCount: 19,
+      }),
+    ];
+
+    const result = resolveWorkingDaysByMonth(2026, calendars);
+
+    expect(result).toHaveLength(12);
+    expect(result[0]).toBe(21);
+    expect(result[1]).toBeNull();
+    expect(result[2]).toBe(22);
+    expect(result.slice(3)).toEqual(Array(9).fill(null));
+    expect(resolveWorkingDaysByMonth(2026, [])).toEqual(Array(12).fill(null));
   });
 
   it('sums assigned load for the requested resource/month only', () => {

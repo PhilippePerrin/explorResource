@@ -65,6 +65,8 @@ const baseWorkingDaysCalendar = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+const ALL_MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
+
 const validatedImportBatch = {
   id: '99999999-9999-9999-9999-999999999999',
   importedAt: '2026-01-01T00:00:00.000Z',
@@ -428,7 +430,7 @@ describe('allocationStudioModel', () => {
         resources: [baseResource, idleResource, archivedResource],
         resourceTypes: [baseResourceType],
         year: 2026,
-        month: 5,
+        visibleMonths: [5],
         workingDaysCalendars: [baseWorkingDaysCalendar],
         resourceNonWorkingDays: [],
         allocations: [baseAllocation],
@@ -445,7 +447,7 @@ describe('allocationStudioModel', () => {
         resources: [baseResource],
         resourceTypes: [baseResourceType],
         year: 2026,
-        month: 5,
+        visibleMonths: [5],
         workingDaysCalendars: [baseWorkingDaysCalendar],
         resourceNonWorkingDays: [],
         allocations: [],
@@ -462,7 +464,7 @@ describe('allocationStudioModel', () => {
         resources: [baseResource, idleResource],
         resourceTypes: [baseResourceType],
         year: 2026,
-        month: 5,
+        visibleMonths: [5],
         workingDaysCalendars: [baseWorkingDaysCalendar],
         resourceNonWorkingDays: [],
         allocations: [],
@@ -473,6 +475,56 @@ describe('allocationStudioModel', () => {
 
       expect(rows).toHaveLength(1);
       expect(rows[0]?.resource.id).toBe(idleResource.id);
+    });
+
+    it('aggregates availability across every visible month, not just one', () => {
+      const juneCalendar = {
+        ...baseWorkingDaysCalendar,
+        id: '33333333-3333-3333-3333-333333333334',
+        month: 6,
+        workingDaysCount: 20,
+      };
+      const juneAllocation = {
+        ...baseAllocation,
+        id: '11111111-1111-1111-1111-111111111112',
+        month: 6,
+        allocatedDays: 6,
+      };
+
+      const singleMonthRows = buildResourceBenchRows({
+        resources: [baseResource],
+        resourceTypes: [baseResourceType],
+        year: 2026,
+        visibleMonths: [5],
+        workingDaysCalendars: [baseWorkingDaysCalendar, juneCalendar],
+        resourceNonWorkingDays: [],
+        allocations: [baseAllocation, juneAllocation],
+        appSettings: null,
+        resourceTypeFilter: 'all',
+        searchTerm: '',
+      });
+      const twoMonthRows = buildResourceBenchRows({
+        resources: [baseResource],
+        resourceTypes: [baseResourceType],
+        year: 2026,
+        visibleMonths: [5, 6],
+        workingDaysCalendars: [baseWorkingDaysCalendar, juneCalendar],
+        resourceNonWorkingDays: [],
+        allocations: [baseAllocation, juneAllocation],
+        appSettings: null,
+        resourceTypeFilter: 'all',
+        searchTerm: '',
+      });
+
+      // May only: netCapacity 10 - assigned 4 = available 6.
+      expect(singleMonthRows[0]?.summary.netCapacityDays).toBe(10);
+      expect(singleMonthRows[0]?.summary.assignedLoadDays).toBe(4);
+      expect(singleMonthRows[0]?.summary.availableCapacityDays).toBe(6);
+
+      // May + June: netCapacity 10 + 20 = 30, assigned 4 + 6 = 10, available 20.
+      expect(twoMonthRows[0]?.summary.netCapacityDays).toBe(30);
+      expect(twoMonthRows[0]?.summary.assignedLoadDays).toBe(10);
+      expect(twoMonthRows[0]?.summary.availableCapacityDays).toBe(20);
     });
   });
 
@@ -526,7 +578,7 @@ describe('allocationStudioModel', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
 
-    it('sums Total supply / Total demand across all 12 months', () => {
+    it('sums Total supply / Total demand across all 12 months when visibleMonths spans the year', () => {
       const blocks = buildAllocationStudioBoardRows({
         projects: [project],
         resourceTypes: [baseResourceType],
@@ -551,12 +603,76 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       expect(blocks).toHaveLength(1);
       expect(blocks[0]?.demandLine.totalDemandDays).toBe(4);
       expect(blocks[0]?.demandLine.totalSupplyDays).toBe(2);
       expect(blocks[0]?.demandLine.status).toBe('validated');
+    });
+
+    it('restricts Total supply / Total demand to the given visibleMonths', () => {
+      const demandSnapshots = [
+        {
+          id: 'snapshot-q1',
+          importBatchId: validatedImportBatch.id,
+          projectCode: 'E0100',
+          resourceTypeId: baseAllocation.resourceTypeId,
+          year: 2026,
+          month: 2,
+          demandDays: 5,
+          supplyDays: 3,
+          origin: 'import' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        {
+          id: 'snapshot-q2',
+          importBatchId: validatedImportBatch.id,
+          projectCode: 'E0100',
+          resourceTypeId: baseAllocation.resourceTypeId,
+          year: 2026,
+          month: 5,
+          demandDays: 7,
+          supplyDays: 1,
+          origin: 'import' as const,
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ];
+
+      const q1Blocks = buildAllocationStudioBoardRows({
+        projects: [project],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots,
+        importBatches: [validatedImportBatch],
+        allocations: [],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+        visibleMonths: [1, 2, 3],
+      });
+
+      expect(q1Blocks[0]?.demandLine.totalDemandDays).toBe(5);
+      expect(q1Blocks[0]?.demandLine.totalSupplyDays).toBe(3);
+
+      const q2Blocks = buildAllocationStudioBoardRows({
+        projects: [project],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots,
+        importBatches: [validatedImportBatch],
+        allocations: [],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+        visibleMonths: [4, 5, 6],
+      });
+
+      expect(q2Blocks[0]?.demandLine.totalDemandDays).toBe(7);
+      expect(q2Blocks[0]?.demandLine.totalSupplyDays).toBe(1);
     });
 
     it('produces one assignment row per resource with a non-zero month, mirroring parent totals', () => {
@@ -570,6 +686,7 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       expect(blocks).toHaveLength(1);
@@ -582,6 +699,29 @@ describe('allocationStudioModel', () => {
       expect(assignment?.status).toBe('none');
       expect(assignment?.totalSupplyDays).toBe(blocks[0]?.demandLine.totalSupplyDays);
       expect(assignment?.totalDemandDays).toBe(blocks[0]?.demandLine.totalDemandDays);
+    });
+
+    it("keeps an assignment row visible outside its resource's active months even when visibleMonths narrows the totals", () => {
+      const blocks = buildAllocationStudioBoardRows({
+        projects: [project],
+        resourceTypes: [baseResourceType],
+        resources: [baseResource],
+        demandSnapshots: [],
+        importBatches: [],
+        allocations: [baseAllocation],
+        year: 2026,
+        resourceTypeFilter: 'all',
+        projectSearch: '',
+        visibleMonths: [1, 2, 3],
+      });
+
+      expect(blocks).toHaveLength(1);
+      expect(blocks[0]?.assignments).toHaveLength(1);
+      const assignment = blocks[0]?.assignments[0];
+      expect(assignment?.months[4]?.allocatedDays).toBe(4);
+      expect(assignment?.totalSupplyDays).toBe(blocks[0]?.demandLine.totalSupplyDays);
+      expect(assignment?.totalDemandDays).toBe(blocks[0]?.demandLine.totalDemandDays);
+      expect(blocks[0]?.demandLine.totalDemandDays).toBe(0);
     });
 
     it('does not produce an assignment row for a resource whose allocations net to zero', () => {
@@ -607,6 +747,7 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       expect(blocks).toHaveLength(0);
@@ -798,6 +939,7 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       expect(isProjectFullyCoveredForVisibleMonths(blocks, [1])).toBe(true);
@@ -814,6 +956,7 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       expect(isProjectFullyCoveredForVisibleMonths(gappedBlocks, [1])).toBe(true);
@@ -831,6 +974,7 @@ describe('allocationStudioModel', () => {
         year: 2026,
         resourceTypeFilter: 'all',
         projectSearch: '',
+        visibleMonths: ALL_MONTHS,
       });
 
       const filtered = filterOutFullyCoveredProjects(blocks, [1]);

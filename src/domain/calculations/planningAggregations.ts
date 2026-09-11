@@ -134,6 +134,66 @@ export function buildResourceMonthSummary(options: {
   };
 }
 
+export interface ResourcePeriodSummary {
+  months: readonly number[];
+  workingDaysConfigured: boolean;
+  grossCapacityDays: number;
+  nonWorkingDays: number;
+  netCapacityDays: number;
+  assignedLoadDays: number;
+  availableCapacityDays: number;
+  utilization: UtilizationResult;
+}
+
+/**
+ * Aggregates a resource's capacity/load over an arbitrary set of months
+ * (e.g. a Focus filter's S1/Q2/custom range) by summing the per-month
+ * summaries and re-deriving availableCapacityDays/utilization from the
+ * totals, rather than summing those two fields independently.
+ */
+export function buildResourcePeriodSummary(options: {
+  resource: Resource;
+  year: number;
+  months: readonly number[];
+  workingDaysCalendars: readonly WorkingDaysCalendar[];
+  resourceNonWorkingDays: readonly ResourceNonWorkingDays[];
+  allocations: readonly Allocation[];
+  appSettings?: AppSettings | null;
+}): ResourcePeriodSummary {
+  const { months, appSettings } = options;
+  const monthSummaries = months.map((month) => buildResourceMonthSummary({ ...options, month }));
+
+  const grossCapacityDays = normalizeAmount(
+    monthSummaries.reduce((total, summary) => total + summary.grossCapacityDays, 0),
+  );
+  const nonWorkingDays = normalizeAmount(
+    monthSummaries.reduce((total, summary) => total + summary.nonWorkingDays, 0),
+  );
+  const netCapacityDays = normalizeAmount(
+    monthSummaries.reduce((total, summary) => total + summary.netCapacityDays, 0),
+  );
+  const assignedLoadDays = normalizeAmount(
+    monthSummaries.reduce((total, summary) => total + summary.assignedLoadDays, 0),
+  );
+  const availableCapacityDays = capaciteDisponible(netCapacityDays, assignedLoadDays);
+  const utilization = tauxUtilisation(
+    assignedLoadDays,
+    netCapacityDays,
+    appSettings?.visualThresholds ?? DEFAULT_VISUAL_THRESHOLDS,
+  );
+
+  return {
+    months,
+    workingDaysConfigured: monthSummaries.some((summary) => summary.workingDaysConfigured),
+    grossCapacityDays,
+    nonWorkingDays,
+    netCapacityDays,
+    assignedLoadDays,
+    availableCapacityDays,
+    utilization,
+  };
+}
+
 export function buildResourceYearSummaries(options: {
   resource: Resource;
   year: number;

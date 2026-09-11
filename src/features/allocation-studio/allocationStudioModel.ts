@@ -16,10 +16,11 @@ import { normalizeAmount } from '@/domain/normalization/normalizeAmount';
 import {
   buildDemandAllocationSummary,
   buildResourceMonthSummary,
+  buildResourcePeriodSummary,
   findLatestDemandSnapshot,
   selectLatestDemandSnapshots,
   type DemandAllocationSummary,
-  type ResourceMonthSummary,
+  type ResourcePeriodSummary,
 } from '@/domain/calculations';
 import { formatDayAmount } from '@/components/formatDayAmount';
 import { MONTH_LABELS } from '@/features/dashboard';
@@ -631,6 +632,11 @@ export function resolveAllocationStudioRowStatus(
  * filter). Assignment rows always report Status "none" (they aren't backed
  * by a DemandSnapshot) and mirror the parent's Total supply/demand, since
  * those are project/type-level facts rather than per-resource facts.
+ *
+ * Total supply/demand are scoped to `visibleMonths` (the caller's current
+ * Focus filter), not the full year — so the totals track whichever period
+ * (Year/S1/S2/Q1-Q4) is currently selected, unlike the assignment-row
+ * detection above, which stays full-year on purpose.
  */
 export function buildAllocationStudioBoardRows(options: {
   projects: readonly Project[];
@@ -642,6 +648,7 @@ export function buildAllocationStudioBoardRows(options: {
   year: number;
   resourceTypeFilter: string;
   projectSearch: string;
+  visibleMonths: readonly number[];
 }): AllocationStudioProjectBlock[] {
   const rows = buildAllocationStudioRows(options);
   const resourceLookup = new Map(
@@ -649,11 +656,14 @@ export function buildAllocationStudioBoardRows(options: {
   );
 
   return rows.map((row) => {
+    const visibleMonthCells = row.months.filter((month) =>
+      options.visibleMonths.includes(month.month),
+    );
     const totalSupplyDays = normalizeAmount(
-      row.months.reduce((sum, month) => sum + month.supplyDays, 0),
+      visibleMonthCells.reduce((sum, month) => sum + month.supplyDays, 0),
     );
     const totalDemandDays = normalizeAmount(
-      row.months.reduce((sum, month) => sum + month.demandDays, 0),
+      visibleMonthCells.reduce((sum, month) => sum + month.demandDays, 0),
     );
     const status = resolveAllocationStudioRowStatus(row.months, options.importBatches);
 
@@ -760,14 +770,14 @@ export interface ResourceBenchRow {
   resource: Resource;
   resourceTypeLabel: string;
   resourceTypeFullLabel: string;
-  summary: ResourceMonthSummary;
+  summary: ResourcePeriodSummary;
 }
 
 export function buildResourceBenchRows(options: {
   resources: readonly Resource[];
   resourceTypes: readonly ResourceType[];
   year: number;
-  month: number;
+  visibleMonths: readonly number[];
   workingDaysCalendars: readonly WorkingDaysCalendar[];
   resourceNonWorkingDays: readonly ResourceNonWorkingDays[];
   allocations: readonly Allocation[];
@@ -807,10 +817,10 @@ export function buildResourceBenchRows(options: {
           ? getResourceTypeDisplayLabel(resourceType)
           : resource.resourceTypeId,
         resourceTypeFullLabel: resourceType ? resourceType.label : resource.resourceTypeId,
-        summary: buildResourceMonthSummary({
+        summary: buildResourcePeriodSummary({
           resource,
           year: options.year,
-          month: options.month,
+          months: options.visibleMonths,
           workingDaysCalendars: options.workingDaysCalendars,
           resourceNonWorkingDays: options.resourceNonWorkingDays,
           allocations: options.allocations,

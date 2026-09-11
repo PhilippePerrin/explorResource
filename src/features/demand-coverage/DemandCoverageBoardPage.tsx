@@ -1,13 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { DemandCoverageBadge } from '@/components/DemandCoverageBadge';
 import { FeedbackMessage } from '@/components/FeedbackMessage';
 import { FilterBar, type FilterBarField } from '@/components/FilterBar';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import { Target } from '@/components/icons';
 import { PageHeader } from '@/components/PageHeader';
-import { Card, TableShell } from '@/components/ui';
+import { Card, Drawer, TableShell } from '@/components/ui';
 import type { DemandCoverageState } from '@/domain/calculations';
-import type { Allocation, DemandSnapshot, Project, ResourceType } from '@/domain/entities';
+import {
+  getResourceFullName,
+  type Allocation,
+  type DemandSnapshot,
+  type Project,
+  type Resource,
+  type ResourceType,
+} from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
 import { usePersistentPageFilters, type FilterDefinitions } from '@/features/filters/filterState';
 import { getResourceTypeDisplayLabel } from '@/features/resource-types';
@@ -16,12 +25,14 @@ import { buildDemandCoverageRows, type DemandCoverageRow } from './demandCoverag
 
 const projectsRepository = createRepository('projects');
 const resourceTypesRepository = createRepository('resourceTypes');
+const resourcesRepository = createRepository('resources');
 const allocationsRepository = createRepository('allocations');
 const demandSnapshotsRepository = createRepository('demandSnapshots');
 
 interface DemandCoverageData {
   projects: Project[];
   resourceTypes: ResourceType[];
+  resources: Resource[];
   allocations: Allocation[];
   demandSnapshots: DemandSnapshot[];
 }
@@ -34,11 +45,12 @@ interface DemandCoverageFilters {
   coverageStateFilter: 'all' | DemandCoverageState;
 }
 
-function formatDayAmount(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: 1,
-    minimumFractionDigits: value % 1 === 0 ? 0 : 1,
-  }).format(value);
+interface SelectedCell {
+  projectCode: string;
+  projectName: string;
+  resourceTypeId: string;
+  resourceTypeLabel: string;
+  month: number;
 }
 
 function buildCoverageTooltip(
@@ -63,11 +75,13 @@ export function DemandCoverageBoardPage() {
   const [data, setData] = useState<DemandCoverageData>({
     projects: [],
     resourceTypes: [],
+    resources: [],
     allocations: [],
     demandSnapshots: [],
   });
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState('');
+  const [selectedCell, setSelectedCell] = useState<SelectedCell | null>(null);
   const loadRequestIdRef = useRef(0);
   const filterDefinitions = useMemo<FilterDefinitions<DemandCoverageFilters>>(
     () => ({
@@ -98,9 +112,10 @@ export function DemandCoverageBoardPage() {
     const requestId = ++loadRequestIdRef.current;
 
     try {
-      const [projects, resourceTypes, allocations, demandSnapshots] = await Promise.all([
+      const [projects, resourceTypes, resources, allocations, demandSnapshots] = await Promise.all([
         projectsRepository.getAll(),
         resourceTypesRepository.getAll(),
+        resourcesRepository.getAll(),
         allocationsRepository.getAll(),
         demandSnapshotsRepository.getAll(),
       ]);
@@ -109,7 +124,7 @@ export function DemandCoverageBoardPage() {
         return;
       }
 
-      setData({ projects, resourceTypes, allocations, demandSnapshots });
+      setData({ projects, resourceTypes, resources, allocations, demandSnapshots });
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : 'Unable to load demand coverage data.');
     } finally {
@@ -161,6 +176,43 @@ export function DemandCoverageBoardPage() {
       filters.year,
     ],
   );
+  const selectedCellSummary = useMemo(() => {
+    if (!selectedCell) {
+      return null;
+    }
+
+    const row = rows.find(
+      (candidate) =>
+        candidate.projectCode === selectedCell.projectCode &&
+        candidate.resourceTypeId === selectedCell.resourceTypeId,
+    );
+    return row?.months[selectedCell.month - 1] ?? null;
+  }, [rows, selectedCell]);
+  const selectedAssignments = useMemo(() => {
+    if (!selectedCell) {
+      return [];
+    }
+
+    const resourceLookup = new Map(data.resources.map((resource) => [resource.id, resource]));
+
+    return data.allocations
+      .filter(
+        (allocation) =>
+          allocation.projectCode === selectedCell.projectCode &&
+          allocation.resourceTypeId === selectedCell.resourceTypeId &&
+          allocation.year === filters.year &&
+          allocation.month === selectedCell.month,
+      )
+      .map((allocation) => ({
+        allocation,
+        resourceName: resourceLookup.get(allocation.resourceId)
+          ? getResourceFullName(resourceLookup.get(allocation.resourceId)!)
+          : 'Unknown resource',
+      }))
+      .sort((left, right) =>
+        left.resourceName.localeCompare(right.resourceName, undefined, { sensitivity: 'base' }),
+      );
+  }, [data.allocations, data.resources, filters.year, selectedCell]);
   const filterFields = useMemo<FilterBarField[]>(
     () => [
       {
@@ -339,7 +391,20 @@ export function DemandCoverageBoardPage() {
                   </td>
                   {row.months.map((cell) => (
                     <td className="px-3 py-2" key={cell.month}>
-                      <div className="min-w-[11rem] rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-2 text-xs">
+                      <button
+                        aria-label={`${row.projectCode} — ${row.projectName}, ${row.resourceTypeLabel}, ${cell.label}. ${buildCoverageTooltip(cell)} View assigned resources.`}
+                        className="min-w-[11rem] rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-2 text-left text-xs hover:border-[var(--color-bmx-blue)] focus:outline-none focus:ring-2 focus:ring-[var(--color-bmx-blue)]"
+                        onClick={() =>
+                          setSelectedCell({
+                            projectCode: row.projectCode,
+                            projectName: row.projectName,
+                            resourceTypeId: row.resourceTypeId,
+                            resourceTypeLabel: row.resourceTypeLabel,
+                            month: cell.month,
+                          })
+                        }
+                        type="button"
+                      >
                         <div className="mb-2">
                           <DemandCoverageBadge
                             compact
@@ -352,7 +417,7 @@ export function DemandCoverageBoardPage() {
                         <p>Gap {formatDayAmount(cell.remainingDemandDays)} d</p>
                         <p>Over-service {formatDayAmount(cell.overServiceDays)} d</p>
                         <p>Resources {cell.allocatedResourceCount}</p>
-                      </div>
+                      </button>
                     </td>
                   ))}
                 </tr>
@@ -361,6 +426,85 @@ export function DemandCoverageBoardPage() {
           </TableShell>
         )}
       </Card>
+
+      <Drawer
+        onClose={() => setSelectedCell(null)}
+        open={Boolean(selectedCell)}
+        title={
+          selectedCell
+            ? `${selectedCell.projectCode} — ${selectedCell.projectName} · ${new Intl.DateTimeFormat(
+                'en-US',
+                { month: 'long' },
+              ).format(new Date(filters.year, selectedCell.month - 1, 1))} ${filters.year}`
+            : ''
+        }
+      >
+        {selectedCell && selectedCellSummary ? (
+          <div className="space-y-3 text-sm">
+            <p className="text-[var(--text-secondary)]">{selectedCell.resourceTypeLabel}</p>
+            <ul className="grid gap-2 sm:grid-cols-2">
+              <li>Demand {formatDayAmount(selectedCellSummary.demandDays)} d</li>
+              <li>Covered {formatDayAmount(selectedCellSummary.allocatedDays)} d</li>
+              <li>Gap {formatDayAmount(selectedCellSummary.remainingDemandDays)} d</li>
+              <li>Over-service {formatDayAmount(selectedCellSummary.overServiceDays)} d</li>
+            </ul>
+            <TableShell caption="Resources assigned for this project and month" zebra>
+              <thead>
+                <tr className="border-b border-[var(--surf-divider)]">
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Resource
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Type
+                  </th>
+                  <th className="px-3 py-2 font-semibold" scope="col">
+                    Days
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedAssignments.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-3 text-[var(--text-secondary)]" colSpan={3}>
+                      No resources assigned yet.
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {selectedAssignments.map(({ allocation, resourceName }) => (
+                      <tr key={allocation.id} className="border-b border-[var(--surf-divider)]">
+                        <td className="px-3 py-2">{resourceName}</td>
+                        <td className="px-3 py-2">{selectedCell.resourceTypeLabel}</td>
+                        <td className="px-3 py-2">{formatDayAmount(allocation.allocatedDays)} d</td>
+                      </tr>
+                    ))}
+                    <tr className="font-semibold">
+                      <td className="px-3 py-2" colSpan={2}>
+                        Total
+                      </td>
+                      <td className="px-3 py-2">
+                        {formatDayAmount(
+                          selectedAssignments.reduce(
+                            (total, entry) => total + entry.allocation.allocatedDays,
+                            0,
+                          ),
+                        )}{' '}
+                        d
+                      </td>
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </TableShell>
+            <Link
+              className="inline-flex items-center gap-1 text-sm font-medium text-[var(--color-bmx-blue)] hover:underline"
+              to="/allocation-studio"
+            >
+              Open in Allocation Studio
+            </Link>
+          </div>
+        ) : null}
+      </Drawer>
     </div>
   );
 }

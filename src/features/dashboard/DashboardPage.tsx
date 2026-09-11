@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 
 import { FeedbackMessage } from '@/components/FeedbackMessage';
+import { formatDayAmount } from '@/components/formatDayAmount';
 import {
   AlertTriangle,
   Ban,
@@ -25,6 +26,7 @@ import { PageHeader } from '@/components/PageHeader';
 import { UtilizationBadge } from '@/components/UtilizationBadge';
 import { Card, IconChip, Skeleton, type IconChipTone } from '@/components/ui';
 import { UtilizationRing } from '@/features/dashboard/UtilizationRing';
+import { getResourceTypeDisplayLabel } from '@/features/resource-types';
 import type {
   Allocation,
   AppSettings,
@@ -32,6 +34,7 @@ import type {
   ImportBatch,
   Resource,
   ResourceNonWorkingDays,
+  ResourceType,
   WorkingDaysCalendar,
 } from '@/domain/entities';
 import { createRepository } from '@/persistence/repository';
@@ -67,6 +70,7 @@ const ALERT_ICON_CHIP_TONES: Record<DashboardAlert['tone'], IconChipTone> = {
 };
 
 const resourcesRepository = createRepository('resources');
+const resourceTypesRepository = createRepository('resourceTypes');
 const allocationsRepository = createRepository('allocations');
 const demandSnapshotsRepository = createRepository('demandSnapshots');
 const workingDaysRepository = createRepository('workingDaysCalendars');
@@ -76,6 +80,7 @@ const importBatchesRepository = createRepository('importBatches');
 
 interface DashboardData {
   resources: Resource[];
+  resourceTypes: ResourceType[];
   allocations: Allocation[];
   demandSnapshots: DemandSnapshot[];
   workingDaysCalendars: WorkingDaysCalendar[];
@@ -84,17 +89,11 @@ interface DashboardData {
   importBatches: ImportBatch[];
 }
 
-function formatDayAmount(value: number, displayPrecision = 1): string {
-  return new Intl.NumberFormat('en-US', {
-    maximumFractionDigits: displayPrecision,
-    minimumFractionDigits: value % 1 === 0 ? 0 : Math.min(1, displayPrecision),
-  }).format(value);
-}
-
 export function DashboardPage() {
   const now = new Date();
   const [data, setData] = useState<DashboardData>({
     resources: [],
+    resourceTypes: [],
     allocations: [],
     demandSnapshots: [],
     workingDaysCalendars: [],
@@ -106,6 +105,7 @@ export function DashboardPage() {
   const [feedback, setFeedback] = useState('');
   const [year, setYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [trendResourceTypeFilter, setTrendResourceTypeFilter] = useState('all');
   const loadRequestIdRef = useRef(0);
   const prefersReducedMotion = usePrefersReducedMotion();
 
@@ -120,6 +120,7 @@ export function DashboardPage() {
     try {
       const [
         resources,
+        resourceTypes,
         allocations,
         demandSnapshots,
         workingDaysCalendars,
@@ -128,6 +129,7 @@ export function DashboardPage() {
         importBatches,
       ] = await Promise.all([
         resourcesRepository.getAll(),
+        resourceTypesRepository.getAll(),
         allocationsRepository.getAll(),
         demandSnapshotsRepository.getAll(),
         workingDaysRepository.getAll(),
@@ -142,6 +144,7 @@ export function DashboardPage() {
 
       setData({
         resources,
+        resourceTypes,
         allocations,
         demandSnapshots,
         workingDaysCalendars,
@@ -199,6 +202,33 @@ export function DashboardPage() {
       data.resources,
       data.workingDaysCalendars,
       selectedMonth,
+      year,
+    ],
+  );
+  const trendViewModel = useMemo(
+    () =>
+      buildDashboardViewModel({
+        resources: data.resources,
+        allocations: data.allocations,
+        demandSnapshots: data.demandSnapshots,
+        workingDaysCalendars: data.workingDaysCalendars,
+        resourceNonWorkingDays: data.resourceNonWorkingDays,
+        appSettings: data.appSettings,
+        importBatches: data.importBatches,
+        year,
+        selectedMonth,
+        resourceTypeFilter: trendResourceTypeFilter,
+      }),
+    [
+      data.allocations,
+      data.appSettings,
+      data.demandSnapshots,
+      data.importBatches,
+      data.resourceNonWorkingDays,
+      data.resources,
+      data.workingDaysCalendars,
+      selectedMonth,
+      trendResourceTypeFilter,
       year,
     ],
   );
@@ -331,13 +361,32 @@ export function DashboardPage() {
                   utilization={viewModel.selectedMonthMetrics.utilization}
                 />
               </div>
+              <label
+                className="mb-4 block text-sm font-medium"
+                htmlFor="dashboard-trend-resource-type"
+              >
+                Resource type
+                <select
+                  className="mt-1 block w-full max-w-xs rounded-md border border-[var(--surf-divider)] bg-[var(--surf-800)] px-3 py-2"
+                  id="dashboard-trend-resource-type"
+                  value={trendResourceTypeFilter}
+                  onChange={(event) => setTrendResourceTypeFilter(event.target.value)}
+                >
+                  <option value="all">All resource types</option>
+                  {data.resourceTypes.map((resourceType) => (
+                    <option key={resourceType.id} value={resourceType.id}>
+                      {getResourceTypeDisplayLabel(resourceType)}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div
                 className="h-80 w-full"
                 data-testid="dashboard-utilization-chart"
                 style={{ minHeight: 320, minWidth: 320 }}
               >
                 <ResponsiveContainer height="100%" width="100%">
-                  <LineChart data={viewModel.months}>
+                  <LineChart data={trendViewModel.months}>
                     <CartesianGrid stroke={CHART_GRID_COLOR} strokeDasharray="3 3" />
                     <XAxis
                       dataKey="label"

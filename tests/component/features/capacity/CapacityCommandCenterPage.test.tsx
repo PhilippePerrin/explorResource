@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -10,6 +10,7 @@ import { createRepository } from '@/persistence/repository';
 const resourcesRepository = createRepository('resources');
 const resourceTypesRepository = createRepository('resourceTypes');
 const companiesRepository = createRepository('companies');
+const projectsRepository = createRepository('projects');
 const workingDaysRepository = createRepository('workingDaysCalendars');
 const allocationsRepository = createRepository('allocations');
 
@@ -27,7 +28,7 @@ describe('CapacityCommandCenterPage', () => {
     window.localStorage.clear();
   });
 
-  it('renders a virtualized heatmap with persistent filters and labeled utilization badges', async () => {
+  it('renders the full heatmap with persistent filters and labeled utilization badges', async () => {
     await resourceTypesRepository.put({
       id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
       label: 'Developer',
@@ -84,6 +85,14 @@ describe('CapacityCommandCenterPage', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       updatedAt: '2026-01-01T00:00:00.000Z',
     });
+    await projectsRepository.put({
+      id: '55555555-5555-5555-5555-555555555555',
+      code: 'E0100',
+      name: 'Portal Revamp',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
     await allocationsRepository.put({
       id: '33333333-3333-3333-3333-333333333333',
       resourceId: '11111111-1111-1111-1111-111111111111',
@@ -100,7 +109,7 @@ describe('CapacityCommandCenterPage', () => {
     const user = userEvent.setup();
     renderPage();
 
-    const body = await screen.findByTestId('capacity-virtualized-body');
+    const body = await screen.findByTestId('capacity-heatmap-body');
     expect(body).toBeInTheDocument();
     expect(await screen.findByText('Alice Martin')).toBeInTheDocument();
     expect(await screen.findByText('Bob Durand')).toBeInTheDocument();
@@ -126,6 +135,7 @@ describe('CapacityCommandCenterPage', () => {
       expect(screen.queryByText('Bob Durand')).not.toBeInTheDocument();
     });
 
+    await user.click(screen.getByRole('button', { name: /Favorites/i }));
     await user.type(screen.getByLabelText(/Save current filters as favorite/i), 'Alice only');
     await user.click(screen.getByRole('button', { name: /Save favorite/i }));
     await user.clear(screen.getByLabelText(/^Search$/i));
@@ -151,10 +161,12 @@ describe('CapacityCommandCenterPage', () => {
       const dialog = screen.getByRole('dialog', { name: /Alice Martin — January 2026/i });
       expect(dialog).toBeInTheDocument();
       expect(within(dialog).getByText(/Assigned load: 25 d/i)).toBeInTheDocument();
+      expect(within(dialog).getByText('E0100')).toBeInTheDocument();
+      expect(within(dialog).getByText('Portal Revamp')).toBeInTheDocument();
     });
   });
 
-  it('handles a 200-resource by 12-month synthetic dataset with a stable virtual canvas', async () => {
+  it('renders every resource row for a full ~30-person team with no inner scroll clipping', async () => {
     await resourceTypesRepository.put({
       id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
       label: 'Developer',
@@ -177,7 +189,8 @@ describe('CapacityCommandCenterPage', () => {
       });
     }
 
-    for (let index = 1; index <= 200; index += 1) {
+    const teamSize = 30;
+    for (let index = 1; index <= teamSize; index += 1) {
       const resourceId = `00000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`;
       await resourcesRepository.put({
         id: resourceId,
@@ -190,37 +203,34 @@ describe('CapacityCommandCenterPage', () => {
         updatedAt: '2026-01-01T00:00:00.000Z',
       });
 
-      for (let month = 1; month <= 12; month += 1) {
-        await allocationsRepository.put({
-          id: `10000000-0000-4000-8000-${(index * 100 + month).toString(16).padStart(12, '0')}`,
-          resourceId,
-          projectCode: 'E0100',
-          resourceTypeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-          year: 2026,
-          month,
-          allocatedDays: 10,
-          origin: 'manual',
-          createdAt: '2026-01-01T00:00:00.000Z',
-          updatedAt: '2026-01-01T00:00:00.000Z',
-        });
-      }
+      await allocationsRepository.put({
+        id: `10000000-0000-4000-8000-${index.toString(16).padStart(12, '0')}`,
+        resourceId,
+        projectCode: 'E0100',
+        resourceTypeId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        year: 2026,
+        month: 1,
+        allocatedDays: 10,
+        origin: 'manual',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      });
     }
 
     renderPage();
 
-    const body = await screen.findByTestId('capacity-virtualized-body');
+    const body = await screen.findByTestId('capacity-heatmap-body');
     await screen.findByText('Resource 001');
-    expect(body.querySelector('tbody')?.style.height).toBe(`${200 * 58}px`);
 
-    Object.defineProperty(body, 'scrollTop', {
-      configurable: true,
-      value: 10000,
-      writable: true,
-    });
-    fireEvent.scroll(body);
+    // Every row must already be present in the DOM — no scrolling required
+    // to reveal rows, since the heatmap is no longer windowed/virtualized.
+    for (let index = 1; index <= teamSize; index += 1) {
+      expect(screen.getByText(`Resource ${index.toString().padStart(3, '0')}`)).toBeInTheDocument();
+    }
 
-    await waitFor(() => {
-      expect(screen.getByText('Resource 173')).toBeInTheDocument();
-    });
-  }, 20000);
+    // No inner scroll container clips the rows — the body wraps the table
+    // for horizontal overflow only (many month columns), not a fixed height.
+    expect(body.className).not.toMatch(/max-h-/);
+    expect(body.className).not.toMatch(/overflow-y-/);
+  });
 });

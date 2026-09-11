@@ -58,7 +58,7 @@ export function DemandLineRow({
           {row.projectName}
         </div>
       </td>
-      <td className={`sticky left-[180px] z-10 w-[160px] px-3 py-2 ${stickyBg}`}>
+      <td className="w-[160px] px-3 py-2">
         <div title={row.resourceTypeFullLabel}>{row.resourceTypeLabel}</div>
         <button
           className="mt-1 text-left text-[11px] text-[var(--color-bmx-blue)] underline-offset-2 hover:underline disabled:cursor-not-allowed disabled:text-[var(--text-secondary)] disabled:no-underline"

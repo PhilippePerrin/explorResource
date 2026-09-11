@@ -78,4 +78,19 @@ describe('Drawer', () => {
     await user.click(screen.getByRole('button', { name: /Close panel/i }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
+
+  it('closes when the backdrop is clicked, but not when the panel itself is clicked', async () => {
+    const user = userEvent.setup();
+    render(<DrawerHarness />);
+
+    await user.click(screen.getByRole('button', { name: /Open drawer/i }));
+    const dialog = await screen.findByRole('dialog');
+
+    await user.click(dialog);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+    const backdrop = dialog.previousElementSibling as HTMLElement;
+    await user.click(backdrop);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
 });

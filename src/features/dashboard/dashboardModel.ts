@@ -1,3 +1,4 @@
+import { formatDayAmount } from '@/components/formatDayAmount';
 import type {
   Allocation,
   AppSettings,
@@ -170,11 +171,19 @@ export function buildDashboardViewModel(options: {
   importBatches: readonly ImportBatch[];
   year: number;
   selectedMonth: number;
+  resourceTypeFilter?: string;
 }): DashboardViewModel {
-  const activeResources = options.resources.filter((resource) => resource.status === 'active');
+  const resourceTypeFilter = options.resourceTypeFilter ?? 'all';
+  const activeResources = options.resources.filter(
+    (resource) =>
+      resource.status === 'active' &&
+      (resourceTypeFilter === 'all' || resource.resourceTypeId === resourceTypeFilter),
+  );
   const months = Array.from({ length: 12 }, (_, index) => createEmptyMonthMetrics(index + 1));
   const latestSnapshots = selectLatestDemandSnapshots(options.demandSnapshots).filter(
-    (snapshot) => snapshot.year === options.year,
+    (snapshot) =>
+      snapshot.year === options.year &&
+      (resourceTypeFilter === 'all' || snapshot.resourceTypeId === resourceTypeFilter),
   );
 
   for (const resource of activeResources) {
@@ -290,11 +299,12 @@ export function buildDashboardViewModel(options: {
   }
 
   if (selectedMonthMetrics.remainingDemandDays > 0) {
+    const displayPrecision = options.appSettings?.displayPrecision ?? 1;
     alerts.push({
       id: 'coverage-gap',
       tone: 'info',
       title: 'Demand remains uncovered',
-      description: `${selectedMonthMetrics.remainingDemandDays} d remain uncovered in ${selectedMonthMetrics.label}.`,
+      description: `${formatDayAmount(selectedMonthMetrics.remainingDemandDays, displayPrecision)} d remain uncovered in ${selectedMonthMetrics.label}.`,
     });
   }
 

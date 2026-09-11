@@ -80,14 +80,11 @@ export function MultiSelectPopoverField({
       : `${values.length} ${label.toLowerCase()} selected`;
 
   return (
-    <div
-      className="rounded-lg border border-[var(--surf-divider)] bg-[var(--surf-700)] p-3"
-      ref={containerRef}
-    >
-      <span className="text-sm font-medium" id={`filter-${fieldKey}-label`}>
+    <div className="flex min-w-[14rem] flex-1 items-center gap-2" ref={containerRef}>
+      <span className="w-28 shrink-0 text-sm font-medium" id={`filter-${fieldKey}-label`}>
         {label}
       </span>
-      <div className="relative mt-2">
+      <div className="relative flex-1">
         <button
           aria-controls={panelId}
           aria-expanded={open}

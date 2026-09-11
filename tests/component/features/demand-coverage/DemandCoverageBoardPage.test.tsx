@@ -9,6 +9,7 @@ import { createRepository } from '@/persistence/repository';
 
 const projectsRepository = createRepository('projects');
 const resourceTypesRepository = createRepository('resourceTypes');
+const resourcesRepository = createRepository('resources');
 const demandSnapshotsRepository = createRepository('demandSnapshots');
 const allocationsRepository = createRepository('allocations');
 
@@ -124,6 +125,7 @@ describe('DemandCoverageBoardPage', () => {
       expect(screen.queryByText('E0100')).not.toBeInTheDocument();
     });
 
+    await user.click(screen.getByRole('button', { name: /Favorites/i }));
     await user.type(screen.getByLabelText(/Save current filters as favorite/i), 'Supply gap');
     await user.click(screen.getByRole('button', { name: /Save favorite/i }));
     await user.clear(screen.getByLabelText(/Project search/i));
@@ -220,5 +222,90 @@ describe('DemandCoverageBoardPage', () => {
       expect(screen.getByText('E0200')).toBeInTheDocument();
       expect(screen.queryByText('E0100')).not.toBeInTheDocument();
     });
+  });
+
+  it('opens a resource assignment drawer when a monthly tile is clicked', async () => {
+    await projectsRepository.put({
+      id: '11111111-1111-1111-1111-111111111111',
+      code: 'E0100',
+      name: 'Commercial Analytics',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourceTypesRepository.put({
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      label: 'Developer',
+      shortCode: 'DEV',
+      color: '#00427f',
+      status: 'active',
+      displayOrder: 1,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await resourcesRepository.put({
+      id: '44444444-4444-4444-4444-444444444444',
+      firstName: 'Alice',
+      lastName: 'Martin',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      collaborationType: 'internal',
+      status: 'active',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await demandSnapshotsRepository.put({
+      id: '22222222-2222-2222-2222-222222222222',
+      importBatchId: 'manual',
+      projectCode: 'E0100',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      demandDays: 5,
+      supplyDays: 0,
+      origin: 'manual-adjustment',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+    await allocationsRepository.put({
+      id: '33333333-3333-3333-3333-333333333333',
+      resourceId: '44444444-4444-4444-4444-444444444444',
+      projectCode: 'E0100',
+      resourceTypeId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      year: 2026,
+      month: 1,
+      allocatedDays: 6,
+      origin: 'manual',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const user = userEvent.setup();
+    renderPage();
+
+    await screen.findByRole('heading', { name: /^Demand Coverage Board$/i });
+
+    const januaryTile = await screen.findByRole('button', {
+      name: /E0100 — Commercial Analytics, DEV, January\./i,
+    });
+    await user.click(januaryTile);
+
+    const dialog = await screen.findByRole('dialog', {
+      name: /E0100 — Commercial Analytics · January 2026/i,
+    });
+    expect(within(dialog).getByText('Alice Martin')).toBeInTheDocument();
+    expect(within(dialog).getAllByText('6 d')).toHaveLength(2);
+    expect(within(dialog).getByText(/Open in Allocation Studio/i)).toBeInTheDocument();
+
+    await user.click(within(dialog).getByLabelText(/Close panel/i));
+
+    const februaryTile = await screen.findByRole('button', {
+      name: /E0100 — Commercial Analytics, DEV, February\./i,
+    });
+    await user.click(februaryTile);
+
+    const emptyDialog = await screen.findByRole('dialog', {
+      name: /E0100 — Commercial Analytics · February 2026/i,
+    });
+    expect(within(emptyDialog).getByText(/No resources assigned yet\./i)).toBeInTheDocument();
   });
 });
